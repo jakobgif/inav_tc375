@@ -88,6 +88,20 @@
 #define IOCFG_IN_FLOATING    IO_CONFIG(GPIO_MODE_INPUT,  GPIO_DRIVE_STRENGTH_MODERATE, GPIO_OUTPUT_PUSH_PULL, GPIO_PULL_NONE)
 #define IOCFG_IPU_25         IO_CONFIG(GPIO_MODE_INPUT,  GPIO_DRIVE_STRENGTH_MODERATE, GPIO_OUTPUT_PUSH_PULL, GPIO_PULL_UP)
 
+#elif defined(TC375)
+
+//from IfxPort_Pin_Config
+#define IO_CONFIG(mode, padDriver) ((mode) | ((padDriver) << 8))
+
+#define DEFAULT_IfxPort_PadDriver IfxPort_PadDriver_cmosAutomotiveSpeed1
+
+//TODO: add all modes from IfxPort_Mode
+#define IOCFG_OUT_PP        IO_CONFIG(IfxPort_Mode_outputPushPullGeneral, DEFAULT_IfxPort_PadDriver)
+#define IOCFG_OUT_OD        IO_CONFIG(IfxPort_Mode_outputOpenDrainGeneral, DEFAULT_IfxPort_PadDriver)
+#define IOCFG_IPD           IO_CONFIG(IfxPort_Mode_inputPullDown, DEFAULT_IfxPort_PadDriver)
+#define IOCFG_IPU           IO_CONFIG(IfxPort_Mode_inputPullUp, DEFAULT_IfxPort_PadDriver)
+#define IOCFG_IN_FLOATING   IO_CONFIG(IfxPort_Mode_inputNoPullDevice, DEFAULT_IfxPort_PadDriver)
+
 #elif defined(UNIT_TEST) || defined(SITL_BUILD)
 
 # define IOCFG_OUT_PP         0
