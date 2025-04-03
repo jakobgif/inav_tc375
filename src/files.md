@@ -2,7 +2,7 @@
 
 ## File tree
 
-```Tree
+```
 src/
 ┣ bl/
 ┃ ┗ bl_main.c (Bootloader not needed)
@@ -99,7 +99,7 @@ src/
 ┃ ┃ ┣ uvarint.c (no port)
 ┃ ┃ ┣ uvarint.h
 ┃ ┃ ┗ vector.h
-┃ ┣ config/ (handles config storage. for litekit use EEPROM?)
+┃ ┣ config/ (handles config storage. for aurix we use CONFIG_IN_FLASH and store in DFLASH0, DONE)
 ┃ ┃ ┣ config_eeprom.c (compile issues)
 ┃ ┃ ┣ config_eeprom.h 
 ┃ ┃ ┣ config_master.h
@@ -271,6 +271,7 @@ here wir start with actual drivers
 ┃ ┃ ┣ adc_stm32h7xx.c (CPU specific)
 ┃ ┃ ┣ buf_writer.c (no port)
 ┃ ┃ ┣ buf_writer.h
+
 here the bus implementation starts 
 ┃ ┃ ┣ bus.c (no implementations in this file, only wrappers)
 ┃ ┃ ┣ bus.h
@@ -300,12 +301,14 @@ here the bus implementation starts
 ┃ ┃ ┣ display_ug2864hsweg01.h
 ┃ ┃ ┣ display_widgets.c (no port, enable with USE_CANVAS)
 ┃ ┃ ┣ display_widgets.h
+
 //TODO: make sure DMA is not used
 ┃ ┃ ┣ dma.h (CPU specific dma)
 ┃ ┃ ┣ dma_at32f43x.c (CPU specific dma)
 ┃ ┃ ┣ dma_stm32f4xx.c (CPU specific dma)
 ┃ ┃ ┣ dma_stm32f7xx.c (CPU specific dma)
 ┃ ┃ ┣ dma_stm32h7xx.c (CPU specific dma)
+
 ┃ ┃ ┣ exti.c (external interrupts, seems like it is not really used despite of the init)
 ┃ ┃ ┣ exti.h
 ┃ ┃ ┣ flash.c (can be enabled with USE_FLASHFS)
@@ -320,7 +323,8 @@ here the bus implementation starts
 ┃ ┃ ┣ headtracker_common.h
 ┃ ┃ ┣ i2c_application.c (file that is only included in drivers\bus_i2c_at32f43x.c and therefore not needed)
 ┃ ┃ ┣ i2c_application.h 
-┃ ┃ ┣ io.c (GPIO functions, this needs porting)
+
+┃ ┃ ┣ io.c (GPIO functions, this needs porting, DONE)
 ┃ ┃ ┣ io.h
 ┃ ┃ ┣ io_def.h
 ┃ ┃ ┣ io_def_generated.h
@@ -330,6 +334,7 @@ here the bus implementation starts
 ┃ ┃ ┣ io_port_expander.c (this is for io expander, only wrappers, no port)
 ┃ ┃ ┣ io_port_expander.h
 ┃ ┃ ┣ io_types.h
+
 ┃ ┃ ┣ irlock.c (IR lock is some guidance system, can be enabled with USE_IRLOCK)
 ┃ ┃ ┣ irlock.h
 ┃ ┃ ┣ lights_io.c (wrapper can be enabled by USE_LIGHTS)
@@ -348,8 +353,10 @@ here the bus implementation starts
 ┃ ┃ ┣ osd.c (on screen display, can be enabled by USE_OSD, no port)
 ┃ ┃ ┣ osd.h
 ┃ ┃ ┣ osd_symbols.h
+
 ┃ ┃ ┣ persistent.c (save persistent data in real time clock registers mof stm32, maybe a port is required)
 ┃ ┃ ┣ persistent.h
+
 ┃ ┃ ┣ pinio.c (this is some spetial io device, can be enabled with USE_PINIO, no port)
 ┃ ┃ ┣ pinio.h
 ┃ ┃ ┣ pwm_esc_detect.c (can be enabled with USE_BRUSHED_ESC_AUTODETECT)
@@ -390,15 +397,17 @@ here the bus implementation starts
 ┃ ┃ ┣ sound_beeper.h
 ┃ ┃ ┣ stack_check.c (enabled with STACK_CHECK, maybe port, maybe modifiy linker script)
 ┃ ┃ ┣ stack_check.h
+
 ┃ ┃ ┣ system.c (system init, port required)
 ┃ ┃ ┣ system.h
 ┃ ┃ ┣ system_at32f43x.c (CPU specific)
 ┃ ┃ ┣ system_stm32f4xx.c (CPU specific)
 ┃ ┃ ┣ system_stm32f7xx.c (CPU specific)
 ┃ ┃ ┣ system_stm32h7xx.c (CPU specific)
-┃ ┃ ┣ time.c (some timing stuff, port required)
+
+┃ ┃ ┣ time.c (some timing stuff, port required, DONE)
 ┃ ┃ ┣ time.h
-┃ ┃ ┣ timer.c (cpu hardware timer, port required)
+┃ ┃ ┣ timer.c (cpu hardware timer, port required, DONE)
 ┃ ┃ ┣ timer.h
 ┃ ┃ ┣ timer_at32f43x.c
 ┃ ┃ ┣ timer_def.h
@@ -413,6 +422,7 @@ here the bus implementation starts
 ┃ ┃ ┣ timer_stm32f4xx.c
 ┃ ┃ ┣ timer_stm32f7xx.c
 ┃ ┃ ┣ timer_stm32h7xx.c
+
 ┃ ┃ ┣ uart_inverter.c (invert uart pins, enable with USE_UART_INVERTER, no port)
 ┃ ┃ ┣ uart_inverter.h
 ┃ ┃ ┣ usb_io.c (enable with USE_VCP)
@@ -425,6 +435,10 @@ here the bus implementation starts
 ┃ ┃ ┣ usb_msc_h7xx.c
 ┃ ┃ ┣ vtx_common.c (video transmitter, seems like no port)
 ┃ ┃ ┗ vtx_common.h
+
+
+
+
 ┃ ┣ fc/
 ┃ ┃ ┣ cli.c
 ┃ ┃ ┣ cli.h
