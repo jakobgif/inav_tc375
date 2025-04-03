@@ -38,6 +38,8 @@
 uint8_t lookupTimerIndex(const tmr_type *tim);
 void impl_timerCaptureCompareHandler(tmr_type *tim, timHardwareContext_t * timerCtx);
 
+#elif defined(TC375)
+uint8_t lookupTimerIndex(const HAL_Timer_t *tim);
 #else // end at32 
 
 #if defined(USE_HAL_DRIVER)
@@ -66,7 +68,11 @@ void impl_timerCaptureCompareHandler(TIM_TypeDef *tim, timHardwareContext_t * ti
 
 #endif //end of else (stm32)
 
+#if !defined(TC375) //on aurix we only use TCH_t
 void impl_timerInitContext(timHardwareContext_t * timCtx);
+#else
+void impl_timerInitContext(TCH_t * tch);
+#endif
 
 volatile timCCR_t * impl_timerCCR(TCH_t * tch);
 void impl_timerNVICConfigure(TCH_t * tch, int irqPriority);

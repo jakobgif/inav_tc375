@@ -36,8 +36,11 @@
 #include "drivers/timer.h"
 #include "drivers/timer_impl.h"
 
+#if !defined(TC375)
 timHardwareContext_t * timerCtx[HARDWARE_TIMER_DEFINITION_COUNT];
-
+#else
+TCH_t * tch[HARDWARE_TIMER_DEFINITION_COUNT];
+#endif
 
 uint8_t timer2id(const HAL_Timer_t *tim)
 {
@@ -109,7 +112,7 @@ TCH_t * timerGetTCH(const timerHardware_t * timHw)
         LOG_ERROR(TIMER, "Can't find hardware timer definition");
         return NULL;
     }
-
+#if !defined(TC375)
     // If timer context does not exist - allocate memory
     if (timerCtx[timerIndex] == NULL) {
         timerCtx[timerIndex] = memAllocate(sizeof(timHardwareContext_t), OWNER_TIMER);
@@ -139,6 +142,32 @@ TCH_t * timerGetTCH(const timerHardware_t * timHw)
     timerCtx[timerIndex]->ch[timHw->channelIndex].dmaState = TCH_DMA_IDLE;
 
     return &timerCtx[timerIndex]->ch[timHw->channelIndex];
+#else
+    // if inav timer driver does not exist - allocate memory
+    if (tch[timerIndex] == NULL) {
+        tch[timerIndex] = memAllocate(sizeof(TCH_t), OWNER_TIMER);
+        
+        // Check for OOM
+        if (tch[timerIndex] == NULL) {
+            LOG_ERROR(TIMER, "Can't allocate TCH object");
+            return NULL;
+        }
+
+        // Initialize parent object
+        memset(tch[timerIndex], 0, sizeof(TCH_t));
+
+        // Implementation-specific init
+        impl_timerInitContext(tch[timerIndex]);
+    }
+
+    // Initialize timer channel object
+    tch[timerIndex]->timHw = timHw;
+    //tch[timerIndex]->dma = NULL; //TODO: bring DMA back at some point
+    tch[timerIndex]->cb = NULL;
+    tch[timerIndex]->dmaState = TCH_DMA_IDLE;
+
+    return tch[timerIndex];
+#endif
 }
 
 // config edge and overflow callback for channel. Try to avoid overflowCallback, it is a bit expensive
@@ -151,6 +180,7 @@ void timerChInitCallbacks(timerCallbacks_t * cb, void * callbackParam, timerCall
 
 void timerChConfigCallbacks(TCH_t * tch, timerCallbacks_t * cb)
 {
+#if !defined(TC375) //TODO: only used by soft serial. Check this later
     if (tch == NULL) {
         return;
     }
@@ -172,6 +202,9 @@ void timerChConfigCallbacks(TCH_t * tch, timerCallbacks_t * cb)
     if (cb->callbackOvr) {
         impl_timerEnableIT(tch, IMPL_TIM_IT_UPDATE_INTERRUPT);
     }
+#else
+    return;
+#endif
 }
 
 // Configure input captupre
@@ -184,6 +217,8 @@ uint16_t timerGetPeriod(TCH_t * tch)
 {
 #if defined(AT32F43x)
     return tch->timHw->tim->pr;     //tmr pr registe
+#elif defined(TC375)
+    return IfxGtm_Tom_Timer_getPeriod(tch->timHw->tim); 
 #else
     return tch->timHw->tim->ARR;
 #endif
@@ -191,6 +226,7 @@ uint16_t timerGetPeriod(TCH_t * tch)
 //timerHardware  target.c
 void timerInit(void)
 {
+#if !defined(TC375)   
     memset(timerCtx, 0, sizeof (timerCtx));
 
     /* enable the timer peripherals */
@@ -198,7 +234,16 @@ void timerInit(void)
         unsigned timer = lookupTimerIndex(timerHardware[i].tim);
         RCC_ClockCmd(timerDefinitions[timer].rcc, ENABLE);
     }
+#else
+    memset(tch, 0, sizeof(tch));
 
+    // enable timer hardware
+    // done by aurix driver?
+    /*for (int i = 0; i < timerHardwareCount; i++) {
+        //unsigned timer = lookupTimerIndex(timerHardware[i].tim);
+        //RCC_ClockCmd(timerDefinitions[timer].rcc, ENABLE);
+    }*/
+#endif
     /* Before 2.0 timer outputs were initialized to IOCFG_AF_PP_PD even if not used */
     /* To keep compatibility make sure all timer output pins are mapped to INPUT with weak pull-down */
     for (int i = 0; i < timerHardwareCount; i++) {
