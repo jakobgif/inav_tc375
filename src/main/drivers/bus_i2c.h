@@ -17,6 +17,12 @@
 
 #pragma once
 
+#include "drivers/io_types.h"
+
+#if defined(TC375)
+
+#else 
+
 /*
 #define I2C_SHORT_TIMEOUT            ((uint32_t)0x1000)
 #define I2C_LONG_TIMEOUT             ((uint32_t)(10 * I2C_SHORT_TIMEOUT))
@@ -71,3 +77,5 @@ bool i2cRead(I2CDevice device, uint8_t addr_, uint8_t reg, uint8_t len, uint8_t*
 bool i2cBusy(I2CDevice device, bool *error);
 
 uint16_t i2cGetErrorCounter(void);
+
+#endif //tc375

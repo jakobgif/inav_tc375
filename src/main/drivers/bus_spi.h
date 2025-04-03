@@ -17,6 +17,10 @@
 
 #pragma once
 
+#if defined(TC375)
+
+#else 
+
 #include "drivers/io_types.h"
 #include "drivers/rcc_types.h"
 #include "drivers/dma.h"
@@ -115,3 +119,5 @@ bool spiInitDevice(SPIDevice device, bool leadingEdge);
     SPIDevice spiDeviceByInstance(SPI_TypeDef *instance);
     SPI_TypeDef * spiInstanceByDevice(SPIDevice device);
 #endif
+
+#endif //tc375
