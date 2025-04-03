@@ -31,6 +31,9 @@ typedef uint32_t config_streamer_buffer_align_type_t;
 #elif defined(STM32H7)
 #define CONFIG_STREAMER_BUFFER_SIZE 32  // Flash word = 256-bits
 typedef uint64_t config_streamer_buffer_align_type_t;
+#elif defined(TC375)
+#define CONFIG_STREAMER_BUFFER_SIZE IFXFLASH_DFLASH_PAGE_LENGTH //8bytes
+typedef uint32_t config_streamer_buffer_align_type_t;
 #else
 #define CONFIG_STREAMER_BUFFER_SIZE 4
 typedef uint32_t config_streamer_buffer_align_type_t;
