@@ -17,8 +17,14 @@
 
 #include "version.h"
 
+#ifdef TC375 
+const char * const targetName = STR_HELPER(TC375);
+const char * const compilerVersion = __VERSION__;
+const char * const shortGitRevision = "0";
+#else
 const char * const targetName = __TARGET__;
 const char * const compilerVersion = __VERSION__;
 const char * const shortGitRevision = __REVISION__;
+#endif //TC375
 const char * const buildDate = __DATE__;
 const char * const buildTime = __TIME__;
