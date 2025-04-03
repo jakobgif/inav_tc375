@@ -159,8 +159,8 @@ void delayNanos(timeDelta_t ns){
     while (ticks() - startTicks <= ticksToWait);
 #else
     //from inav above
-    const uint32_t startTicks = ticks();
-    const uint32_t ticksToWait = (ns * usTicks) / 1000;
+    const ticks_t startTicks = ticks();
+    const ticks_t ticksToWait = (ns * usTicks) / 1000;
     while (ticks() - startTicks <= ticksToWait);
 #endif
 }
