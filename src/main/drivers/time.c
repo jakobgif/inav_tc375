@@ -146,7 +146,7 @@ timeMs_t millis(void){
 }
 
 ticks_t ticks(void){
-    IfxStm_get(IFXSTM_DEFAULT_TIMER);
+    return IfxStm_get(IFXSTM_DEFAULT_TIMER);
 }
 
 void delayNanos(timeDelta_t ns){
