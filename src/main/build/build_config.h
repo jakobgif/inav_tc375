@@ -17,6 +17,13 @@
 
 #pragma once
 
+#ifdef TC375 
+//TODO: optimize for Aurix
+#define EXTENDED_FASTRAM
+#define DMA_RAM
+#define SLOW_RAM
+#define STATIC_FASTRAM              static FASTRAM
+#else
 #define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
 
 #ifdef UNIT_TEST
@@ -64,3 +71,5 @@
 
 #define STATIC_FASTRAM              static FASTRAM
 #define STATIC_FASTRAM_UNIT_TESTED  STATIC_UNIT_TESTED FASTRAM
+
+#endif //TC375 
