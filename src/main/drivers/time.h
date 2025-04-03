@@ -24,7 +24,11 @@ extern "C" {
 #endif
 #include "common/time.h"
 
+#if !defined(TC375)
 extern uint32_t usTicks;
+#else
+extern ticks_t usTicks;
+#endif
 
 void delayMicroseconds(timeUs_t us);
 void delayNanos(timeDelta_t ns);
