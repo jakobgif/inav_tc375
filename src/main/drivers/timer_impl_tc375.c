@@ -52,7 +52,8 @@
 #endif
 
 void impl_timerInitContext(TCH_t * tch){
-    UNUSED(tch);
+    tch->timHw->config->triggerOut = tch->timHw->triggerOut;
+    return;
 }
 
 volatile timCCR_t * impl_timerCCR(TCH_t * tch){

@@ -40,10 +40,12 @@
 #include "drivers/timer.h"
 // #include "drivers/timer_impl.h"
 
+//we can create timers in runtime so we need to prepare structs for every available timer
 IfxGtm_Tom_Timer tomDriver[HARDWARE_TIMER_DEFINITION_COUNT];
+IfxGtm_Tom_Timer_Config tomConfig[HARDWARE_TIMER_DEFINITION_COUNT];
 
 timerDef_t const timerDefinitions[HARDWARE_TIMER_DEFINITION_COUNT] = {
-    [0] = { .tim=&tomDriver[0], .rcc=NULL, .irq=NULL, .secondIrq=NULL },
+    [0] = { .tim=&tomDriver[0], .config=&tomConfig[0], .rcc=NULL, .irq=NULL, .secondIrq=NULL },
 };
 
 //return clock speed of this timer

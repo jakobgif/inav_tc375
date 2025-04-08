@@ -108,11 +108,15 @@
 #elif defined(AT32F43x)
     #include "timer_def_at32f43x.h"
 #elif defined(TC375)
-#define DEF_TIM(tim, ioTag, ioMode, usageFlags) {   \
-    tim,                            \
-    ioTag,                          \
-    ioMode,                         \
-    usageFlags                      \
+//pinMap has to be assigned in runtime
+//used to make timerHardware_t
+#define DEF_TIM(tim, config, pinMap, pin, pinMode, usageFlags) {   \
+    tim,            \
+    config,         \
+    &pinMap,        \
+    IO_TAG(pin),    \
+    pinMode,        \
+    usageFlags      \
 }
 #elif defined(SITL_BUILD)
 #else
