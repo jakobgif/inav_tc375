@@ -34,7 +34,14 @@
 
 // *************** LED **********************
 
-#define LED0    PMODULE_P005
+#define LED0_PINMAP         IfxGtm_TOM0_0N_TOUT106_P10_4_OUT
+#define LED0    MODULE_P00_5
+
+//TODO: from this 
+//#define LED0_PINMAP         IfxAsclin0_RXA_P14_1_IN
+//IfxAsclin_Rx_In IfxAsclin9_RXB_P01_7_IN = {&MODULE_ASCLIN9, {&MODULE_P01, 7}, Ifx_RxSel_b};
+//shall be automatically created
+//#define LED0    MODULE_P00_5
 
 // *************** SPI: Gyro & ACC & OSD **********************
 // #define USE_SPI
@@ -62,9 +69,17 @@
 // *************** UART *****************************
 //#define USE_VCP
 
-//#define USE_UART1
-//#define UART1_RX_PIN            PA10
-//#define UART1_TX_PIN            PA9
+#define USE_UART1
+
+//on aurix we need pinmap to route peripherals correctly. But inav also needs a pin number
+#define UART1_PINMAP_RX         IfxAsclin0_RXA_P14_1_IN
+#define UART1_PIN_RX            MODULE_P00_5
+#define UART1_PINMAP_TX         IfxAsclin0_RXB_P15_3_IN
+#define UART1_PIN_TX            MODULE_P00_5
+
+//#define UART1_RX_PIN            DEFIO_PINID(UART1_ROUTE_RX) //PMODULE_P000
+//#define UART1_TX_PIN            PMODULE_P001
+
 
 //#define USE_LOG
 
@@ -92,7 +107,7 @@
 // #define UART8_RX_PIN            PE0
 // #define UART8_TX_PIN            PE1
 
-#define SERIAL_PORT_COUNT       0      //VCP, UART1, UART2, UART3, UART4, UART6, UART7, UART8
+#define SERIAL_PORT_COUNT       1      //VCP, UART1, UART2, UART3, UART4, UART6, UART7, UART8
 
 // #define DEFAULT_RX_TYPE         RX_TYPE_SERIAL
 // #define SERIALRX_PROVIDER       SERIALRX_SBUS
@@ -151,8 +166,7 @@
 // #define USE_ESC_SENSOR
 // #define USE_SERIAL_4WAY_BLHELI_INTERFACE
 
-//for now we only do the LED pin P00.5
-#define TARGET_IO_PORTMODULE_P00 0x20
+#define TARGET_IO_PORTMODULE_P00 0x3F
 
 /*#define DEFIO_GPIOID__MODULE_P01 12
 #define DEFIO_GPIOID__MODULE_P02 12
