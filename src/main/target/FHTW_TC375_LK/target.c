@@ -38,7 +38,7 @@
 //#include "drivers/sensor.h"
 
 timerHardware_t timerHardware[] = {
-    DEF_TIM(&tomDriver[0], 0, 0, TIM_USE_OUTPUT_AUTO),
+    DEF_TIM(&tomDriver[0], &tomConfig[0], LED0_PINMAP, LED0, IOCFG_OUT_PP, TIM_USE_OUTPUT_AUTO),
 };
 
 // timerHardware_t exampleTimerHardware[] = {
