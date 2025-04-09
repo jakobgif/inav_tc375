@@ -78,13 +78,13 @@ END2
     my @prev_ports = ();
     map { my $port = $_;  my @ret = map { my $pin = $_; chomp(my $ret = << "END2"); $ret } @pins ; push @prev_ports, $port; @ret } @ports; }]}
 #if DEFIO_PORT_${port}_USED_MASK & BIT(${pin})
-# define DEFIO_TAG__P${port}${pin} DEFIO_TAG_MAKE(DEFIO_GPIOID__${port}, ${pin})
-# define DEFIO_TAG_E__P${port}${pin} DEFIO_TAG_MAKE(DEFIO_GPIOID__${port}, ${pin})
-# define DEFIO_REC__P${port}${pin} DEFIO_REC_INDEXED(BITCOUNT(DEFIO_PORT_${port}_USED_MASK & (BIT(${pin}) - 1)) + @{[join('+', map {  "DEFIO_PORT_${_}_USED_COUNT" } @prev_ports) || '0']})
+# define DEFIO_TAG__${port}_${pin} DEFIO_TAG_MAKE(DEFIO_GPIOID__${port}, ${pin})
+# define DEFIO_TAG_E__${port}_${pin} DEFIO_TAG_MAKE(DEFIO_GPIOID__${port}, ${pin})
+# define DEFIO_REC__${port}_${pin} DEFIO_REC_INDEXED(BITCOUNT(DEFIO_PORT_${port}_USED_MASK & (BIT(${pin}) - 1)) + @{[join('+', map {  "DEFIO_PORT_${_}_USED_COUNT" } @prev_ports) || '0']})
 #else
-# define DEFIO_TAG__P${port}${pin} defio_error_P${port}${pin}_is_not_supported_on_TARGET
-# define DEFIO_TAG_E__P${port}${pin} DEFIO_TAG_E__NONE
-# define DEFIO_REC__P${port}${pin} defio_error_P${port}${pin}_is_not_supported_on_TARGET
+# define DEFIO_TAG__${port}_${pin} defio_error_${port}_${pin}_is_not_supported_on_TARGET
+# define DEFIO_TAG_E__${port}_${pin} DEFIO_TAG_E__NONE
+# define DEFIO_REC__${port}_${pin} defio_error_${port}_${pin}_is_not_supported_on_TARGET
 #endif
 END2
 
