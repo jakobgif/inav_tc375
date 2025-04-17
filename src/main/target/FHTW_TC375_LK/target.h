@@ -72,10 +72,10 @@
 #define USE_UART1
 
 //on aurix we need pinmap to route peripherals correctly. But inav also needs a pin number
-#define UART1_PINMAP_RX         IfxAsclin0_RXA_P14_1_IN
-#define UART1_PIN_RX            MODULE_P00_5
-#define UART1_PINMAP_TX         IfxAsclin0_RXB_P15_3_IN
-#define UART1_PIN_TX            MODULE_P00_5
+#define UART1_PINMAP_RX   IfxAsclin0_RXA_P14_1_IN
+#define UART1_PIN_RX      MODULE_P14_1
+#define UART1_PINMAP_TX   IfxAsclin0_TX_P14_0_OUT
+#define UART1_PIN_TX      MODULE_P14_0
 
 //#define UART1_RX_PIN            DEFIO_PINID(UART1_ROUTE_RX) //PMODULE_P000
 //#define UART1_TX_PIN            PMODULE_P001
