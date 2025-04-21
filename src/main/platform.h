@@ -97,6 +97,26 @@ typedef   uint64    uint64_t;
 //timer
 #include "Libraries\iLLD\TC37A\Tricore\Stm\Std\IfxStm.h"
 #include "Libraries\iLLD\TC37A\Tricore\Gtm\Tom\Timer\IfxGtm_Tom_Timer.h"
+
+//uart
+#include "Libraries\iLLD\TC37A\Tricore\Asclin\Asc\IfxAsclin_Asc.h"
+
+#include "target.h"
+/**
+ * @brief priority levels for aurix low level driver
+ * 
+ */
+typedef enum uint8 {
+    INTPRIO_DISABLED = 0, //0 will never be served, 1 is the minimum level
+
+    INTPRIO_UART = 50,
+#ifdef USE_UART1
+    INTPRIO_ASCLIN0_TX,
+    INTPRIO_ASCLIN0_RX,
+#endif
+
+    INTPRIO_MAX = 255 //max will be served first
+} inav_tc375_prio_levels;
 #endif
 
 #include "target/common.h"
