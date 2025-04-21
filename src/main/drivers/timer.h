@@ -106,7 +106,7 @@ typedef struct timerDef_s {
 // hardware definition (listed in target.c)
 typedef struct timerHardware_s {
     IfxGtm_Tom_Timer *tim;
-    IfxGtm_Tom_Timer_Config *config; //we store this statically so we can modifiy the existing config afterwards
+    IfxGtm_Tom_Timer_Config *config; //we store this statically somewhere so we can modifiy the existing config afterwards
     IfxGtm_Tom_ToutMap *triggerOut; //output mapping, saved into config during impl_timerInitContext()
     ioTag_t tag;
     //uint8_t channelIndex;
