@@ -17,12 +17,20 @@
 
 #pragma once
 
-#ifdef TC375 
+#if defined(TC375)
+#define AURIX_NO_BOOTLOADER
 //TODO: optimize for Aurix
 #define EXTENDED_FASTRAM
 #define DMA_RAM
 #define SLOW_RAM
-#define STATIC_FASTRAM              static FASTRAM
+#define FASTRAM
+#define STATIC_FASTRAM static FASTRAM
+#define REQUIRE_CC_ARM_PRINTF_SUPPORT
+#define REQUIRE_PRINTF_LONG_SUPPORT
+#define STATIC_UNIT_TESTED static
+#define STATIC_INLINE_UNIT_TESTED static inline
+#define INLINE_UNIT_TESTED inline
+#define UNIT_TESTED
 #else
 #define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
 
