@@ -19,11 +19,7 @@
  * @file serial_uart_tc375.c
  * @author Jakob Frenzel (jakob.frenzel@hotmail.com)
  * @brief UART driver for AURIX
- * @version 0.1
  * @date 2025-04-10
- * 
- * @copyright Copyright (c) 2025
- * 
  */
 
 #include <stdbool.h>
@@ -145,10 +141,21 @@ static uartDevice_t* uartHardwareMap[] = {
 #endif
 };
 
-void uartIrqHandler(uartPort_t *s) {
-
+void uartTxIrqHandler(uartPort_t *s) {
+    IfxAsclin_Asc_isrTransmit(s->handle);
 }
- 
+
+void uartRxIrqHandler(uartPort_t *s) {
+    IfxAsclin_Asc_isrReceive(s->handle);
+
+	if(s->port.rxCallback) {
+		uint8_t rxData;
+		Ifx_SizeT size = sizeof(uint8_t); //one byte
+		IfxAsclin_Asc_read(s->handle, &rxData, &size, TIME_INFINITE); //read from FIFO
+		s->port.rxCallback(rxData, s->port.rxCallbackData);
+	}
+}
+
 uartPort_t *serialUART(UARTDevice_e device, uint32_t baudRate, portMode_t mode, portOptions_t options) {
     uartPort_t *s;
 
@@ -187,117 +194,64 @@ uartPort_t *serialUART(UARTDevice_e device, uint32_t baudRate, portMode_t mode, 
         }
     }
 
+    //make some basic configs
+    s->config->txBuffer = NULL_PTR; //buffer will be dynimcally assigned by aurix driver, but size is 0 so we will not create a buffer TODO: check if this is true by checking this address after init is done
+    s->config->txBufferSize = 0; //buffer done by inav
+    s->config->rxBuffer = NULL_PTR;
+    s->config->rxBufferSize = 0;
+
     return s;
 }
 
 #ifdef USE_UART1
 uartPort_t *serialUART1(uint32_t baudRate, portMode_t mode, portOptions_t options)
 {
-    return serialUART(UARTDEV_1, baudRate, mode, options);
+    uartPort_t *s = serialUART(UARTDEV_1, baudRate, mode, options);
+    //here we set the int prios
+    s->config->interrupt.txPriority = (inav_tc375_prio_levels)INTPRIO_ASCLIN0_TX;
+    s->config->interrupt.rxPriority = (inav_tc375_prio_levels)INTPRIO_ASCLIN0_RX;
+    s->config->interrupt.typeOfService = IfxCpu_Irq_getTos(IfxCpu_getCoreIndex());
+
+    return s;
 }
 
-// USART1 Rx/Tx IRQ Handler
-void USART1_IRQHandler(void)
-{
+IFX_INTERRUPT(asclin0TxISR, 0, (inav_tc375_prio_levels)INTPRIO_ASCLIN0_TX);
+void asclin0TxISR(void){
     uartPort_t *s = &(uartHardwareMap[UARTDEV_1]->port);
-    uartIrqHandler(s);
+    uartTxIrqHandler(s);
+}
+
+IFX_INTERRUPT(asclin0RxISR, 0, (inav_tc375_prio_levels)INTPRIO_ASCLIN0_RX);
+void asclin0RxISR(void){
+    uartPort_t *s = &(uartHardwareMap[UARTDEV_1]->port);
+    uartRxIrqHandler(s);
 }
 #endif
 
 #ifdef USE_UART2
-uartPort_t *serialUART2(uint32_t baudRate, portMode_t mode, portOptions_t options)
-{
-    return serialUART(UARTDEV_2, baudRate, mode, options);
-}
 
-// USART2 Rx/Tx IRQ Handler
-void USART2_IRQHandler(void)
-{
-    uartPort_t *s = &(uartHardwareMap[UARTDEV_2]->port);
-    uartIrqHandler(s);
-}
 #endif
 
 #ifdef USE_UART3
-uartPort_t *serialUART3(uint32_t baudRate, portMode_t mode, portOptions_t options)
-{
-    return serialUART(UARTDEV_3, baudRate, mode, options);
-}
 
-// USART3 Rx/Tx IRQ Handler
-void USART3_IRQHandler(void)
-{
-    uartPort_t *s = &(uartHardwareMap[UARTDEV_3]->port);
-    uartIrqHandler(s);
-}
 #endif
 
 #ifdef USE_UART4
-uartPort_t *serialUART4(uint32_t baudRate, portMode_t mode, portOptions_t options)
-{
-    return serialUART(UARTDEV_4, baudRate, mode, options);
-}
 
-// UART4 Rx/Tx IRQ Handler
-void UART4_IRQHandler(void)
-{
-    uartPort_t *s = &(uartHardwareMap[UARTDEV_4]->port);
-    uartIrqHandler(s);
-}
 #endif
 
 #ifdef USE_UART5
-uartPort_t *serialUART5(uint32_t baudRate, portMode_t mode, portOptions_t options)
-{
-    return serialUART(UARTDEV_5, baudRate, mode, options);
-}
 
-// UART5 Rx/Tx IRQ Handler
-void UART5_IRQHandler(void)
-{
-    uartPort_t *s = &(uartHardwareMap[UARTDEV_5]->port);
-    uartIrqHandler(s);
-}
 #endif
 
 #ifdef USE_UART6
-uartPort_t *serialUART6(uint32_t baudRate, portMode_t mode, portOptions_t options)
-{
-    return serialUART(UARTDEV_6, baudRate, mode, options);
-}
 
-// USART6 Rx/Tx IRQ Handler
-void USART6_IRQHandler(void)
-{
-    uartPort_t *s = &(uartHardwareMap[UARTDEV_6]->port);
-    uartIrqHandler(s);
-}
 #endif
 
 #ifdef USE_UART7
-uartPort_t *serialUART7(uint32_t baudRate, portMode_t mode, portOptions_t options)
-{
-    return serialUART(UARTDEV_7, baudRate, mode, options);
-}
 
-// UART7 Rx/Tx IRQ Handler
-void UART7_IRQHandler(void)
-{
-    uartPort_t *s = &(uartHardwareMap[UARTDEV_7]->port);
-    uartIrqHandler(s);
-}
 #endif
 
 #ifdef USE_UART8
-uartPort_t *serialUART8(uint32_t baudRate, portMode_t mode, portOptions_t options)
-{
-    return serialUART(UARTDEV_8, baudRate, mode, options);
-}
 
-// UART8 Rx/Tx IRQ Handler
-void UART8_IRQHandler(void)
-{
-    uartPort_t *s = &(uartHardwareMap[UARTDEV_8]->port);
-    uartIrqHandler(s);
-}
 #endif
