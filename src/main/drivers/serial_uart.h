@@ -59,6 +59,9 @@ typedef struct {
 
     #if defined(AT32F43x) 
         usart_type  *USARTx;
+    #elif defined(TC375)
+        IfxAsclin_Asc *handle;
+        IfxAsclin_Asc_Config *config;
     #else
         #ifdef USE_HAL_DRIVER
             UART_HandleTypeDef Handle;
@@ -73,6 +76,8 @@ void uartClearIdleFlag(uartPort_t *s);
 void uartConfigurePinSwap(uartPort_t *uartPort);
 #if defined(AT32F43x) 
 serialPort_t *uartOpen(usart_type *USARTx, serialReceiveCallbackPtr rxCallback, void *rxCallbackData, uint32_t baudRate, portMode_t mode, portOptions_t options);
+#elif defined(TC375)
+serialPort_t *uartOpen(IfxAsclin_Asc *handle, serialReceiveCallbackPtr rxCallback, void *rxCallbackData, uint32_t baudRate, portMode_t mode, portOptions_t options);
 #else
 serialPort_t *uartOpen(USART_TypeDef *USARTx, serialReceiveCallbackPtr rxCallback, void *rxCallbackData, uint32_t baudRate, portMode_t mode, portOptions_t options);
 #endif
