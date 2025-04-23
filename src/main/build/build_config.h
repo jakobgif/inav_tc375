@@ -18,6 +18,9 @@
 #pragma once
 
 #if defined(TC375)
+#ifdef BUILD_CONFIG_DEBUG
+#warning Building for debug
+#endif
 #define AURIX_NO_BOOTLOADER
 //TODO: optimize for Aurix
 #define EXTENDED_FASTRAM
