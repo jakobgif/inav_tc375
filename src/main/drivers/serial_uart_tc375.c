@@ -208,21 +208,19 @@ uartPort_t *serialUART1(uint32_t baudRate, portMode_t mode, portOptions_t option
 {
     uartPort_t *s = serialUART(UARTDEV_1, baudRate, mode, options);
     //here we set the int prios
-    s->config->interrupt.txPriority = (inav_tc375_prio_levels)INTPRIO_ASCLIN0_TX;
-    s->config->interrupt.rxPriority = (inav_tc375_prio_levels)INTPRIO_ASCLIN0_RX;
+    s->config->interrupt.txPriority = INTPRIO_ASCLIN0_TX;
+    s->config->interrupt.rxPriority = INTPRIO_ASCLIN0_RX;
     s->config->interrupt.typeOfService = IfxCpu_Irq_getTos(IfxCpu_getCoreIndex());
 
     return s;
 }
 
-IFX_INTERRUPT(asclin0TxISR, 0, (inav_tc375_prio_levels)INTPRIO_ASCLIN0_TX);
-void asclin0TxISR(void){
+IFX_INTERRUPT(asclin0TxISR, 0, INTPRIO_ASCLIN0_TX) {
     uartPort_t *s = &(uartHardwareMap[UARTDEV_1]->port);
     uartTxIrqHandler(s);
 }
 
-IFX_INTERRUPT(asclin0RxISR, 0, (inav_tc375_prio_levels)INTPRIO_ASCLIN0_RX);
-void asclin0RxISR(void){
+IFX_INTERRUPT(asclin0RxISR, 0, INTPRIO_ASCLIN0_RX) {
     uartPort_t *s = &(uartHardwareMap[UARTDEV_1]->port);
     uartRxIrqHandler(s);
 }
