@@ -257,7 +257,7 @@ uint32_t uartTotalRxBytesWaiting(const serialPort_t *instance)
     const uartPort_t *s = (const uartPort_t*)instance;
 
 #if defined(TC375)
-    IfxAsclin_Asc_getReadCount(s->handle);
+    return IfxAsclin_Asc_getReadCount(s->handle);
 #else
     if (s->port.rxBufferHead >= s->port.rxBufferTail) {
         return s->port.rxBufferHead - s->port.rxBufferTail;
