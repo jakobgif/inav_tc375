@@ -102,21 +102,13 @@ typedef   uint64    uint64_t;
 #include "Libraries\iLLD\TC37A\Tricore\Asclin\Asc\IfxAsclin_Asc.h"
 
 #include "target.h"
-/**
- * @brief priority levels for aurix low level driver
- * 
- */
-typedef enum uint8 {
-    INTPRIO_DISABLED = 0, //0 will never be served, 1 is the minimum level
-
-    INTPRIO_UART = 50,
+#define INTPRIO_DISABLED    0   //0 will never be served, 1 is the minimum level
 #ifdef USE_UART1
-    INTPRIO_ASCLIN0_TX,
-    INTPRIO_ASCLIN0_RX,
+#define INTPRIO_ASCLIN0_TX  50
+#define INTPRIO_ASCLIN0_RX  51
 #endif
+#define INTPRIO_MAX         255 //max will be served first
 
-    INTPRIO_MAX = 255 //max will be served first
-} inav_tc375_prio_levels;
 #endif
 
 #include "target/common.h"
