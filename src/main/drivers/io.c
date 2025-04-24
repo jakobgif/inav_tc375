@@ -487,13 +487,24 @@ void IOInitGlobal(void)
     ioRec_t *ioRec = ioRecs;
 
     for (unsigned port = 0; port < ARRAYLEN(ioDefUsedMask); port++) { //go through all used ports
+#if defined(TC375)
+        for (unsigned pin = 0; pin < IFXPORT_PINMAP_PIN_NUM_ITEMS; pin++) { //go through all bits this port has
+#else
         for (unsigned pin = 0; pin < sizeof(ioDefUsedMask[0]) * 8; pin++) { //go through all bits this port has
+#endif
             if (ioDefUsedMask[port] & (1 << pin)) { //only run if this specific pin is used
 #if defined(AT32F43x)
                 ioRec->gpio = (gpio_type *)(GPIOA_BASE + (port << 10));   // ports are 0x400 apart
-#elif defined(TC375)     
-                ioRec->gpio->port = portModule[port];
-                ioRec->gpio->pinIndex = __builtin_ctz(1 << pin); //get the index of the current bit and not the mask
+#elif defined(TC375)
+                //go through pinTable to find a port/pin combo that matches what we need
+                ioRec->gpio = NULL_PTR; //set to null in case we dont find anything
+                for (unsigned module = 0; module < IFXPORT_PINMAP_NUM_MODULES; module++) {
+                    const IfxPort_Pin *entry = IfxPort_Pin_pinTable[module][pin];
+                    if (entry && entry->port == portModule[port] && entry->pinIndex == pin) {
+                        ioRec->gpio = entry;
+                        break; //found entry, now we exit inner loop
+                    }
+                }
 #else
                 ioRec->gpio = (GPIO_TypeDef *)(GPIOA_BASE + (port << 10));   // ports are 0x400 apart 
 # endif
