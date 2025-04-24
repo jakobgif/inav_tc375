@@ -37,6 +37,8 @@
 #define LED0_PINMAP         IfxGtm_TOM0_0N_TOUT106_P10_4_OUT
 #define LED0    MODULE_P00_5
 
+#define LED1    MODULE_P00_6
+
 //TODO: from this 
 //#define LED0_PINMAP         IfxAsclin0_RXA_P14_1_IN
 //IfxAsclin_Rx_In IfxAsclin9_RXB_P01_7_IN = {&MODULE_ASCLIN9, {&MODULE_P01, 7}, Ifx_RxSel_b};
@@ -166,7 +168,7 @@
 // #define USE_ESC_SENSOR
 // #define USE_SERIAL_4WAY_BLHELI_INTERFACE
 
-#define TARGET_IO_PORTMODULE_P00 0x3F
+#define TARGET_IO_PORTMODULE_P00 0x60
 #define TARGET_IO_PORTMODULE_P14 0x03
 
 /*#define DEFIO_GPIOID__MODULE_P01 12
