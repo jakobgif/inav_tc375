@@ -110,13 +110,12 @@
 #elif defined(TC375)
 //pinMap has to be assigned in runtime
 //used to make timerHardware_t
-#define DEF_TIM(tim, config, pinMap, pin, pinMode, usageFlags) {   \
-    tim,            \
-    config,         \
-    &pinMap,        \
-    IO_TAG(pin),    \
-    pinMode,        \
-    usageFlags      \
+#define DEF_TIM(timerDef, pinMap, pin, pinMode, flags) {   \
+    .tim=(&timerDef),       \
+    .triggerOut=(&pinMap),  \
+    .tag=IO_TAG(pin),       \
+    .ioMode=(pinMode),      \
+    .usageFlags=(flags)     \
 }
 #elif defined(SITL_BUILD)
 #else

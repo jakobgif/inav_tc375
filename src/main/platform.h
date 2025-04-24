@@ -104,10 +104,14 @@ typedef   uint64    uint64_t;
 
 #include "target.h"
 #define INTPRIO_DISABLED    0   //0 will never be served, 1 is the minimum level
+
 #ifdef USE_UART1
 #define INTPRIO_ASCLIN0_TX  50
 #define INTPRIO_ASCLIN0_RX  51
 #endif
+
+#define INTPRIO_GTM_TOM_0   100
+
 #define INTPRIO_MAX         255 //max will be served first
 
 #endif
