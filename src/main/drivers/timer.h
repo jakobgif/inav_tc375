@@ -268,7 +268,7 @@ typedef enum {
     uint32_t timerClock(tmr_type *tim);
     uint16_t timerGetPrescalerByDesiredMhz(tmr_type *tim, uint16_t mhz);
 #elif defined(TC375)
-    uint32_t timerClock(IfxGtm_Tom_Timer *tim);
+    uint32_t timerClock(timerDef_t *tim);
     uint16_t timerGetPrescalerByDesiredMhz(IfxGtm_Tom_Timer *tim, uint16_t mhz);
 #else
     uint32_t timerClock(TIM_TypeDef *tim);

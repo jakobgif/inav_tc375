@@ -49,6 +49,6 @@ timerDef_t const timerDefinitions[HARDWARE_TIMER_DEFINITION_COUNT] = {
 };
 
 //return clock speed of this timer
-uint32_t timerClock(IfxGtm_Tom_Timer *tim){
-    return IfxGtm_Tom_Ch_getClockFrequency(tim->gtm, tim->tom, tim->timerChannel);
+uint32_t timerClock(timerDef_t *tim){
+    return IfxGtm_Tom_Ch_getClockFrequency(tim->tim->gtm, tim->tim->tom, tim->tim->timerChannel);
 }
