@@ -90,6 +90,7 @@ typedef   uint64    uint64_t;
 
 //GPIOs
 #include "Libraries\iLLD\TC37A\Tricore\Port\Std\IfxPort.h"
+#include "Libraries\iLLD\TC37A\Tricore\_PinMap\IfxPort_PinMap.h"
 
 //flash
 #include "Libraries\iLLD\TC37A\Tricore\Flash\Std\IfxFlash.h"
