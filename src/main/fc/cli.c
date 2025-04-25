@@ -4055,7 +4055,9 @@ static void cliStatus(char *cmdline)
     dateTimeFormatLocal(buf, &dt);
     cliPrintLinef("Current Time: %s", buf);
     cliPrintLinef("Voltage: %d.%02dV (%dS battery - %s)", getBatteryVoltage() / 100, getBatteryVoltage() % 100, getBatteryCellCount(), getBatteryStateString());
+#if !defined(TC375)
     cliPrintf("CPU Clock=%dMHz", (SystemCoreClock / 1000000));
+#endif
 
     const uint32_t detectedSensorsMask = sensorsMask();
 
@@ -4081,6 +4083,9 @@ static void cliStatus(char *cmdline)
     cliPrintLinef("  ABH    = %d MHz", clocks.ahb_freq  / 1000000);
     cliPrintLinef("  ABP1   = %d MHz", clocks.apb1_freq / 1000000);
     cliPrintLinef("  ABP2   = %d MHz", clocks.apb2_freq / 1000000);
+#elif defined(TC375)
+    cliPrintLine("Aurix system clocks:");
+    //TODO: add aurix clock info
 #else
     cliPrintLine("STM32 system clocks:");
 #if defined(USE_HAL_DRIVER)
