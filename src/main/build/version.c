@@ -20,7 +20,7 @@
 #ifdef TC375 
 const char * const targetName = STR_HELPER(TC375);
 const char * const compilerVersion = __VERSION__;
-const char * const shortGitRevision = "0";
+const char * const shortGitRevision = GIT_TAG_INAV;
 #else
 const char * const targetName = __TARGET__;
 const char * const compilerVersion = __VERSION__;
