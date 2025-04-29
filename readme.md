@@ -1,5 +1,25 @@
 # INAV - navigation capable flight controller
 
+# Aurix
+This fork adds code to support Aurix Tricore CPUs.
+
+| ----------------- | ----- |
+| Supported Targets | TC375 Litekit |
+| ----------------- | ----- |
+
+<!-- ## Aurix Development Studio Setup
+This entire repo can be added as submodule to an existing project. In this case the Aurix project has to be configured as follows:
+- C/C++ Build -> Settings -> AURIX GCC Compiler -> Dialect -> Language standard: `none` & Other dialect flags: `-std=gnu99` -->
+
+## AURIX specific macros
+### Target
+- to build for TC375 the macro `TC375` has to be defined
+
+## Generation scripts
+The inav codebase requires some files that need to be automatically generated. The following scripts need to be run from inside the aurix build folder.
+- `./src/utils/aurix_generate_settings.sh` is used to generate the inav settings. WARNING: It could be that the path of the directory where the compiler libraries are located must be changed.
+- `./src/utils/aurix_generate_version_strings.sh` is used to generate version strings. This script should be run before each build.
+
 # F411 PSA
 
 > INAV no longer accepts targets based on STM32 F411 MCU.
