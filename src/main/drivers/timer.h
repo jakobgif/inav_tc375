@@ -66,7 +66,7 @@ typedef uint32_t timCNT_t;
 #elif defined(AT32F43x)
 #define HARDWARE_TIMER_DEFINITION_COUNT 15
 #elif defined(TC375)
-#define HARDWARE_TIMER_DEFINITION_COUNT 1
+#define HARDWARE_TIMER_DEFINITION_COUNT IFXGTM_NUM_TOM_CHANNELS
 #elif defined(SITL_BUILD)
 #define HARDWARE_TIMER_DEFINITION_COUNT 0
 #else
@@ -117,6 +117,7 @@ typedef struct timerHardware_s {
     //uint8_t alternateFunction;
     uint32_t usageFlags;
     //dmaTag_t dmaTag;
+    
 } timerHardware_t;
 #else
 typedef TIM_TypeDef HAL_Timer_t;
@@ -194,6 +195,7 @@ typedef struct TCH_s {
 #endif
     const timerHardware_t *         timHw;          // Link to timerHardware_t definition (target-specific)
     const timerCallbacks_t *        cb;
+
 #if !defined(TC375) //disabled for now because no DMA yet
     DMA_t                           dma;            // Timer channel DMA handle
 #endif
