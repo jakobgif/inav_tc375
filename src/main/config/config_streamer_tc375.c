@@ -77,16 +77,21 @@ int config_streamer_impl_write_word(config_streamer_t *c, config_streamer_buffer
         return c->err;
     }
 
-    uint32_t sector = (uint32_t)NULL;
-    if (c->address % FLASH_PAGE_SIZE == 0) {
-        sector = getFLASHSectorForEEPROM(c->address);
+    /* Get the current password of the Safety WatchDog module */
+    uint16_t endInitSafetyPassword = IfxScuWdt_getSafetyWatchdogPasswordInline();
 
-        /* Erase the sector */
-        IfxFlash_eraseSector(sector);
+    // uint32_t sector = (uint32_t)NULL;
+    // if (c->address % FLASH_PAGE_SIZE == 0) {
+    //     sector = getFLASHSectorForEEPROM(c->address);
 
-        /* Wait until the sector is erased */
-        IfxFlash_waitUnbusy(FLASH_MODULE, DATA_FLASH);
-    }
+    //     /* Erase the sector */
+    //     IfxScuWdt_clearSafetyEndinit(endInitSafetyPassword);    /* Disable EndInit protection   */
+    //     IfxFlash_eraseSector(sector);                           /* Erase the given sector       */
+    //     IfxScuWdt_setSafetyEndinit(endInitSafetyPassword);      /* Enable EndInit protection    */
+
+    //     /* Wait until the sector is erased */
+    //     IfxFlash_waitUnbusy(FLASH_MODULE, DATA_FLASH);
+    // }
 
     /* Enter in page mode */
     if (IfxFlash_enterPageMode(c->address) != 0) {
@@ -101,7 +106,9 @@ int config_streamer_impl_write_word(config_streamer_t *c, config_streamer_buffer
     IfxFlash_loadPage2X32(c->address, buffer[0], buffer[1]);
 
     /* Write the loaded page */
-    IfxFlash_writePage(c->address); /* Write the page */
+    IfxScuWdt_clearSafetyEndinit(endInitSafetyPassword);    /* Disable EndInit protection                       */
+    IfxFlash_writePage(c->address);                         /* Write the page                                   */
+    IfxScuWdt_setSafetyEndinit(endInitSafetyPassword);      /* Enable EndInit protection                        */
 
     /* Wait until the data is written in the Data Flash memory */
     IfxFlash_waitUnbusy(FLASH_MODULE, DATA_FLASH);
