@@ -79,6 +79,12 @@
 #define UART1_PINMAP_TX   IfxAsclin0_TX_P14_0_OUT
 #define UART1_PIN_TX      MODULE_P14_0
 
+#define USE_UART4 //asclin3 is mapped to uart4
+#define UART4_PINMAP_RX   IfxAsclin3_RXC_P20_3_IN
+#define UART4_PIN_RX      MODULE_P20_3
+#define UART4_PINMAP_TX   IfxAsclin3_TX_P20_0_OUT
+#define UART4_PIN_TX      MODULE_P20_0
+
 //#define UART1_RX_PIN            DEFIO_PINID(UART1_ROUTE_RX) //PMODULE_P000
 //#define UART1_TX_PIN            PMODULE_P001
 
@@ -109,7 +115,7 @@
 // #define UART8_RX_PIN            PE0
 // #define UART8_TX_PIN            PE1
 
-#define SERIAL_PORT_COUNT       1      //VCP, UART1, UART2, UART3, UART4, UART6, UART7, UART8
+#define SERIAL_PORT_COUNT       2      //UART1 and UART4
 
 // #define DEFAULT_RX_TYPE         RX_TYPE_SERIAL
 // #define SERIALRX_PROVIDER       SERIALRX_SBUS
@@ -170,6 +176,7 @@
 
 #define TARGET_IO_PORTMODULE_P00 0x60
 #define TARGET_IO_PORTMODULE_P14 0x03
+#define TARGET_IO_PORTMODULE_P20 0b1001
 
 /*#define DEFIO_GPIOID__MODULE_P01 12
 #define DEFIO_GPIOID__MODULE_P02 12
@@ -188,4 +195,4 @@
 #define DEFIO_GPIOID__MODULE_P34 12
 #define DEFIO_GPIOID__MODULE_P40 12*/
 
-// #define MAX_PWM_OUTPUT_PORTS       10
+#define MAX_PWM_OUTPUT_PORTS       10
