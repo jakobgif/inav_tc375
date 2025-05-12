@@ -81,34 +81,37 @@ typedef enum
 #elif defined(TC375)
 //#warning Building for TC375
 //types
-#include "Libraries\iLLD\TC37A\Tricore\Cpu\Std\Platform_Types.h"
+#include "Platform_Types.h"
 typedef   uint8     uint8_t;
 typedef   uint16    uint16_t;
+typedef   sint16    int16_t;
+typedef   sint32    int32_t;
 typedef   uint32    uint32_t;
 typedef   uint64    uint64_t;
-//typedef   boolean   bool;
+typedef   boolean   bool;
 
 //GPIOs
-#include "Libraries\iLLD\TC37A\Tricore\Port\Std\IfxPort.h"
-#include "Libraries\iLLD\TC37A\Tricore\_PinMap\IfxPort_PinMap.h"
+#include "IfxPort.h"
+#include "IfxPort_PinMap.h"
 
 //flash
-#include "Libraries\iLLD\TC37A\Tricore\Flash\Std\IfxFlash.h"
+#include "IfxFlash.h"
 
 //timer
-#include "Libraries\iLLD\TC37A\Tricore\Stm\Std\IfxStm.h"
-#include "Libraries\iLLD\TC37A\Tricore\Gtm\Tom\Timer\IfxGtm_Tom_Timer.h"
+#include "IfxStm.h"
+#include "IfxGtm_Tom_Timer.h"
 
 //uart
-#include "Libraries\iLLD\TC37A\Tricore\Asclin\Asc\IfxAsclin_Asc.h"
+#include "IfxAsclin_Asc.h"
 
+//interrupt prios start
 #include "target.h"
 #define INTPRIO_DISABLED    0   //0 will never be served, 1 is the minimum level
 
-#ifdef USE_UART1
-#define INTPRIO_ASCLIN0_TX  50
-#define INTPRIO_ASCLIN0_RX  51
-#endif
+#define INTPRIO_ASCLIN3_TX  50
+#define INTPRIO_ASCLIN3_RX  51
+#define INTPRIO_ASCLIN0_TX  52
+#define INTPRIO_ASCLIN0_RX  53
 
 #define INTPRIO_GTM_TOM_15   100
 #define INTPRIO_GTM_TOM_14   101
@@ -128,6 +131,16 @@ typedef   uint64    uint64_t;
 #define INTPRIO_GTM_TOM_00   115
 
 #define INTPRIO_MAX          255 //max will be served first
+//interrupt prios end
+
+//copied from reference project
+#define U_ID_0 (((*(uint32_t*)&SCU_CHIPID) & IFX_SCU_CHIPID_CHREV_MSK) >> IFX_SCU_CHIPID_CHREV_OFF)
+#define U_ID_1 (((*(uint32_t*)&SCU_CHIPID) & IFX_SCU_CHIPID_CHTEC_MSK) >> IFX_SCU_CHIPID_CHTEC_OFF)
+#define U_ID_2 (((*(uint32_t*)&SCU_CHIPID) & IFX_SCU_CHIPID_CHID_MSK) >> IFX_SCU_CHIPID_CHID_OFF)
+
+#define __NOP(n) __nop(n) //some inav functions use __NOP() but aurix only has __nop()
+
+#define AURIX_CLEAR_DFLASH_ON_SYSTEM_INIT
 
 #endif
 
