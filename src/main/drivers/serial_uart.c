@@ -174,40 +174,40 @@ serialPort_t *uartOpen(USART_TypeDef *USARTx, serialReceiveCallbackPtr rxCallbac
     return (serialPort_t *)s;
 }
 #else
-serialPort_t *uartOpen(IfxAsclin_Asc *handle, serialReceiveCallbackPtr rxCallback, void *rxCallbackData, uint32_t baudRate, portMode_t mode, portOptions_t options){
+serialPort_t *uartOpen(Ifx_ASCLIN *module, serialReceiveCallbackPtr rxCallback, void *rxCallbackData, uint32_t baudRate, portMode_t mode, portOptions_t options){
     uartPort_t *s = NULL;
 
     if (false) { //check which uart port we want to open based on ASCLIN register base address
 #ifdef USE_UART1
-    } else if (handle->asclin == &MODULE_ASCLIN0) {
+    } else if (module == &MODULE_ASCLIN0) {
         s = serialUART1(baudRate, mode, options);
 #endif
 #ifdef USE_UART2
-    } else if (handle->asclin == &MODULE_ASCLIN1) {
+    } else if (module == &MODULE_ASCLIN1) {
         s = serialUART2(baudRate, mode, options);
 #endif
 #ifdef USE_UART3
-    } else if (handle->asclin == &MODULE_ASCLIN2) {
+    } else if (module == &MODULE_ASCLIN2) {
         s = serialUART3(baudRate, mode, options);
 #endif
 #ifdef USE_UART4
-    } else if (handle->asclin == &MODULE_ASCLIN3) {
+    } else if (module == &MODULE_ASCLIN3) {
         s = serialUART4(baudRate, mode, options);
 #endif
 #ifdef USE_UART5
-    } else if (handle->asclin == &MODULE_ASCLIN4) {
+    } else if (module == &MODULE_ASCLIN4) {
         s = serialUART5(baudRate, mode, options);
 #endif
 #ifdef USE_UART6
-    } else if (handle->asclin == &MODULE_ASCLIN5) {
+    } else if (module == &MODULE_ASCLIN5) {
         s = serialUART6(baudRate, mode, options);
 #endif
 #ifdef USE_UART7
-    } else if (handle->asclin == &MODULE_ASCLIN6) {
+    } else if (module == &MODULE_ASCLIN6) {
         s = serialUART7(baudRate, mode, options);
 #endif
 #ifdef USE_UART8
-    } else if (handle->asclin == &MODULE_ASCLIN7) {
+    } else if (module == &MODULE_ASCLIN7) {
         s = serialUART8(baudRate, mode, options);
 #endif
     } else {
