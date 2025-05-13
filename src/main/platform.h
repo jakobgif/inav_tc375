@@ -154,6 +154,8 @@ typedef   boolean   bool;
 
 #define AURIX_CLEAR_DFLASH_ON_SYSTEM_INIT
 
+#define MCU_FLASH_SIZE  IFXFLASH_PFLASH_SIZE
+
 #endif
 
 #include "target/common.h"
