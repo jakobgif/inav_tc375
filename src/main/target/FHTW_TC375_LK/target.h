@@ -30,8 +30,6 @@
 
 #define TARGET_BOARD_IDENTIFIER "FHTW_TC375_LK"
 
-#define MCU_FLASH_SIZE  0
-
 // *************** LED **********************
 
 #define LED0_PINMAP         IfxGtm_TOM0_0N_TOUT106_P10_4_OUT
