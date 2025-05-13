@@ -108,10 +108,22 @@ typedef   boolean   bool;
 #include "target.h"
 #define INTPRIO_DISABLED    0   //0 will never be served, 1 is the minimum level
 
-#define INTPRIO_ASCLIN3_TX  50
-#define INTPRIO_ASCLIN3_RX  51
-#define INTPRIO_ASCLIN0_TX  52
-#define INTPRIO_ASCLIN0_RX  53
+#define INTPRIO_ASCLIN7_TX  66
+#define INTPRIO_ASCLIN7_RX  65
+#define INTPRIO_ASCLIN6_TX  64
+#define INTPRIO_ASCLIN6_RX  63
+#define INTPRIO_ASCLIN5_TX  62
+#define INTPRIO_ASCLIN5_RX  61
+#define INTPRIO_ASCLIN4_TX  60
+#define INTPRIO_ASCLIN4_RX  59
+#define INTPRIO_ASCLIN3_TX  58
+#define INTPRIO_ASCLIN3_RX  56
+#define INTPRIO_ASCLIN2_TX  55
+#define INTPRIO_ASCLIN2_RX  54
+#define INTPRIO_ASCLIN1_TX  53
+#define INTPRIO_ASCLIN1_RX  52
+#define INTPRIO_ASCLIN0_TX  51
+#define INTPRIO_ASCLIN0_RX  50
 
 #define INTPRIO_GTM_TOM_15   100
 #define INTPRIO_GTM_TOM_14   101
