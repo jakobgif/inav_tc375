@@ -256,7 +256,7 @@ uint32_t uartTotalRxBytesWaiting(const serialPort_t *instance)
 {
     const uartPort_t *s = (const uartPort_t*)instance;
 
-#if defined(TC375)
+#if defined(noTC375)
     return IfxAsclin_Asc_getReadCount(s->handle);
 #else
     if (s->port.rxBufferHead >= s->port.rxBufferTail) {
@@ -271,7 +271,7 @@ uint32_t uartTotalTxBytesFree(const serialPort_t *instance)
 {
     const uartPort_t *s = (const uartPort_t*)instance;
 
-#if defined(TC375)
+#if defined(noTC375)
     return IfxAsclin_Asc_getWriteCount(s->handle); // - 1;
 #else
     uint32_t bytesUsed;
@@ -289,7 +289,7 @@ uint32_t uartTotalTxBytesFree(const serialPort_t *instance)
 bool isUartTransmitBufferEmpty(const serialPort_t *instance)
 {
     const uartPort_t *s = (const uartPort_t *)instance;
-#if defined(TC375)
+#if defined(noTC375)
     return Ifx_Fifo_isEmpty(s->handle->tx);
 #else  
     return s->port.txBufferTail == s->port.txBufferHead;
@@ -301,7 +301,7 @@ uint8_t uartRead(serialPort_t *instance)
     uint8_t ch;
     uartPort_t *s = (uartPort_t *)instance;
 
-#if defined(TC375)
+#if defined(noTC375)
     ch = IfxAsclin_Asc_blockingRead(s->handle);
 #else
     ch = s->port.rxBuffer[s->port.rxBufferTail];
@@ -318,7 +318,7 @@ uint8_t uartRead(serialPort_t *instance)
 void uartWrite(serialPort_t *instance, uint8_t ch)
 {
     uartPort_t *s = (uartPort_t *)instance;
-#if defined(TC375)
+#if defined(noTC375)
     IfxAsclin_Asc_blockingWrite(s->handle, ch);
 #else
     s->port.txBuffer[s->port.txBufferHead] = ch;
@@ -328,7 +328,14 @@ void uartWrite(serialPort_t *instance, uint8_t ch)
         s->port.txBufferHead++;
     }
 
+#if defined(TC375)
+    if(s->handle->txInProgress == false){
+        s->handle->txInProgress = TRUE;
+        uartTxIrqHandler(s);
+    }
+#else
     USART_ITConfig(s->USARTx, USART_IT_TXE, ENABLE);
+#endif
 #endif
 }
 
@@ -336,8 +343,7 @@ bool isUartIdle(serialPort_t *instance)
 {
     uartPort_t *s = (uartPort_t *)instance;
 #if defined(TC375)
-    if(IfxAsclin_getTransmissionCompletedFlagStatus(s->handle->asclin)) {
-        IfxAsclin_clearTransmissionCompletedFlag(s->handle->asclin);
+    if(s->handle->txInProgress == false) {
 #else
     if(USART_GetFlagStatus(s->USARTx, USART_FLAG_IDLE)) {
         uartClearIdleFlag(s);
