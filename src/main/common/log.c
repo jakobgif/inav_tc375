@@ -61,6 +61,22 @@ PG_RESET_TEMPLATE(logConfig_t, logConfig,
     .topics = SETTING_LOG_TOPICS_DEFAULT
 );
 
+#ifdef TC375
+#define USE_COLORED_CONSOLE
+#endif
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_WHITE   "\x1b[37m"
+
+const char* colorCodes[] = {
+    [LOG_LEVEL_ERROR]   = ANSI_COLOR_RED,
+    [LOG_LEVEL_WARNING] = ANSI_COLOR_YELLOW,
+    [LOG_LEVEL_INFO]    = ANSI_COLOR_GREEN,
+    [LOG_LEVEL_VERBOSE] = ANSI_COLOR_WHITE,
+    [LOG_LEVEL_DEBUG]   = ANSI_COLOR_WHITE,
+};
+
 void logInit(void)
 {
     const serialPortConfig_t *portConfig = findSerialPortConfig(FUNCTION_LOG);
@@ -143,6 +159,12 @@ static size_t logFormatPrefix(char *buf, const timeMs_t timeMs)
     return tfp_sprintf(buf, LOG_PREFIX, (int)(timeMs / 1000), (int)(timeMs % 1000));
 }
 
+#ifdef USE_COLORED_CONSOLE
+static size_t logAddColor(char *buf, unsigned level){
+    return tfp_sprintf(buf, "%s", colorCodes[level]);
+}
+#endif
+
 static bool logHasOutput(void)
 {
 #if defined(SEMIHOSTING)
@@ -169,7 +191,12 @@ void _logf(logTopic_e topic, unsigned level, const char *fmt, ...)
         return;
     }
 
+#ifdef USE_COLORED_CONSOLE
+    charCount = logAddColor(&buf[0], level);
+    charCount += logFormatPrefix(&buf[charCount], millis());
+#else
     charCount = logFormatPrefix(buf, millis());
+#endif  
     bufPtr = &buf[charCount];
 
     // Write message
