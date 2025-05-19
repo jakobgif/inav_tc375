@@ -114,7 +114,7 @@ typedef struct timerHardware_s {
     //uint8_t channelIndex;
     //uint8_t output; 
     ioConfig_t ioMode;
-    //uint8_t alternateFunction;
+    uint8_t alternateFunction; //unused for aurix but keep for legacy
     uint32_t usageFlags;
     //dmaTag_t dmaTag;
     
