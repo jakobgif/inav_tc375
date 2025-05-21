@@ -385,6 +385,10 @@ uartPort_t *serialUART(UARTDevice_e device, uint32_t baudRate, portMode_t mode, 
     //s->config->rxBuffer = uart->rxBuffer;
     //s->config->rxBufferSize = sizeof(uart->rxBuffer);
 
+    s->config->baudrate.oversampling = 15;
+    s->config->bitTiming.medianFilter = 3;
+    s->config->bitTiming.samplePointPosition = 9;
+
     return s;
 }
 
