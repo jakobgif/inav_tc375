@@ -4085,7 +4085,8 @@ static void cliStatus(char *cmdline)
     cliPrintLinef("  ABP2   = %d MHz", clocks.apb2_freq / 1000000);
 #elif defined(TC375)
     cliPrintLine("Aurix system clocks:");
-    //TODO: add aurix clock info
+    cliPrintLinef("  CPU  = %d MHz", (int)(IfxScuCcu_getCpuFrequency(IfxCpu_getCoreIndex()) / 1000000));
+    cliPrintLinef("  STM0 = %d MHz", (int)(IfxStm_getFrequency(IFXSTM_DEFAULT_TIMER) / 1000000));
 #else
     cliPrintLine("STM32 system clocks:");
 #if defined(USE_HAL_DRIVER)
@@ -4354,11 +4355,15 @@ static void cliResource(char *cmdline)
         const char* resource;
         resource = resourceNames[ioRecs[i].resource];
 
+#if defined(TC375)
+        cliPrintLinef("%s,%d: %s %s", IO_GPIOPortName(&ioRecs[i]), ioRecs[i].gpio->pinIndex, owner, resource);
+#else
         if (ioRecs[i].index > 0) {
             cliPrintLinef("%c%02d: %s%d %s", IO_GPIOPortIdx(ioRecs + i) + 'A', IO_GPIOPinIdx(ioRecs + i), owner, ioRecs[i].index, resource);
         } else {
             cliPrintLinef("%c%02d: %s %s", IO_GPIOPortIdx(ioRecs + i) + 'A', IO_GPIOPinIdx(ioRecs + i), owner, resource);
         }
+#endif
     }
 }
 
