@@ -79,6 +79,26 @@ static Ifx_P * const portModule[] = {
     &MODULE_P13, &MODULE_P14, &MODULE_P15, &MODULE_P20, &MODULE_P21, &MODULE_P22, 
     &MODULE_P23, &MODULE_P32, &MODULE_P33, &MODULE_P34, &MODULE_P40
 };
+const char * portModuleName[] = {
+    STR_HELPER(MODULE_P00),
+    STR_HELPER(MODULE_P01),
+    STR_HELPER(MODULE_P02),
+    STR_HELPER(MODULE_P10),
+    STR_HELPER(MODULE_P11),
+    STR_HELPER(MODULE_P12),
+    STR_HELPER(MODULE_P13),
+    STR_HELPER(MODULE_P14),
+    STR_HELPER(MODULE_P15),
+    STR_HELPER(MODULE_P20),
+    STR_HELPER(MODULE_P21),
+    STR_HELPER(MODULE_P22),
+    STR_HELPER(MODULE_P23),
+    STR_HELPER(MODULE_P32),
+    STR_HELPER(MODULE_P33),
+    STR_HELPER(MODULE_P34),
+    STR_HELPER(MODULE_P40),
+    "UNKNWON"
+};
 # endif
 
 //#if !defined(TC375)
@@ -442,6 +462,64 @@ void IOConfigGPIOAF(IO_t io, ioConfig_t cfg, uint8_t af)
 }
 
 #elif defined(TC375)
+
+char * IO_GPIOPortName(IO_t io){
+    if(false){ }
+    else if(((ioRec_t*)io)->gpio->port == &MODULE_P00){
+        return portModuleName[0];
+    }
+    else if(((ioRec_t*)io)->gpio->port == &MODULE_P01){
+        return portModuleName[1];
+    }
+    else if(((ioRec_t*)io)->gpio->port == &MODULE_P02){
+        return portModuleName[2];
+    }
+    else if(((ioRec_t*)io)->gpio->port == &MODULE_P10){
+        return portModuleName[3];
+    }
+    else if(((ioRec_t*)io)->gpio->port == &MODULE_P11){
+        return portModuleName[4];
+    }
+    else if(((ioRec_t*)io)->gpio->port == &MODULE_P12){
+        return portModuleName[5];
+    }
+    else if(((ioRec_t*)io)->gpio->port == &MODULE_P13){
+        return portModuleName[6];
+    }
+    else if(((ioRec_t*)io)->gpio->port == &MODULE_P14){
+        return portModuleName[7];
+    }
+    else if(((ioRec_t*)io)->gpio->port == &MODULE_P15){
+        return portModuleName[8];
+    }
+    else if(((ioRec_t*)io)->gpio->port == &MODULE_P20){
+        return portModuleName[9];
+    }
+    else if(((ioRec_t*)io)->gpio->port == &MODULE_P21){
+        return portModuleName[10];
+    }
+    else if(((ioRec_t*)io)->gpio->port == &MODULE_P22){
+        return portModuleName[11];
+    }
+    else if(((ioRec_t*)io)->gpio->port == &MODULE_P23){
+        return portModuleName[12];
+    }
+    else if(((ioRec_t*)io)->gpio->port == &MODULE_P32){
+        return portModuleName[13];
+    }
+    else if(((ioRec_t*)io)->gpio->port == &MODULE_P33){
+        return portModuleName[14];
+    }
+    else if(((ioRec_t*)io)->gpio->port == &MODULE_P34){
+        return portModuleName[15];
+    }
+    else if(((ioRec_t*)io)->gpio->port == &MODULE_P40){
+        return portModuleName[16];
+    }
+
+    //if not returned by now send "UNKNOWN"
+    return portModuleName[17];
+}
 
 void IOConfigGPIO(IO_t io, ioConfig_t cfg){
     if (!io) {

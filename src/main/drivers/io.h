@@ -124,6 +124,9 @@
 #define IOCFG_AF6_OD        IO_CONFIG(IfxPort_Mode_outputOpenDrainAlt6      , DEFAULT_IfxPort_PadDriver)
 #define IOCFG_AF7_OD        IO_CONFIG(IfxPort_Mode_outputOpenDrainAlt7      , DEFAULT_IfxPort_PadDriver)
 
+//names of the ports used by some CLI commands
+char * IO_GPIOPortName(IO_t io);
+
 #elif defined(UNIT_TEST) || defined(SITL_BUILD)
 
 # define IOCFG_OUT_PP         0
