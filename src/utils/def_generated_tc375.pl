@@ -66,9 +66,13 @@ END2
 
 
 // DEFIO_GPIOID__<port> maps to port index
-@{[ map { my $port = $_; chomp(my $ret = << "END2"); $ret } @ports ]}
-#define DEFIO_GPIOID__${port} @{[ord($port)-ord('A')]}
-END2
+@{[do {
+    my @lines;
+    for my $i (0..$#ports) {
+        push @lines, "#define DEFIO_GPIOID__$ports[$i] $i";
+    }
+    join("\n", @lines);
+}]}
 
 // DEFIO_TAG__P<port><pin> will expand to TAG if defined for target, error is triggered otherwise
 // DEFIO_TAG_E__P<port><pin> will expand to TAG if defined, to NONE otherwise (usefull for tables that are CPU-specific)
