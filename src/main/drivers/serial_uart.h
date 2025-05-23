@@ -76,12 +76,19 @@ typedef struct {
 #define UART1 &MODULE_ASCLIN0
 #define USART1 UART1
 #define UART2 &MODULE_ASCLIN1
+#define USART2 UART2
 #define UART3 &MODULE_ASCLIN2
+#define USART3 UART3
 #define UART4 &MODULE_ASCLIN3
+#define USART4 UART4
 #define UART5 &MODULE_ASCLIN4
+#define USART5 UART5
 #define UART6 &MODULE_ASCLIN5
+#define USART6 UART6
 #define UART7 &MODULE_ASCLIN6
+#define USART7 UART7
 #define UART8 &MODULE_ASCLIN7
+#define USART8 UART8
 #endif
 
 void uartGetPortPins(UARTDevice_e device, serialPortPins_t * pins);
