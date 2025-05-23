@@ -4356,7 +4356,7 @@ static void cliResource(char *cmdline)
         resource = resourceNames[ioRecs[i].resource];
 
 #if defined(TC375)
-        cliPrintLinef("%s,%d: %s %s", IO_GPIOPortName(&ioRecs[i]), ioRecs[i].gpio->pinIndex, owner, resource);
+        cliPrintLinef("%s,%d: %s %s", IO_GPIOPortName(&ioRecs[i]), ioRecs[i].gpio.pinIndex, owner, resource);
 #else
         if (ioRecs[i].index > 0) {
             cliPrintLinef("%c%02d: %s%d %s", IO_GPIOPortIdx(ioRecs + i) + 'A', IO_GPIOPinIdx(ioRecs + i), owner, ioRecs[i].index, resource);

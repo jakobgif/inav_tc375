@@ -122,7 +122,7 @@ gpio_type * IO_GPIO(IO_t io)
 IfxPort_Pin * IO_GPIO(IO_t io)
 {
     const ioRec_t *ioRec = IO_Rec(io);
-    return ioRec->gpio;
+    return &(ioRec->gpio);
 }
 #else
 GPIO_TypeDef * IO_GPIO(IO_t io)
@@ -464,56 +464,57 @@ void IOConfigGPIOAF(IO_t io, ioConfig_t cfg, uint8_t af)
 #elif defined(TC375)
 
 char * IO_GPIOPortName(IO_t io){
+    ioRec_t* ioRec = io;
     if(false){ }
-    else if(((ioRec_t*)io)->gpio->port == &MODULE_P00){
+    else if(ioRec->gpio.port == &MODULE_P00){
         return portModuleName[0];
     }
-    else if(((ioRec_t*)io)->gpio->port == &MODULE_P01){
+    else if(ioRec->gpio.port == &MODULE_P01){
         return portModuleName[1];
     }
-    else if(((ioRec_t*)io)->gpio->port == &MODULE_P02){
+    else if(ioRec->gpio.port == &MODULE_P02){
         return portModuleName[2];
     }
-    else if(((ioRec_t*)io)->gpio->port == &MODULE_P10){
+    else if(ioRec->gpio.port == &MODULE_P10){
         return portModuleName[3];
     }
-    else if(((ioRec_t*)io)->gpio->port == &MODULE_P11){
+    else if(ioRec->gpio.port == &MODULE_P11){
         return portModuleName[4];
     }
-    else if(((ioRec_t*)io)->gpio->port == &MODULE_P12){
+    else if(ioRec->gpio.port == &MODULE_P12){
         return portModuleName[5];
     }
-    else if(((ioRec_t*)io)->gpio->port == &MODULE_P13){
+    else if(ioRec->gpio.port == &MODULE_P13){
         return portModuleName[6];
     }
-    else if(((ioRec_t*)io)->gpio->port == &MODULE_P14){
+    else if(ioRec->gpio.port == &MODULE_P14){
         return portModuleName[7];
     }
-    else if(((ioRec_t*)io)->gpio->port == &MODULE_P15){
+    else if(ioRec->gpio.port == &MODULE_P15){
         return portModuleName[8];
     }
-    else if(((ioRec_t*)io)->gpio->port == &MODULE_P20){
+    else if(ioRec->gpio.port == &MODULE_P20){
         return portModuleName[9];
     }
-    else if(((ioRec_t*)io)->gpio->port == &MODULE_P21){
+    else if(ioRec->gpio.port == &MODULE_P21){
         return portModuleName[10];
     }
-    else if(((ioRec_t*)io)->gpio->port == &MODULE_P22){
+    else if(ioRec->gpio.port == &MODULE_P22){
         return portModuleName[11];
     }
-    else if(((ioRec_t*)io)->gpio->port == &MODULE_P23){
+    else if(ioRec->gpio.port == &MODULE_P23){
         return portModuleName[12];
     }
-    else if(((ioRec_t*)io)->gpio->port == &MODULE_P32){
+    else if(ioRec->gpio.port == &MODULE_P32){
         return portModuleName[13];
     }
-    else if(((ioRec_t*)io)->gpio->port == &MODULE_P33){
+    else if(ioRec->gpio.port == &MODULE_P33){
         return portModuleName[14];
     }
-    else if(((ioRec_t*)io)->gpio->port == &MODULE_P34){
+    else if(ioRec->gpio.port == &MODULE_P34){
         return portModuleName[15];
     }
-    else if(((ioRec_t*)io)->gpio->port == &MODULE_P40){
+    else if(ioRec->gpio.port == &MODULE_P40){
         return portModuleName[16];
     }
 
@@ -574,15 +575,8 @@ void IOInitGlobal(void)
 #if defined(AT32F43x)
                 ioRec->gpio = (gpio_type *)(GPIOA_BASE + (port << 10));   // ports are 0x400 apart
 #elif defined(TC375)
-                //go through pinTable to find a port/pin combo that matches what we need
-                ioRec->gpio = NULL_PTR; //set to null in case we dont find anything
-                for (unsigned module = 0; module < IFXPORT_PINMAP_NUM_MODULES; module++) {
-                    const IfxPort_Pin *entry = IfxPort_Pin_pinTable[module][pin];
-                    if (entry && entry->port == portModule[port] && entry->pinIndex == pin) {
-                        ioRec->gpio = entry;
-                        break; //found entry, now we exit inner loop
-                    }
-                }
+                ioRec->gpio.port = portModule[port];
+                ioRec->gpio.pinIndex = pin;
 #else
                 ioRec->gpio = (GPIO_TypeDef *)(GPIOA_BASE + (port << 10));   // ports are 0x400 apart 
 # endif

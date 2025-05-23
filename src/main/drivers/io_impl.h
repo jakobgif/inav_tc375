@@ -19,7 +19,7 @@ typedef struct ioRec_s {
 gpio_type* IO_GPIO(IO_t io);
 #elif defined(TC375)
 typedef struct ioRec_s {
-    IfxPort_Pin *gpio;
+    IfxPort_Pin gpio;
     //uint16_t pin;
     resourceOwner_e owner;
     resourceType_e resource;
