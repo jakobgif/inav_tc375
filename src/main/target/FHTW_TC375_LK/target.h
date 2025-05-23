@@ -32,10 +32,9 @@
 
 // *************** LED **********************
 
-#define LED0_PINMAP         IfxGtm_TOM0_0N_TOUT106_P10_4_OUT
-#define LED0    MODULE_P00_5
-
-#define LED1    MODULE_P00_6
+#define LED0        MODULE_P00_5
+#define LED0_PINMAP IfxGtm_TOM0_0N_TOUT106_P10_4_OUT
+#define LED1        MODULE_P00_6
 
 //TODO: from this 
 //#define LED0_PINMAP         IfxAsclin0_RXA_P14_1_IN
@@ -67,53 +66,32 @@
 // #define MAX7456_CS_PIN          PB12
 
 // *************** UART *****************************
-//#define USE_VCP
-
-#define USE_UART1
-
+#define USE_UART1 //to uart - usb brigde
 //on aurix we need pinmap to route peripherals correctly. But inav also needs a pin number
 #define UART1_PINMAP_RX   IfxAsclin0_RXA_P14_1_IN
 #define UART1_PIN_RX      MODULE_P14_1
 #define UART1_PINMAP_TX   IfxAsclin0_TX_P14_0_OUT
 #define UART1_PIN_TX      MODULE_P14_0
 
-#define USE_UART4 //asclin3 is mapped to uart4
+#define USE_UART2 //mikroBus connector
+#define UART2_PINMAP_RX   IfxAsclin1_RXA_P15_1_IN
+#define UART2_PIN_RX      MODULE_P15_1
+#define UART2_PINMAP_TX   IfxAsclin1_TX_P15_0_OUT
+#define UART2_PIN_TX      MODULE_P15_0
+
+#define USE_UART3 //Shield2Go connector 1
+#define UART3_PINMAP_RX   IfxAsclin2_RXE_P33_8_IN
+#define UART3_PIN_RX      MODULE_P33_8
+#define UART3_PINMAP_TX   IfxAsclin2_TX_P33_9_OUT
+#define UART3_PIN_TX      MODULE_P33_9
+
+#define USE_UART4 //Shield2Go connector 2
 #define UART4_PINMAP_RX   IfxAsclin3_RXC_P20_3_IN
 #define UART4_PIN_RX      MODULE_P20_3
 #define UART4_PINMAP_TX   IfxAsclin3_TX_P20_0_OUT
 #define UART4_PIN_TX      MODULE_P20_0
 
-//#define UART1_RX_PIN            DEFIO_PINID(UART1_ROUTE_RX) //PMODULE_P000
-//#define UART1_TX_PIN            PMODULE_P001
-
-
-//#define USE_LOG
-
-// #define USE_UART2
-// #define UART2_RX_PIN            PA3
-// #define UART2_TX_PIN            PA2
-
-// #define USE_UART3
-// #define UART3_RX_PIN            PD9
-// #define UART3_TX_PIN            PD8
-
-// #define USE_UART4
-// #define UART4_RX_PIN            PA1
-// #define UART4_TX_PIN            PA0
-
-// #define USE_UART6
-// #define UART6_RX_PIN            PC7
-// #define UART6_TX_PIN            PC6 
-// #define INVERTER_PIN_UART6_RX   PD0
-
-// #define USE_UART7
-// #define UART7_RX_PIN            PE7
-
-// #define USE_UART8
-// #define UART8_RX_PIN            PE0
-// #define UART8_TX_PIN            PE1
-
-#define SERIAL_PORT_COUNT       2      //UART1 and UART4
+#define SERIAL_PORT_COUNT   4
 
 // #define DEFAULT_RX_TYPE         RX_TYPE_SERIAL
 // #define SERIALRX_PROVIDER       SERIALRX_SBUS
@@ -173,8 +151,10 @@
 // #define USE_SERIAL_4WAY_BLHELI_INTERFACE
 
 #define TARGET_IO_PORTMODULE_P00 0x60
-#define TARGET_IO_PORTMODULE_P14 0x03
+#define TARGET_IO_PORTMODULE_P14 0b11
+#define TARGET_IO_PORTMODULE_P15 0b11
 #define TARGET_IO_PORTMODULE_P20 0b1001
+#define TARGET_IO_PORTMODULE_P33 0b1100000000
 
 /*#define DEFIO_GPIOID__MODULE_P01 12
 #define DEFIO_GPIOID__MODULE_P02 12
