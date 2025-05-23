@@ -63,7 +63,13 @@ static uint32_t getFLASHSectorForEEPROM(uint32_t address){
 }
 
 void config_streamer_impl_unlock(void){
-    //in aurix this is handled by library
+    uint16_t endInitSafetyPassword = IfxScuWdt_getSafetyWatchdogPassword();
+
+    IfxScuWdt_clearSafetyEndinit(endInitSafetyPassword);
+    IfxFlash_eraseMultipleSectors(IfxFlash_dFlashTableEepLog[0].start, IFXFLASH_DFLASH_NUM_LOG_SECTORS);
+    IfxScuWdt_setSafetyEndinit(endInitSafetyPassword);
+
+    IfxFlash_waitUnbusy(0, IfxFlash_FlashType_D0);
     return;
 }
 
