@@ -104,6 +104,10 @@ typedef   boolean   bool;
 //uart
 #include "IfxAsclin_Asc.h"
 
+//software reset
+#include "IfxScuWdt.h"
+#include "IfxScuRcu.h"
+
 //interrupt prios start
 #include "target.h"
 #define INTPRIO_DISABLED    0   //0 will never be served, 1 is the minimum level
@@ -152,7 +156,7 @@ typedef   boolean   bool;
 
 #define __NOP(n) __nop(n) //some inav functions use __NOP() but aurix only has __nop()
 
-#define AURIX_CLEAR_DFLASH_ON_SYSTEM_INIT
+// #define AURIX_CLEAR_DFLASH_ON_SYSTEM_INIT
 
 #define MCU_FLASH_SIZE  IFXFLASH_PFLASH_SIZE
 
