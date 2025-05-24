@@ -23,9 +23,41 @@
  */
 
 #include "platform.h"
+#include "build/build_config.h"
 #include "drivers/system.h"
+#include "drivers/time.h"
+#include "log.h"
 
-static void checkAndHandleResetReason(){
+void checkAndHandleResetReason(){
+    // IfxScuRcu_ResetCode lastReset;
+
+    // /* Evaluate the last reset cause/details */
+    // lastReset = IfxScuRcu_evaluateReset();
+
+    // LOG_WARNING(SYSTEM, "Reset trigger: %d", lastReset.resetTrigger);
+    // LOG_WARNING(SYSTEM, "Reset type: %d", lastReset.resetType);
+
+    // switch (lastReset.resetType){
+    //     case IfxScuRcu_ResetType_application:       
+    //         break;
+
+    //     case IfxScuRcu_ResetType_system:
+    //         break;
+
+    //     case IfxScuRcu_ResetType_warmpoweron:
+    //         break;
+
+    //     case IfxScuRcu_ResetType_coldpoweron:
+    //         LOG_INFO(SYSTEM, "Reset reason: cold power on");
+    //         break;
+
+    //     default:
+    //         break;
+    // }
+
+    /* Clear Cold Power-On Reset sticky bits */
+    IfxScuRcu_clearColdResetStatus();
+
     return;
 }
 
@@ -33,9 +65,40 @@ bool isMPUSoftReset(void){
     return false;
 }
 
-void systemInit(void){
-    checkAndHandleResetReason();
+void systemReset(void){
+    //from example code
+    /* Get the CPU EndInit password */
+    uint16_t CPUEndinitPw = IfxScuWdt_getCpuWatchdogPassword();
 
+    /* Configure the request trigger in the Reset Configuration Register */
+    IfxScuRcu_configureResetRequestTrigger(IfxScuRcu_Trigger_sw, IfxScuRcu_ResetType_system);
+
+    /* Clear CPU EndInit protection to write in the SWRSTCON register of SCU */
+    IfxScuWdt_clearCpuEndinit(CPUEndinitPw);
+
+    /* Trigger a software reset based on the configuration of RSTCON register */
+    IfxCpu_triggerSwReset();
+
+    /* The following instructions are not executed if a SW reset occurs */
+    /* Set CPU EndInit protection */
+    IfxScuWdt_setCpuEndinit(CPUEndinitPw);
+}
+
+void cycleCounterInit(void){
+    extern ticks_t usTicks;
+    usTicks = IfxStm_getFrequency(IFXSTM_DEFAULT_TIMER) / 1000000;
+}
+
+void systemResetToBootloader(void){
+    systemResetRequest(0); //RESET_BOOTLOADER_REQUEST_ROM
+}
+
+void systemResetRequest(uint32_t requestId){
+    //IfxScuRcu_configureResetRequestTrigger(IfxScuRcu_Trigger_sw, IfxScuRcu_ResetType_system);
+    systemReset();
+}
+
+void systemInit(void){
     cycleCounterInit();
 
 #if defined(AURIX_CLEAR_DFLASH_ON_SYSTEM_INIT)
