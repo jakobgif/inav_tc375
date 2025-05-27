@@ -50,7 +50,7 @@ typedef struct uartDevice_s {
     ioTag_t tx;
     volatile uint8_t rxBuffer[UART_RX_BUFFER_SIZE];
     volatile uint8_t txBuffer[UART_TX_BUFFER_SIZE];
-    uint8_t irq;
+    //uint8_t irq;
 } uartDevice_t;
 
 #ifdef USE_UART1
@@ -74,7 +74,7 @@ static uartDevice_t uart1 = {
     .config = &uart1Config, //connect aurix driver config to inav uart device
     .rx = IO_TAG(UART1_PIN_RX),
     .tx = IO_TAG(UART1_PIN_TX),
-    .irq = NULL,
+    //.irq = NULL_PTR,
 };
 #endif
 
@@ -99,7 +99,7 @@ static uartDevice_t uart2 = {
     .config = &uart2Config,
     .rx = IO_TAG(UART2_PIN_RX),
     .tx = IO_TAG(UART2_PIN_TX),
-    .irq = NULL,
+    //.irq = NULL,
 };
 #endif
 
@@ -124,7 +124,7 @@ static uartDevice_t uart3 = {
     .config = &uart3Config,
     .rx = IO_TAG(UART3_PIN_RX),
     .tx = IO_TAG(UART3_PIN_TX),
-    .irq = NULL,
+    //.irq = NULL,
 };
 #endif
 
@@ -149,7 +149,7 @@ static uartDevice_t uart4 = {
     .config = &uart4Config,
     .rx = IO_TAG(UART4_PIN_RX),
     .tx = IO_TAG(UART4_PIN_TX),
-    .irq = NULL,
+    //.irq = NULL,
 };
 #endif
 
@@ -316,7 +316,7 @@ void uartTxIrqHandler(uartPort_t *s) {
         s->handle->txInProgress = FALSE;
     }
     else {
-        IfxAsclin_write8(s->handle->asclin, &(s->port.txBuffer[s->port.txBufferTail]), 1);
+        IfxAsclin_write8(s->handle->asclin, (uint8_t*)&(s->port.txBuffer[s->port.txBufferTail]), 1);
         s->port.txBufferTail = (s->port.txBufferTail + 1) % s->port.txBufferSize;
     }
 }

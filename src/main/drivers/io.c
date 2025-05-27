@@ -121,7 +121,7 @@ gpio_type * IO_GPIO(IO_t io)
 #elif defined(TC375)
 IfxPort_Pin * IO_GPIO(IO_t io)
 {
-    const ioRec_t *ioRec = IO_Rec(io);
+    ioRec_t *ioRec = IO_Rec(io);
     return &(ioRec->gpio);
 }
 #else
@@ -463,7 +463,7 @@ void IOConfigGPIOAF(IO_t io, ioConfig_t cfg, uint8_t af)
 
 #elif defined(TC375)
 
-char * IO_GPIOPortName(IO_t io){
+const char * IO_GPIOPortName(IO_t io){
     ioRec_t* ioRec = io;
     if(false){ }
     else if(ioRec->gpio.port == &MODULE_P00){
