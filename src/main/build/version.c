@@ -18,9 +18,14 @@
 #include "version.h"
 
 #ifdef TC375 
-const char * const targetName = STR_HELPER(TC375);
+const char * const targetName = __TARGET__;
 const char * const compilerVersion = __VERSION__;
 const char * const shortGitRevision = GIT_TAG_INAV;
+#ifdef BUILD_CONFIG_RELEASE
+const char * const buildType = STR_HELPER(BUILD_CONFIG_RELEASE);
+#elif BUILD_CONFIG_DEBUG
+const char * const buildType = STR_HELPER(BUILD_CONFIG_RELEASE);
+#endif
 #else
 const char * const targetName = __TARGET__;
 const char * const compilerVersion = __VERSION__;
