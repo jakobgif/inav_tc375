@@ -41,26 +41,26 @@
 #define DFLASH_START_ADDRESS    0xAF000000  //info from Libraries\iLLD\TC37A\Tricore\_Impl\IfxFlash_cfg.c IfxFlash_dFlashTableEepLog
 #define DFLASH_END_ADDRESS      0xAF03FFFF
 
-static uint32_t getFLASHSectorForEEPROM(uint32_t address){
-    //info from Libraries\iLLD\TC37A\Tricore\_Impl\IfxFlash_cfg.c IfxFlash_dFlashTableEepLog
-    if (address < DFLASH_START_ADDRESS){
-        //below start address
-        while (1) {
-            failureMode(FAILURE_FLASH_WRITE_FAILED);
-        }
-    }
+// static uint32_t getFLASHSectorForEEPROM(uint32_t address){
+//     //info from Libraries\iLLD\TC37A\Tricore\_Impl\IfxFlash_cfg.c IfxFlash_dFlashTableEepLog
+//     if (address < DFLASH_START_ADDRESS){
+//         //below start address
+//         while (1) {
+//             failureMode(FAILURE_FLASH_WRITE_FAILED);
+//         }
+//     }
 
-    //find in which sector the address is
-    for(uint8_t i = 0; i < IFXFLASH_DFLASH_NUM_LOG_SECTORS; i++){
-        if (address <= IfxFlash_dFlashTableEepLog[i].end)
-            return IfxFlash_dFlashTableEepLog[i].start;
-    }
+//     //find in which sector the address is
+//     for(uint8_t i = 0; i < IFXFLASH_DFLASH_NUM_LOG_SECTORS; i++){
+//         if (address <= IfxFlash_dFlashTableEepLog[i].end)
+//             return IfxFlash_dFlashTableEepLog[i].start;
+//     }
 
-    //should not reach this point
-    while (1) {
-        failureMode(FAILURE_FLASH_WRITE_FAILED);
-    }
-}
+//     //should not reach this point
+//     while (1) {
+//         failureMode(FAILURE_FLASH_WRITE_FAILED);
+//     }
+// }
 
 void config_streamer_impl_unlock(void){
     uint16_t endInitSafetyPassword = IfxScuWdt_getSafetyWatchdogPassword();
