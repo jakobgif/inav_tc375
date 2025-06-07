@@ -29,10 +29,10 @@
 #include "log.h"
 
 void checkAndHandleResetReason(){
-    // IfxScuRcu_ResetCode lastReset;
+    IfxScuRcu_ResetCode lastReset;
 
     // /* Evaluate the last reset cause/details */
-    // lastReset = IfxScuRcu_evaluateReset();
+    lastReset = IfxScuRcu_evaluateReset();
 
     // LOG_WARNING(SYSTEM, "Reset trigger: %d", lastReset.resetTrigger);
     // LOG_WARNING(SYSTEM, "Reset type: %d", lastReset.resetType);
@@ -62,10 +62,14 @@ void checkAndHandleResetReason(){
 }
 
 bool isMPUSoftReset(void){
-    return false;
+    IfxScuRcu_ResetCode lastReset;
+    lastReset = IfxScuRcu_evaluateReset();
+    return (lastReset.resetType != IfxScuRcu_ResetType_coldpoweron);
 }
 
 void systemReset(void){
+    IfxCpu_disableInterrupts();
+
     //from example code
     /* Get the CPU EndInit password */
     uint16_t CPUEndinitPw = IfxScuWdt_getCpuWatchdogPassword();
