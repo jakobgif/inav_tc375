@@ -93,6 +93,14 @@ static bool busDevInit_SPI(busDevice_t * dev, const busDeviceDescriptor_t * desc
     dev->busdev.spi.spiBus = descriptor->busdev.spi.spiBus;
     dev->busdev.spi.csnPin = IOGetByTag(descriptor->busdev.spi.csnPin);
 
+#if defined(TC375)
+    //dynamic allocation of handle
+    dev->spiChannel = memAllocate(sizeof(IfxQspi_SpiMaster_Channel), OWNER_SPI);
+    if(NULL_PTR == dev->spiChannel){
+        return false;
+    }
+#endif
+
     if (dev->busdev.spi.csnPin && spiBusInitHost(dev)) {
         // Init CSN pin
         IOInit(dev->busdev.spi.csnPin, owner, RESOURCE_SPI_CS, 0);
