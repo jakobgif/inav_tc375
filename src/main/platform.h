@@ -88,7 +88,15 @@ typedef   sint16    int16_t;
 typedef   sint32    int32_t;
 typedef   uint32    uint32_t;
 typedef   uint64    uint64_t;
+typedef   float32   float32_t;
 typedef   boolean   bool;
+
+#ifndef true
+#define true TRUE
+#endif
+#ifndef false
+#define false FALSE
+#endif
 
 //GPIOs
 #include "IfxPort.h"
@@ -107,6 +115,9 @@ typedef   boolean   bool;
 //software reset
 #include "IfxScuWdt.h"
 #include "IfxScuRcu.h"
+
+//SPI
+#include "IfxQspi_SpiMaster.h"
 
 //interrupt prios start
 #include "target.h"
@@ -129,30 +140,38 @@ typedef   boolean   bool;
 #define INTPRIO_ASCLIN0_TX  51
 #define INTPRIO_ASCLIN0_RX  50
 
-#define INTPRIO_GTM_TOM_15   100
-#define INTPRIO_GTM_TOM_14   101
-#define INTPRIO_GTM_TOM_13   102
-#define INTPRIO_GTM_TOM_12   103
-#define INTPRIO_GTM_TOM_11   104
-#define INTPRIO_GTM_TOM_10   105
-#define INTPRIO_GTM_TOM_09   106
-#define INTPRIO_GTM_TOM_08   107
-#define INTPRIO_GTM_TOM_07   108
-#define INTPRIO_GTM_TOM_06   109
-#define INTPRIO_GTM_TOM_05   110
-#define INTPRIO_GTM_TOM_04   111
-#define INTPRIO_GTM_TOM_03   112
-#define INTPRIO_GTM_TOM_02   113
-#define INTPRIO_GTM_TOM_01   114
-#define INTPRIO_GTM_TOM_00   115
+#define INTPRIO_QSPI3_TX    92
+#define INTPRIO_QSPI3_RX    93
+#define INTPRIO_QSPI2_TX    94
+#define INTPRIO_QSPI2_RX    95
+#define INTPRIO_QSPI1_TX    96
+#define INTPRIO_QSPI1_RX    97
+#define INTPRIO_QSPI0_TX    98
+#define INTPRIO_QSPI0_RX    99
 
-#define INTPRIO_MAX          255 //max will be served first
+#define INTPRIO_GTM_TOM_15  100
+#define INTPRIO_GTM_TOM_14  101
+#define INTPRIO_GTM_TOM_13  102
+#define INTPRIO_GTM_TOM_12  103
+#define INTPRIO_GTM_TOM_11  104
+#define INTPRIO_GTM_TOM_10  105
+#define INTPRIO_GTM_TOM_09  106
+#define INTPRIO_GTM_TOM_08  107
+#define INTPRIO_GTM_TOM_07  108
+#define INTPRIO_GTM_TOM_06  109
+#define INTPRIO_GTM_TOM_05  110
+#define INTPRIO_GTM_TOM_04  111
+#define INTPRIO_GTM_TOM_03  112
+#define INTPRIO_GTM_TOM_02  113
+#define INTPRIO_GTM_TOM_01  114
+#define INTPRIO_GTM_TOM_00  115
+
+#define INTPRIO_MAX         255 //max will be served first
 //interrupt prios end
 
-//copied from reference project
-#define U_ID_0 (((*(uint32_t*)&SCU_CHIPID) & IFX_SCU_CHIPID_CHREV_MSK) >> IFX_SCU_CHIPID_CHREV_OFF)
-#define U_ID_1 (((*(uint32_t*)&SCU_CHIPID) & IFX_SCU_CHIPID_CHTEC_MSK) >> IFX_SCU_CHIPID_CHTEC_OFF)
-#define U_ID_2 (((*(uint32_t*)&SCU_CHIPID) & IFX_SCU_CHIPID_CHID_MSK) >> IFX_SCU_CHIPID_CHID_OFF)
+#define U_ID_0 (*(uint32_t*)&SCU_CHIPID)
+#define U_ID_1 (*(uint32_t*)&SCU_MANID)
+#define U_ID_2 0x0
 
 #define __NOP(n) __nop(n) //some inav functions use __NOP() but aurix only has __nop()
 
