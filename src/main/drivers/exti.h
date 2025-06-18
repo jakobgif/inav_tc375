@@ -39,6 +39,8 @@ void EXTIHandlerInit(extiCallbackRec_t *cb, extiHandlerCallback *fn);
 void EXTIConfig(IO_t io, extiCallbackRec_t *cb, int irqPriority, ioConfig_t config);
 #elif defined(AT32F43x)
 void EXTIConfig(IO_t io, extiCallbackRec_t *cb, int irqPriority, exint_polarity_config_type trigger);
+#elif defined(TC375)
+//not implemented
 #else
 void EXTIConfig(IO_t io, extiCallbackRec_t *cb, int irqPriority, EXTITrigger_TypeDef trigger);
 #endif
