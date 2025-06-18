@@ -13,7 +13,7 @@ INCLUDES=$(<includes.opt)
 cd "$(dirname "$0")"
 
 #compile definitions
-DEFS="-DTC375"
+DEFS="-DTC375 -D__TRICORE__"
 #IMPORTANT: this can vary by machine
 export CFLAGS="$INCLUDES -I/mnt/c/Infineon/AURIX-Studio-1.10.2/tools/Compilers/tricore-gcc11/tricore-elf/include $DEFS"
 export SETTINGS_CXX="g++"
