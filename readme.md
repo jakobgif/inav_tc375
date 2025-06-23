@@ -3,22 +3,77 @@
 # Aurix
 This fork adds code to support Aurix Tricore CPUs.
 
-| ----------------- | ----- |
 | Supported Targets | TC375 Litekit |
 | ----------------- | ----- |
 
-<!-- ## Aurix Development Studio Setup
+## Aurix Development Studio Setup
 This entire repo can be added as submodule to an existing project. In this case the Aurix project has to be configured as follows:
-- C/C++ Build -> Settings -> AURIX GCC Compiler -> Dialect -> Language standard: `none` & Other dialect flags: `-std=gnu99` -->
+- C/C++ Build -> Settings -> AURIX GCC Compiler -> Dialect -> Language standard: `none` & Other dialect flags: `-std=gnu11`
+- --//-- -> Prepocessor -> define macros shown below
+- --//-- -> Optimization -> `-Og` for debug or `-O2` for release
+- --//-- -> Miscellaneous -> add `-include "inav_tc375\src\main\platform.h"` flag
+- C/C++ General -> Paths and Symbols -> Source Location:
+  - add complete inav folder to source filter
+  - add `inav_tc375\lib\main\MAVLink` as source folder
+  - add `inav_tc375\src\main` as source folder
+  - add all CPU specific files that are not for aurix to the source filter.
 
-## AURIX specific macros
-### Target
-- to build for TC375 the macro `TC375` has to be defined
+## cmake based building
+Not done yet. 
+
+## Aurix specific macros
+To build for TC375 the follwing macros have to be defined in the build environment:
+- `__TRICORE__`
+- `TC375`
+- `__TARGET__=\"TC375\"`
+- `GIT_HASH` current commit hash of the wrapping project
+- `GIT_TAG` latest tag of the wrapping project
+- `GIT_HASH_INAV` current checked out hash of the inav submodule
+- `GIT_TAG_INAV` latest tag of the submodule
+- `INAV_VERSION` latest tag of inav
+- `GIT_IS_DIRTY` can be defined if the local copy is dirty
+- `FC_VERSION_MAJOR` version of inav
+- `FC_VERSION_MINOR` version of inav
+- `FC_VERSION_PATCH_LEVEL` version of inav
 
 ## Generation scripts
 The inav codebase requires some files that need to be automatically generated. The following scripts need to be run from inside the aurix build folder.
-- `./src/utils/aurix_generate_settings.sh` is used to generate the inav settings. WARNING: It could be that the path of the directory where the compiler libraries are located must be changed.
-- `./src/utils/aurix_generate_version_strings.sh` is used to generate version strings. This script should be run before each build.
+- `./src/utils/aurix_generate_settings.sh` is used to generate the inav settings. **WARNING**: It could be that the path of the directory where the compiler libraries are located must be changed.
+- `./src/utils/aurix_generate_version_strings.sh` is used to generate the version macros described above. This script should be run before each build.
+
+## Linker script
+The following sections must be added to the linker script:
+```
+CORE_ID = GLOBAL;
+    SECTIONS
+    {
+        .busdev_registry :
+        {
+            PROVIDE_HIDDEN (__busdev_registry_start = .);
+            KEEP (*(.busdev_registry))
+            KEEP (*(SORT(.busdev_registry.*)))
+            PROVIDE_HIDDEN (__busdev_registry_end = .);
+        } > default_rom
+        
+        .pg_registry :
+        {
+            PROVIDE_HIDDEN (__pg_registry_start = .);
+            KEEP (*(.pg_registry))
+            KEEP (*(SORT(.pg_registry.*)))
+            PROVIDE_HIDDEN (__pg_registry_end = .);
+        } > default_rom
+    
+        .pg_resetdata :
+        {
+            PROVIDE_HIDDEN (__pg_resetdata_start = .);
+            KEEP (*(.pg_resetdata))
+            PROVIDE_HIDDEN (__pg_resetdata_end = .);
+        } > default_rom
+    }
+```
+
+## CLI
+Command `aurix` can be used to show basic platform specs.
 
 # F411 PSA
 
