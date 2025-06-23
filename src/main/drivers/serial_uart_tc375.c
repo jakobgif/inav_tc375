@@ -29,6 +29,7 @@
 
 #include "drivers/time.h"
 #include "drivers/io.h"
+#include "drivers/io_impl.h"
 #include "rcc.h"
 #include "drivers/nvic.h"
 
@@ -40,7 +41,7 @@
 #define UART_TX_BUFFER_SIZE UART1_RX_BUFFER_SIZE
 
 //for interrupt vector
-#define AURIX_CORE_ID 2
+#define AURIX_CORE_ID 0
 
 typedef struct uartDevice_s {
     IfxAsclin_Asc *handle; //handle statically defined somewhere and referenced here
@@ -57,17 +58,6 @@ typedef struct uartDevice_s {
 IfxAsclin_Asc uart1handle = {
     .asclin = UART1,
 };
-IfxAsclin_Asc_Pins uart1PinConfig = {
-    .cts = NULL_PTR,
-    .ctsMode = IfxPort_InputMode_pullUp,
-    .rx = &UART1_PINMAP_RX,
-    .rxMode = IfxPort_InputMode_pullUp,
-    .rts = NULL_PTR,
-    .rtsMode = IfxPort_OutputMode_pushPull,
-    .tx = &UART1_PINMAP_TX,
-    .txMode = IfxPort_OutputMode_pushPull,
-    .pinDriver = DEFAULT_IfxPort_PadDriver,
-};
 IfxAsclin_Asc_Config uart1Config;
 static uartDevice_t uart1 = {
     .handle = &uart1handle, //connect aurix driver to inav uart device
@@ -81,17 +71,6 @@ static uartDevice_t uart1 = {
 #ifdef USE_UART2
 IfxAsclin_Asc uart2handle = {
     .asclin = UART2,
-};
-IfxAsclin_Asc_Pins uart2PinConfig = {
-    .cts = NULL_PTR,
-    .ctsMode = IfxPort_InputMode_pullUp,
-    .rx = &UART2_PINMAP_RX,
-    .rxMode = IfxPort_InputMode_pullUp,
-    .rts = NULL_PTR,
-    .rtsMode = IfxPort_OutputMode_pushPull,
-    .tx = &UART2_PINMAP_TX,
-    .txMode = IfxPort_OutputMode_pushPull,
-    .pinDriver = DEFAULT_IfxPort_PadDriver,
 };
 IfxAsclin_Asc_Config uart2Config;
 static uartDevice_t uart2 = {
@@ -107,17 +86,6 @@ static uartDevice_t uart2 = {
 IfxAsclin_Asc uart3handle = {
     .asclin = UART3,
 };
-IfxAsclin_Asc_Pins uart3PinConfig = {
-    .cts = NULL_PTR,
-    .ctsMode = IfxPort_InputMode_pullUp,
-    .rx = &UART3_PINMAP_RX,
-    .rxMode = IfxPort_InputMode_pullUp,
-    .rts = NULL_PTR,
-    .rtsMode = IfxPort_OutputMode_pushPull,
-    .tx = &UART3_PINMAP_TX,
-    .txMode = IfxPort_OutputMode_pushPull,
-    .pinDriver = DEFAULT_IfxPort_PadDriver,
-};
 IfxAsclin_Asc_Config uart3Config;
 static uartDevice_t uart3 = {
     .handle = &uart3handle,
@@ -131,17 +99,6 @@ static uartDevice_t uart3 = {
 #ifdef USE_UART4
 IfxAsclin_Asc uart4handle = {
     .asclin = UART4,
-};
-IfxAsclin_Asc_Pins uart4PinConfig = {
-    .cts = NULL_PTR,
-    .ctsMode = IfxPort_InputMode_pullUp,
-    .rx = &UART4_PINMAP_RX,
-    .rxMode = IfxPort_InputMode_pullUp,
-    .rts = NULL_PTR,
-    .rtsMode = IfxPort_OutputMode_pushPull,
-    .tx = &UART4_PINMAP_TX,
-    .txMode = IfxPort_OutputMode_pushPull,
-    .pinDriver = DEFAULT_IfxPort_PadDriver,
 };
 IfxAsclin_Asc_Config uart4Config;
 static uartDevice_t uart4 = {
@@ -157,17 +114,6 @@ static uartDevice_t uart4 = {
 IfxAsclin_Asc uart5handle = {
     .asclin = UART5,
 };
-IfxAsclin_Asc_Pins uart5PinConfig = {
-    .cts = NULL_PTR,
-    .ctsMode = IfxPort_InputMode_pullUp,
-    .rx = &UART5_PINMAP_RX,
-    .rxMode = IfxPort_InputMode_pullUp,
-    .rts = NULL_PTR,
-    .rtsMode = IfxPort_OutputMode_pushPull,
-    .tx = &UART5_PINMAP_TX,
-    .txMode = IfxPort_OutputMode_pushPull,
-    .pinDriver = DEFAULT_IfxPort_PadDriver,
-};
 IfxAsclin_Asc_Config uart5Config;
 static uartDevice_t uart5 = {
     .handle = &uart5handle,
@@ -181,17 +127,6 @@ static uartDevice_t uart5 = {
 #ifdef USE_UART6
 IfxAsclin_Asc uart6handle = {
     .asclin = UART6,
-};
-IfxAsclin_Asc_Pins uart6PinConfig = {
-    .cts = NULL_PTR,
-    .ctsMode = IfxPort_InputMode_pullUp,
-    .rx = &UART6_PINMAP_RX,
-    .rxMode = IfxPort_InputMode_pullUp,
-    .rts = NULL_PTR,
-    .rtsMode = IfxPort_OutputMode_pushPull,
-    .tx = &UART6_PINMAP_TX,
-    .txMode = IfxPort_OutputMode_pushPull,
-    .pinDriver = DEFAULT_IfxPort_PadDriver,
 };
 IfxAsclin_Asc_Config uart6Config;
 static uartDevice_t uart6 = {
@@ -207,17 +142,6 @@ static uartDevice_t uart6 = {
 IfxAsclin_Asc uart7handle = {
     .asclin = UART7,
 };
-IfxAsclin_Asc_Pins uart7PinConfig = {
-    .cts = NULL_PTR,
-    .ctsMode = IfxPort_InputMode_pullUp,
-    .rx = &UART7_PINMAP_RX,
-    .rxMode = IfxPort_InputMode_pullUp,
-    .rts = NULL_PTR,
-    .rtsMode = IfxPort_OutputMode_pushPull,
-    .tx = &UART7_PINMAP_TX,
-    .txMode = IfxPort_OutputMode_pushPull,
-    .pinDriver = DEFAULT_IfxPort_PadDriver,
-};
 IfxAsclin_Asc_Config uart7Config;
 static uartDevice_t uart7 = {
     .handle = &uart7handle,
@@ -231,17 +155,6 @@ static uartDevice_t uart7 = {
 #ifdef USE_UART8
 IfxAsclin_Asc uart8handle = {
     .asclin = UART8,
-};
-IfxAsclin_Asc_Pins uart8PinConfig = {
-    .cts = NULL_PTR,
-    .ctsMode = IfxPort_InputMode_pullUp,
-    .rx = &UART8_PINMAP_RX,
-    .rxMode = IfxPort_InputMode_pullUp,
-    .rts = NULL_PTR,
-    .rtsMode = IfxPort_OutputMode_pushPull,
-    .tx = &UART8_PINMAP_TX,
-    .txMode = IfxPort_OutputMode_pushPull,
-    .pinDriver = DEFAULT_IfxPort_PadDriver,
 };
 IfxAsclin_Asc_Config uart8Config;
 static uartDevice_t uart8 = {
@@ -295,6 +208,54 @@ static uartDevice_t* uartHardwareMap[] = {
     NULL,
 #endif
 };
+
+IfxAsclin_Asc_Pins uartPinConfigs[sizeof(uartHardwareMap)/sizeof(uartDevice_t*)];
+
+static IfxAsclin_Rx_In * getRxInPinmapFromIoTag(ioTag_t tag, Ifx_ASCLIN * module){
+    IfxAsclin_Rx_In * pinmap = NULL_PTR;
+    //get port and pin from tag
+    ioRec_t *ioRec = IO_Rec(IOGetByTag(tag));
+    IfxPort_Pin gpio = ioRec->gpio;
+
+    for (int i=0; i<IFXASCLIN_PINMAP_NUM_MODULES; i++){
+        for (int j=0; j<IFXASCLIN_PINMAP_RX_IN_NUM_ITEMS; j++){
+            //module must match
+            if (IfxAsclin_Rx_In_pinTable[i][j] != NULL){
+                if( IfxAsclin_Rx_In_pinTable[i][j]->pin.pinIndex == gpio.pinIndex && 
+                    IfxAsclin_Rx_In_pinTable[i][j]->pin.port == gpio.port && 
+                    IfxAsclin_Rx_In_pinTable[i][j]->module == module
+                ){
+                    pinmap = IfxAsclin_Rx_In_pinTable[i][j];
+                }
+            }
+        }
+    }
+
+    return pinmap;
+}
+
+static IfxAsclin_Tx_Out * getTxOutPinmapFromIoTag(ioTag_t tag, Ifx_ASCLIN * module){
+    IfxAsclin_Tx_Out * pinmap = NULL_PTR;
+    //get port and pin from tag
+    ioRec_t *ioRec = IO_Rec(IOGetByTag(tag));
+    IfxPort_Pin gpio = ioRec->gpio;
+    
+    for (int i=0; i<IFXASCLIN_PINMAP_NUM_MODULES; i++){
+        for (int j=0; j<IFXASCLIN_PINMAP_TX_OUT_NUM_ITEMS; j++){
+            //module must match
+            if (IfxAsclin_Tx_Out_pinTable[i][j] != NULL){
+                if( IfxAsclin_Tx_Out_pinTable[i][j]->pin.pinIndex == gpio.pinIndex && 
+                    IfxAsclin_Tx_Out_pinTable[i][j]->pin.port == gpio.port && 
+                    IfxAsclin_Tx_Out_pinTable[i][j]->module == module
+                ){
+                    pinmap = IfxAsclin_Tx_Out_pinTable[i][j];
+                }
+            }
+        }
+    }
+
+    return pinmap;
+}
 
 void uartGetPortPins(UARTDevice_e device, serialPortPins_t * pins){
     uartDevice_t *uart = uartHardwareMap[device];
@@ -389,6 +350,19 @@ uartPort_t *serialUART(UARTDevice_e device, uint32_t baudRate, portMode_t mode, 
     s->config->bitTiming.medianFilter = 3;
     s->config->bitTiming.samplePointPosition = 9;
 
+    IfxAsclin_Asc_Pins *pins = &uartPinConfigs[device];
+    pins->cts = NULL_PTR;
+    pins->ctsMode = IfxPort_InputMode_pullUp;
+    pins->rx = getRxInPinmapFromIoTag(uart->rx, uart->handle->asclin);
+    pins->rxMode = IfxPort_InputMode_pullUp;
+    pins->rts = NULL_PTR;
+    pins->rtsMode = IfxPort_OutputMode_pushPull;
+    pins->tx = getTxOutPinmapFromIoTag(uart->tx, uart->handle->asclin);
+    pins->txMode = IfxPort_OutputMode_pushPull;
+    pins->pinDriver = DEFAULT_IfxPort_PadDriver;
+
+    s->config->pins = pins;
+
     return s;
 }
 
@@ -400,8 +374,6 @@ uartPort_t *serialUART1(uint32_t baudRate, portMode_t mode, portOptions_t option
     s->config->interrupt.txPriority = INTPRIO_ASCLIN0_TX;
     s->config->interrupt.rxPriority = INTPRIO_ASCLIN0_RX;
     s->config->interrupt.typeOfService = IfxCpu_Irq_getTos(IfxCpu_getCoreIndex());
-
-    s->config->pins = &uart1PinConfig;
 
     return s;
 }
@@ -428,8 +400,6 @@ uartPort_t *serialUART2(uint32_t baudRate, portMode_t mode, portOptions_t option
     s->config->interrupt.rxPriority = INTPRIO_ASCLIN1_RX;
     s->config->interrupt.typeOfService = IfxCpu_Irq_getTos(IfxCpu_getCoreIndex());
 
-    s->config->pins = &uart2PinConfig;
-
     return s;
 }
 
@@ -454,8 +424,6 @@ uartPort_t *serialUART3(uint32_t baudRate, portMode_t mode, portOptions_t option
     s->config->interrupt.txPriority = INTPRIO_ASCLIN2_TX;
     s->config->interrupt.rxPriority = INTPRIO_ASCLIN2_RX;
     s->config->interrupt.typeOfService = IfxCpu_Irq_getTos(IfxCpu_getCoreIndex());
-
-    s->config->pins = &uart3PinConfig;
 
     return s;
 }
@@ -482,8 +450,6 @@ uartPort_t *serialUART4(uint32_t baudRate, portMode_t mode, portOptions_t option
     s->config->interrupt.rxPriority = INTPRIO_ASCLIN3_RX;
     s->config->interrupt.typeOfService = IfxCpu_Irq_getTos(IfxCpu_getCoreIndex());
 
-    s->config->pins = &uart4PinConfig;
-
     return s;
 }
 
@@ -508,8 +474,6 @@ uartPort_t *serialUART5(uint32_t baudRate, portMode_t mode, portOptions_t option
     s->config->interrupt.txPriority = INTPRIO_ASCLIN4_TX;
     s->config->interrupt.rxPriority = INTPRIO_ASCLIN4_RX;
     s->config->interrupt.typeOfService = IfxCpu_Irq_getTos(IfxCpu_getCoreIndex());
-
-    s->config->pins = &uart5PinConfig;
 
     return s;
 }
@@ -536,8 +500,6 @@ uartPort_t *serialUART6(uint32_t baudRate, portMode_t mode, portOptions_t option
     s->config->interrupt.rxPriority = INTPRIO_ASCLIN5_RX;
     s->config->interrupt.typeOfService = IfxCpu_Irq_getTos(IfxCpu_getCoreIndex());
 
-    s->config->pins = &uart6PinConfig;
-
     return s;
 }
 
@@ -563,8 +525,6 @@ uartPort_t *serialUART7(uint32_t baudRate, portMode_t mode, portOptions_t option
     s->config->interrupt.rxPriority = INTPRIO_ASCLIN6_RX;
     s->config->interrupt.typeOfService = IfxCpu_Irq_getTos(IfxCpu_getCoreIndex());
 
-    s->config->pins = &uart7PinConfig;
-
     return s;
 }
 
@@ -589,8 +549,6 @@ uartPort_t *serialUART8(uint32_t baudRate, portMode_t mode, portOptions_t option
     s->config->interrupt.txPriority = INTPRIO_ASCLIN7_TX;
     s->config->interrupt.rxPriority = INTPRIO_ASCLIN7_RX;
     s->config->interrupt.typeOfService = IfxCpu_Irq_getTos(IfxCpu_getCoreIndex());
-
-    s->config->pins = &uart8PinConfig;
 
     return s;
 }

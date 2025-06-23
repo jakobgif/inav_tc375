@@ -50,28 +50,20 @@
 
 // *************** UART *****************************
 #define USE_UART1 //to uart - usb brigde
-//on aurix we need pinmap to route peripherals correctly. But inav also needs a pin number
-#define UART1_PINMAP_RX   IfxAsclin0_RXA_P14_1_IN
+
 #define UART1_PIN_RX      MODULE_P14_1
-#define UART1_PINMAP_TX   IfxAsclin0_TX_P14_0_OUT
 #define UART1_PIN_TX      MODULE_P14_0
 
 // #define USE_UART2 //mikroBus connector
-// #define UART2_PINMAP_RX   IfxAsclin1_RXA_P15_1_IN
 // #define UART2_PIN_RX      MODULE_P15_1
-// #define UART2_PINMAP_TX   IfxAsclin1_TX_P15_0_OUT
 // #define UART2_PIN_TX      MODULE_P15_0
 
 #define USE_UART3 //Shield2Go connector 1
-#define UART3_PINMAP_RX   IfxAsclin2_RXE_P33_8_IN
 #define UART3_PIN_RX      MODULE_P33_8
-#define UART3_PINMAP_TX   IfxAsclin2_TX_P33_9_OUT
 #define UART3_PIN_TX      MODULE_P33_9
 
 #define USE_UART4 //Shield2Go connector 2
-#define UART4_PINMAP_RX   IfxAsclin3_RXC_P20_3_IN
 #define UART4_PIN_RX      MODULE_P20_3
-#define UART4_PINMAP_TX   IfxAsclin3_TX_P20_0_OUT
 #define UART4_PIN_TX      MODULE_P20_0
 
 #define SERIAL_PORT_COUNT   3
