@@ -98,6 +98,7 @@ void uartConfigurePinSwap(uartPort_t *uartPort);
 serialPort_t *uartOpen(usart_type *USARTx, serialReceiveCallbackPtr rxCallback, void *rxCallbackData, uint32_t baudRate, portMode_t mode, portOptions_t options);
 #elif defined(TC375)
 serialPort_t *uartOpen(Ifx_ASCLIN *module, serialReceiveCallbackPtr rxCallback, void *rxCallbackData, uint32_t baudRate, portMode_t mode, portOptions_t options);
+void uartTxIrqHandler(uartPort_t *s);
 #else
 serialPort_t *uartOpen(USART_TypeDef *USARTx, serialReceiveCallbackPtr rxCallback, void *rxCallbackData, uint32_t baudRate, portMode_t mode, portOptions_t options);
 #endif
