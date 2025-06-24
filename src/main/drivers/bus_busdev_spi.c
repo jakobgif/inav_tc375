@@ -45,7 +45,7 @@ bool spiBusInitHost(const busDevice_t * dev)
 {
     const bool spiLeadingEdge = (dev->flags & DEVFLAGS_SPI_MODE_0);
 #if defined(TC375)
-    return spiInitBus(dev, spiLeadingEdge);
+    return spiInitBus((busDevice_t *)dev, spiLeadingEdge);
 #else
     return spiInitDevice(dev->busdev.spi.spiBus, spiLeadingEdge);
 #endif
