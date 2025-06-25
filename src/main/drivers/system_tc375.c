@@ -34,8 +34,8 @@ void checkAndHandleResetReason(){
     // /* Evaluate the last reset cause/details */
     lastReset = IfxScuRcu_evaluateReset();
 
-    // LOG_WARNING(SYSTEM, "Reset trigger: %d", lastReset.resetTrigger);
-    // LOG_WARNING(SYSTEM, "Reset type: %d", lastReset.resetType);
+    LOG_DEBUG(SYSTEM, "Reset trigger: %d", lastReset.resetTrigger);
+    LOG_DEBUG(SYSTEM, "Reset type: %d", lastReset.resetType);
 
     // switch (lastReset.resetType){
     //     case IfxScuRcu_ResetType_application:       
