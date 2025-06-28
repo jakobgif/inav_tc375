@@ -359,7 +359,7 @@ uartPort_t *serialUART(UARTDevice_e device, uint32_t baudRate, portMode_t mode, 
     pins->rtsMode = IfxPort_OutputMode_pushPull;
     pins->tx = getTxOutPinmapFromIoTag(uart->tx, uart->handle->asclin);
     pins->txMode = IfxPort_OutputMode_pushPull;
-    pins->pinDriver = DEFAULT_IfxPort_PadDriver;
+    pins->pinDriver = IfxPort_PadDriver_cmosAutomotiveSpeed1; //fastest rise time
 
     s->config->pins = pins;
 
