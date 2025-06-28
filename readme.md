@@ -75,6 +75,32 @@ CORE_ID = GLOBAL;
 ## CLI
 Command `aurix` can be used to show basic platform specs.
 
+##  Target configuration
+`inav_tc375\src\main\target` lists target configirations. A new target can be added by creating a new folder. A example configuration for the TC375 litekit was already created (`inav_tc375\src\main\target\FHTW_TC375_LK`). 
+
+`targetConfiguration()` is used to set some default configuration. In case of FHTW_TC375_LK it sets the logging output port to UART4 and enables all logging.
+### GPIO config
+For this implementation GPIO names can be defined like this: `#define LED0 MODULE_P00_5`. Furthermore, the GPIO has to be enabled via another macro: `#define TARGET_IO_PORTMODULE_P00 0b100000`. 
+### SPI config
+To enable a SPI bus you need the use the macro `#define USE_SPI_DEVICE_x`. For this implementation SPI device 1 is using QSPI 0, device 2 is using QSPI 1 and so on. The SPI pins also need to be defined. Eg: 
+```C
+#define SPI3_PIN_SCLK MODULE_P15_8
+#define SPI3_PIN_MRST MODULE_P15_7
+#define SPI3_PIN_MTSR MODULE_P15_6
+```
+Note that all pins must be valid pinmaps that can be connected to the QPSI module. For the chip select it does not matter if the gpio pinmap uses the same QSPI module.
+### I2C config
+TBD
+### UART config
+Use the macro `USE_UARTx` to enable a UART port. UART1 uses Asclin0, UART2 uses Asclin1 and so on. Afterwards use eg
+```C
+#define UART1_PIN_RX MODULE_P14_1
+#define UART1_PIN_TX MODULE_P14_0
+```
+to set the UART pins. Additionally the UART count has to be set to the number of available uart ports: `#define SERIAL_PORT_COUNT`.
+### Timer config
+TBD
+
 # F411 PSA
 
 > INAV no longer accepts targets based on STM32 F411 MCU.
