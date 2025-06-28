@@ -132,7 +132,7 @@ static IfxQspi_Slso_Out * getSlsPinmapFromIoTag(ioTag_t tag){
     return pinmap;
 }
 
-//TODO: check which speed is supported by PCB
+#ifdef USE_SPI_SPEED_SLOW
 static const float32_t spiSpeedMap[] = {
     500000,     // SPI_CLOCK_INITIALIZATON
     500000,    // SPI_CLOCK_SLOW
@@ -140,14 +140,15 @@ static const float32_t spiSpeedMap[] = {
     500000,   // SPI_CLOCK_FAST
     500000,   // SPI_CLOCK_ULTRAFAST
 };
-
-// static const float32_t spiSpeedMap[] = {
-//     500000,     // SPI_CLOCK_INITIALIZATON
-//     100000,    // SPI_CLOCK_SLOW
-//     5000000,   // SPI_CLOCK_STANDARD
-//     10000000,   // SPI_CLOCK_FAST
-//     20000000,   // SPI_CLOCK_ULTRAFAST
-// };
+#else
+static const float32_t spiSpeedMap[] = {
+    500000,     // SPI_CLOCK_INITIALIZATON
+    1000000,    // SPI_CLOCK_SLOW
+    5000000,    // SPI_CLOCK_STANDARD
+    10000000,   // SPI_CLOCK_FAST
+    20000000,   // SPI_CLOCK_ULTRAFAST
+};
+#endif
 
 //static instanced for the SPI busses
 #ifdef USE_SPI_DEVICE_1
@@ -288,7 +289,7 @@ bool spiInitBus(busDevice_t * busDev, bool leadingEdge){
             getSclkPinmapFromIoTag(spi->sck, spi->dev->qspi), IfxPort_OutputMode_pushPull, // SCLK
             getMtsrPinmapFromIoTag(spi->mosi, spi->dev->qspi), IfxPort_OutputMode_pushPull, // MTSR
             getMrstPinmapFromIoTag(spi->miso, spi->dev->qspi), IfxPort_InputMode_pullUp,  // MRST
-            DEFAULT_IfxPort_PadDriver // pad driver mode
+            IfxPort_PadDriver_cmosAutomotiveSpeed1 // pad driver mode, fastest rise time
         };
         spiMasterConfig->pins = &pins;
 
@@ -313,7 +314,7 @@ bool spiInitBus(busDevice_t * busDev, bool leadingEdge){
     const IfxQspi_SpiMaster_Output slsOutput = {
         chipSelect,
         IfxPort_OutputMode_pushPull,
-        DEFAULT_IfxPort_PadDriver
+        IfxPort_PadDriver_cmosAutomotiveSpeed1
     };
     spiMasterChannelConfig.sls.output = (IfxQspi_SpiMaster_Output)slsOutput;
 
