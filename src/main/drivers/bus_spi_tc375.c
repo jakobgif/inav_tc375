@@ -183,6 +183,30 @@ SpiBus_t SPI4 = {
 /**
  * ISRs
  */
+#ifdef USE_SPI_DEVICE_1
+IFX_INTERRUPT(qspi0TxISR, AURIX_CORE_ID, INTPRIO_QSPI0_TX);
+void qspi0TxISR(void){
+    IfxQspi_SpiMaster_isrTransmit(&(SPI1.spiMaster));
+}
+
+IFX_INTERRUPT(qspi0RxISR, AURIX_CORE_ID, INTPRIO_QSPI0_RX);
+void qspi0RxISR(void){
+    IfxQspi_SpiMaster_isrReceive(&(SPI1.spiMaster));
+}
+#endif
+
+#ifdef USE_SPI_DEVICE_2
+IFX_INTERRUPT(qspi1TxISR, AURIX_CORE_ID, INTPRIO_QSPI1_TX);
+void qspi1TxISR(void){
+    IfxQspi_SpiMaster_isrTransmit(&(SPI2.spiMaster));
+}
+
+IFX_INTERRUPT(qspi1RxISR, AURIX_CORE_ID, INTPRIO_QSPI1_RX);
+void qspi1RxISR(void){
+    IfxQspi_SpiMaster_isrReceive(&(SPI2.spiMaster));
+}
+#endif
+
 #ifdef USE_SPI_DEVICE_3
 IFX_INTERRUPT(qspi2TxISR, AURIX_CORE_ID, INTPRIO_QSPI2_TX);
 void qspi2TxISR(void){
@@ -192,6 +216,18 @@ void qspi2TxISR(void){
 IFX_INTERRUPT(qspi2RxISR, AURIX_CORE_ID, INTPRIO_QSPI2_RX);
 void qspi2RxISR(void){
     IfxQspi_SpiMaster_isrReceive(&(SPI3.spiMaster));
+}
+#endif
+
+#ifdef USE_SPI_DEVICE_4
+IFX_INTERRUPT(qspi3TxISR, AURIX_CORE_ID, INTPRIO_QSPI3_TX);
+void qspi3TxISR(void){
+    IfxQspi_SpiMaster_isrTransmit(&(SPI4.spiMaster));
+}
+
+IFX_INTERRUPT(qspi3RxISR, AURIX_CORE_ID, INTPRIO_QSPI3_RX);
+void qspi3RxISR(void){
+    IfxQspi_SpiMaster_isrReceive(&(SPI4.spiMaster));
 }
 #endif
 
@@ -356,9 +392,13 @@ uint32_t spiTimeoutUserCallback(IfxQspi_SpiMaster_Channel *instance){
 }
 
 uint8_t spiTransferByte(IfxQspi_SpiMaster_Channel *instance, uint8_t data){
+    uint16_t spiTimeout = 1000;
     uint8_t rxData = 0;
     IfxQspi_SpiMaster_exchange(instance, &data, &rxData, 1); 
-    while(spiIsBusBusy(instance));  
+    while(spiIsBusBusy(instance)){
+        if ((spiTimeout--) == 0)
+            return spiTimeoutUserCallback(instance);
+    } 
     return rxData;
 }
 
@@ -367,9 +407,15 @@ bool spiIsBusBusy(IfxQspi_SpiMaster_Channel *instance){
 }
 
 bool spiTransfer(IfxQspi_SpiMaster_Channel *instance, uint8_t *rxData, const uint8_t *txData, int len){
+    uint16_t spiTimeout = 1000;
     IfxQspi_SpiMaster_exchange(instance, txData, rxData, len); 
-    while(spiIsBusBusy(instance));
-    return false;
+    while(spiIsBusBusy(instance)){
+        if ((spiTimeout--) == 0){
+            spiTimeoutUserCallback(instance);
+            return false;
+        }
+    }
+    return true;
 }
 
 void spiSetSpeed(IfxQspi_SpiMaster_Channel *instance, SPIClockSpeed_e speed){
