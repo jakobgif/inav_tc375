@@ -82,16 +82,12 @@
 // #define BARO_I2C_BUS            BUS_I2C2
 
 // *************** ADC *****************************
-// #define USE_ADC
-// #define ADC_INSTANCE                ADC1
-// #define ADC_CHANNEL_1_PIN           PC0
-// #define ADC_CHANNEL_2_PIN           PC1
-// #define VBAT_ADC_CHANNEL            ADC_CHN_1
-// #define CURRENT_METER_ADC_CHANNEL   ADC_CHN_2
-// #define VBAT_SCALE_DEFAULT          2121
-// #define CURRENT_METER_SCALE         402
+#define USE_ADC
+#define ADC_CHANNEL_1_PIN   0 //aurix analog input 0
+#define VBAT_ADC_CHANNEL    ADC_CHN_1
+#define VBAT_SCALE_DEFAULT  127
 
-// #define DEFAULT_FEATURES        (FEATURE_VBAT | FEATURE_CURRENT_METER | FEATURE_OSD | FEATURE_TELEMETRY)
+#define DEFAULT_FEATURES    (FEATURE_VBAT)
 
 // #define USE_DSHOT
 // #define USE_ESC_SENSOR
