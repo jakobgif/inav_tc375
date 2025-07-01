@@ -119,6 +119,21 @@ typedef   boolean   bool;
 //SPI
 #include "IfxQspi_SpiMaster.h"
 
+//ADC
+#include "IfxEvadc_Adc.h"
+
+//DMA
+#include "IfxDma_Dma.h"
+
+//dma channels start
+#define ADC_DMA_CHANNEL_1    0
+#define ADC_DMA_CHANNEL_2    1
+#define ADC_DMA_CHANNEL_3    2
+#define ADC_DMA_CHANNEL_4    3
+#define ADC_DMA_CHANNEL_5    4
+#define ADC_DMA_CHANNEL_6    5
+//dma channels end
+
 //interrupt prios start
 #include "target.h"
 #define INTPRIO_DISABLED    0   //0 will never be served, 1 is the minimum level
