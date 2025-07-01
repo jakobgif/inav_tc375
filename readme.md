@@ -101,6 +101,9 @@ to set the UART pins. Additionally the UART count has to be set to the number of
 ### Timer config
 TBD
 
+### ADC config
+Define `USE_ADC` to enable the ADC. In the current implementation only 6 channels of ADC Group 0 can be used. Define the pin that shall be used by using the macro `#define ADC_CHANNEL_1_PIN 0 //aurix analog input 0`. Afterwards link the ADC channel to a feature: eg `#define VBAT_ADC_CHANNEL ADC_CHN_1` to use analog pin 0 for the battery voltage.
+
 # F411 PSA
 
 > INAV no longer accepts targets based on STM32 F411 MCU.
