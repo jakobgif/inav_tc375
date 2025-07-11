@@ -101,10 +101,10 @@
 #define IOCFG_OUT_OD        IO_CONFIG(IfxPort_Mode_outputOpenDrainGeneral   , DEFAULT_IfxPort_PadDriver)
 #define IOCFG_AF_PP_FAST    IO_CONFIG(IfxPort_Mode_outputPushPullAlt1       , DEFAULT_IfxPort_PadDriver)    // drive strength should be stronger or 50MHz
 #define IOCFG_AF_PP         IO_CONFIG(IfxPort_Mode_outputPushPullAlt1       , DEFAULT_IfxPort_PadDriver)     
-#define IOCFG_AF_PP_PD      IO_CONFIG(IfxPort_Mode_outputPushPullAlt1       , DEFAULT_IfxPort_PadDriver)    
-#define IOCFG_AF_PP_UP      IO_CONFIG(IfxPort_Mode_outputPushPullAlt1       , DEFAULT_IfxPort_PadDriver) 
+#define IOCFG_AF_PP_PD      IO_CONFIG(IfxPort_Mode_outputPushPullAlt1       , DEFAULT_IfxPort_PadDriver)    // on Aurix there is no Pull up or pulldown on outputs!  
+#define IOCFG_AF_PP_UP      IO_CONFIG(IfxPort_Mode_outputPushPullAlt1       , DEFAULT_IfxPort_PadDriver)    // on Aurix there is no Pull up or pulldown on outputs!
 #define IOCFG_AF_OD         IO_CONFIG(IfxPort_Mode_outputOpenDrainAlt1      , DEFAULT_IfxPort_PadDriver)        
-#define IOCFG_AF_OD_UP      IO_CONFIG(IfxPort_Mode_outputOpenDrainAlt1      , DEFAULT_IfxPort_PadDriver)  
+#define IOCFG_AF_OD_UP      IO_CONFIG(IfxPort_Mode_outputOpenDrainAlt1      , DEFAULT_IfxPort_PadDriver)    // on Aurix there is no Pull up or pulldown on outputs!
 #define IOCFG_IPD           IO_CONFIG(IfxPort_Mode_inputPullDown            , DEFAULT_IfxPort_PadDriver)
 #define IOCFG_IPU           IO_CONFIG(IfxPort_Mode_inputPullUp              , DEFAULT_IfxPort_PadDriver)
 #define IOCFG_IN_FLOATING   IO_CONFIG(IfxPort_Mode_inputNoPullDevice        , DEFAULT_IfxPort_PadDriver)
