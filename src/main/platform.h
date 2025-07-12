@@ -119,6 +119,9 @@ typedef   boolean   bool;
 //SPI
 #include "IfxQspi_SpiMaster.h"
 
+//I2C
+#include "IfxI2c_I2c.h"
+
 //ADC
 #include "IfxEvadc_Adc.h"
 
