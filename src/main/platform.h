@@ -125,6 +125,9 @@ typedef   boolean   bool;
 //DMA
 #include "IfxDma_Dma.h"
 
+//die temperature
+#include "IfxDts_Dts.h"
+
 //dma channels start
 #define ADC_DMA_CHANNEL_1    0
 #define ADC_DMA_CHANNEL_2    1
