@@ -193,7 +193,7 @@ void i2cInit(I2CDevice device)
     }
 }
 
-void i2cInitDevice(busDevice_t * busDev)
+void i2cInitDevice(const busDevice_t * busDev)
 {
     if(busDev == NULL_PTR)
     {
@@ -223,7 +223,7 @@ uint16_t i2cGetErrorCounter(void)
 }
 
 // i2c buffer write function
-bool i2cWriteBuffer(busDevice_t * busDev, uint8_t reg, uint8_t len, const uint8_t * data, bool allowRawAccess)
+bool i2cWriteBuffer(const busDevice_t * busDev, uint8_t reg, uint8_t len, const uint8_t * data, bool allowRawAccess)
 {
     I2CDevice device = busDev->busdev.i2c.i2cBus;
     
@@ -241,7 +241,6 @@ bool i2cWriteBuffer(busDevice_t * busDev, uint8_t reg, uint8_t len, const uint8_
         i2cErrorCount++;
         return false;
     }
-        
 
     IfxI2c_I2c_Status status;
 
@@ -256,7 +255,7 @@ bool i2cWriteBuffer(busDevice_t * busDev, uint8_t reg, uint8_t len, const uint8_
     } else {
         // Normal Write with reg
         buffer[0] = reg;
-        if (!data == NULL_PTR)
+        if (data != NULL_PTR)
         {
             for (uint8_t i = 0; i < len; i++) {
                 buffer[i + 1] = data[i];
@@ -278,13 +277,13 @@ bool i2cWriteBuffer(busDevice_t * busDev, uint8_t reg, uint8_t len, const uint8_
 
 
 // i2c write function
-bool i2cWrite(busDevice_t * busDev, uint8_t reg, uint8_t data, bool allowRawAccess)
+bool i2cWrite(const busDevice_t * busDev, uint8_t reg, uint8_t data, bool allowRawAccess)
 {
     return i2cWriteBuffer(busDev, reg, 1, &data, allowRawAccess);
 }
 
 // i2c read function
-bool i2cRead(busDevice_t * busDev, uint8_t reg, uint8_t len, uint8_t* buf, bool allowRawAccess)
+bool i2cRead(const busDevice_t * busDev, uint8_t reg, uint8_t len, uint8_t* buf, bool allowRawAccess)
 {
     I2CDevice device = busDev->busdev.i2c.i2cBus;
     

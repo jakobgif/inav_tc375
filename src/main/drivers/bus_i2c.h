@@ -78,10 +78,10 @@ void i2cSetSpeed(uint8_t speed);
 #if defined (TC375)
 typedef struct busDevice_s busDevice_t;
 void i2cInit(I2CDevice device);
-void i2cInitDevice(busDevice_t * busDev);
-bool i2cWriteBuffer(busDevice_t * busDev, uint8_t reg_, uint8_t len_, const uint8_t *data, bool allowRawAccess);
-bool i2cWrite(busDevice_t * busDev, uint8_t reg, uint8_t data, bool allowRawAccess);
-bool i2cRead(busDevice_t * busDev, uint8_t reg, uint8_t len, uint8_t* buf, bool allowRawAccess);
+void i2cInitDevice(const busDevice_t * busDev);
+bool i2cWriteBuffer(const busDevice_t * busDev, uint8_t reg_, uint8_t len_, const uint8_t *data, bool allowRawAccess);
+bool i2cWrite(const busDevice_t * busDev, uint8_t reg, uint8_t data, bool allowRawAccess);
+bool i2cRead(const busDevice_t * busDev, uint8_t reg, uint8_t len, uint8_t* buf, bool allowRawAccess);
 #else
 void i2cInit(I2CDevice device);
 bool i2cWriteBuffer(I2CDevice device, uint8_t addr_, uint8_t reg_, uint8_t len_, const uint8_t *data, bool allowRawAccess);
