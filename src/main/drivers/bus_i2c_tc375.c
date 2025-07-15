@@ -141,7 +141,10 @@ void i2cSetSpeed(uint8_t speed)
 void i2cInit(I2CDevice device)
 {
     if (device == I2CINVALID)
+    {
+        i2cErrorCount++;
         return;
+    }
 
     i2cDevice_t *i2c = &(i2cHardwareMap[device]);
 
@@ -193,7 +196,10 @@ void i2cInit(I2CDevice device)
 void i2cInitDevice(busDevice_t * busDev)
 {
     if(busDev == NULL_PTR)
+    {
+        i2cErrorCount++;
         return;
+    }        
 
     I2CDevice device = busDev->busdev.i2c.i2cBus;
     i2cDevice_t *i2c = &(i2cHardwareMap[device]);
@@ -211,12 +217,6 @@ void i2cInitDevice(busDevice_t * busDev)
     return;
 }
 
-uint32_t i2cTimeoutUserCallback(void)
-{
-    i2cErrorCount++;
-    return false;
-}
-
 uint16_t i2cGetErrorCounter(void)
 {
     return i2cErrorCount;
@@ -228,12 +228,20 @@ bool i2cWriteBuffer(busDevice_t * busDev, uint8_t reg, uint8_t len, const uint8_
     I2CDevice device = busDev->busdev.i2c.i2cBus;
     
     if (device == I2CINVALID)
+    {
+        i2cErrorCount++;
         return false;
+    }
+        
 
     i2cDevice_t *i2c = &(i2cHardwareMap[device]);
 
     if (!i2c->initDone)
+    {
+        i2cErrorCount++;
         return false;
+    }
+        
 
     IfxI2c_I2c_Status status;
 
@@ -259,7 +267,9 @@ bool i2cWriteBuffer(busDevice_t * busDev, uint8_t reg, uint8_t len, const uint8_
     }
 
     status = IfxI2c_I2c_write(busDev->i2cBusDevice, writeBuffer, writeLength);
-    if(status != IfxI2c_I2c_Status_ok){
+    if(status != IfxI2c_I2c_Status_ok)
+    {
+        i2cErrorCount++;
         return false;
     }
 
@@ -279,25 +289,36 @@ bool i2cRead(busDevice_t * busDev, uint8_t reg, uint8_t len, uint8_t* buf, bool 
     I2CDevice device = busDev->busdev.i2c.i2cBus;
     
     if (device == I2CINVALID || buf == NULL_PTR)
+    {
+        i2cErrorCount++;
         return false;
+    }
 
     i2cDevice_t *i2c = &(i2cHardwareMap[device]);
 
     if (!i2c->initDone)
+    {
+        i2cErrorCount++;
         return false;
+    }
 
     IfxI2c_I2c_Status status;
 
-    if (!(reg == 0xFF || len == 0) || !allowRawAccess) {
+    if (!(reg == 0xFF || len == 0) || !allowRawAccess)
+    {
         uint8_t regBuf[1] = { reg };
         status = IfxI2c_I2c_write(busDev->i2cBusDevice, regBuf, 1);
-        if (status != IfxI2c_I2c_Status_ok) {
+        if (status != IfxI2c_I2c_Status_ok)
+        {
+            i2cErrorCount++;
             return false;
         }
     }
 
     status = IfxI2c_I2c_read(busDev->i2cBusDevice, buf, len);
-    if(status != IfxI2c_I2c_Status_ok){
+    if(status != IfxI2c_I2c_Status_ok)
+    {
+        i2cErrorCount++;
         return false;
     }
 
