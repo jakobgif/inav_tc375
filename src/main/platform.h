@@ -131,6 +131,10 @@ typedef   boolean   bool;
 //die temperature
 #include "IfxDts_Dts.h"
 
+//performance counters
+#include "IfxCbs_reg.h"
+#include "IfxCpu.h"
+
 //dma channels start
 #define ADC_DMA_CHANNEL_1    0
 #define ADC_DMA_CHANNEL_2    1
@@ -199,6 +203,8 @@ typedef   boolean   bool;
 // #define AURIX_CLEAR_DFLASH_ON_SYSTEM_INIT
 
 #define MCU_FLASH_SIZE  IFXFLASH_PFLASH_SIZE
+
+#define USE_PERFCOUNTER
 
 #endif
 
