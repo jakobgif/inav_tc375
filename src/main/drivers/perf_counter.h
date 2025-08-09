@@ -26,7 +26,7 @@
 
 typedef struct perfCounts_s {
     uint32_t instructionCounter;
-    uint32_t clockCounter
+    uint32_t clockCounter;
 } perfCounts_t;
 
 extern perfCounts_t perfCounts;
