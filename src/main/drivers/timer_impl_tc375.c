@@ -19,31 +19,11 @@
  * @file timer_impl_tc375.c
  * @author Jakob Frenzel (jakob.frenzel@hotmail.com)
  * @brief implementation of timer related functions
- * @version 0.1
  * @date 2025-04-03
- * 
- * @copyright Copyright (c) 2025
- * 
  */
-
-//TODO: finish timer implementation
-
-// #include <stdbool.h>
-// #include <stdint.h>
-// #include <math.h>
 
 #include "platform.h"
 
-// #include "build/atomic.h"
-// #include "build/debug.h"
-
-// #include "common/utils.h"
-
-// #include "drivers/io.h"
-// #include "drivers/rcc.h"
-// #include "drivers/time.h"
-// #include "drivers/nvic.h"
-// #include "drivers/dma.h"
 #include "drivers/timer.h"
 #include "drivers/timer_impl.h"
 
@@ -52,13 +32,13 @@
 #endif
 
 void impl_timerInitContext(TCH_t * tch){
-    tch->timHw->config->triggerOut = tch->timHw->triggerOut;
+    UNUSED(tch);
     return;
 }
 
 volatile timCCR_t * impl_timerCCR(TCH_t * tch){
-    Ifx_GTM_TOM_CH *tomCh = IfxGtm_Tom_Ch_getChannelPointer(tch->timHw->tim->tom, tch->timHw->tim->timerChannel);
-    return tomCh->CM1.U;
+    Ifx_GTM_ATOM_CH *atomCh = IfxGtm_Atom_Ch_getChannelPointer(tch->timHw->tim->atom, tch->timHw->triggerOut->channel);
+    return (volatile timCCR_t *)&(atomCh->CM1.U);
 }
 
 void impl_timerNVICConfigure(TCH_t * tch, int irqPriority){
@@ -67,14 +47,56 @@ void impl_timerNVICConfigure(TCH_t * tch, int irqPriority){
 }
 
 void impl_timerConfigBase(TCH_t * tch, uint16_t period, uint32_t hz){
-    UNUSED(tch);
-    UNUSED(period);
-    UNUSED(hz);
-    return;
+    timerDef_t timerDef = timerDefinitions[timer2id(tch->timHw->tim)];
+    IfxGtm_Atom_Timer_Config *atomConfig = (IfxGtm_Atom_Timer_Config*)timerDef.config;
+                
+    IfxGtm_Atom_Timer_initConfig(atomConfig, &MODULE_GTM); // Initialize default parameters
+
+    switch(tch->timHw->triggerOut->atom)
+    {
+        case IfxGtm_Atom_0:
+            atomConfig->clock = IfxGtm_Cmu_Clk_0; // Select the CMU clock
+            IfxGtm_Cmu_setClkFrequency(&MODULE_GTM, IfxGtm_Cmu_Clk_0, (float32)hz); // Set the clock frequency
+            IfxGtm_Cmu_enableClocks(&MODULE_GTM, IFXGTM_CMU_CLKEN_CLK0); // Enable the CMU clock 0
+            break;
+        case IfxGtm_Atom_1:
+            atomConfig->clock = IfxGtm_Cmu_Clk_1;
+            IfxGtm_Cmu_setClkFrequency(&MODULE_GTM, IfxGtm_Cmu_Clk_1, (float32)hz);
+            IfxGtm_Cmu_enableClocks(&MODULE_GTM, IFXGTM_CMU_CLKEN_CLK1);
+            break;
+        case IfxGtm_Atom_2:
+            atomConfig->clock = IfxGtm_Cmu_Clk_2;
+            IfxGtm_Cmu_setClkFrequency(&MODULE_GTM, IfxGtm_Cmu_Clk_2, (float32)hz);
+            IfxGtm_Cmu_enableClocks(&MODULE_GTM, IFXGTM_CMU_CLKEN_CLK2);
+            break;
+        case IfxGtm_Atom_3:
+            atomConfig->clock = IfxGtm_Cmu_Clk_3;
+            IfxGtm_Cmu_setClkFrequency(&MODULE_GTM, IfxGtm_Cmu_Clk_3, (float32)hz);
+            IfxGtm_Cmu_enableClocks(&MODULE_GTM, IFXGTM_CMU_CLKEN_CLK3);
+            break;
+        case IfxGtm_Atom_4:
+            atomConfig->clock = IfxGtm_Cmu_Clk_4;
+            IfxGtm_Cmu_setClkFrequency(&MODULE_GTM, IfxGtm_Cmu_Clk_4, (float32)hz);
+            IfxGtm_Cmu_enableClocks(&MODULE_GTM, IFXGTM_CMU_CLKEN_CLK4);
+            break;
+        case IfxGtm_Atom_5:
+            atomConfig->clock = IfxGtm_Cmu_Clk_5;
+            IfxGtm_Cmu_setClkFrequency(&MODULE_GTM, IfxGtm_Cmu_Clk_5, (float32)hz);
+            IfxGtm_Cmu_enableClocks(&MODULE_GTM, IFXGTM_CMU_CLKEN_CLK5);
+            break;
+    }
+
+    atomConfig->atom = tch->timHw->triggerOut->atom;
+    atomConfig->timerChannel = tch->timHw->triggerOut->channel;
+    //atomConfig->base.isrPriority = 0; // Set interrupt priority
+    //atomConfig->base.isrProvider = IfxSrc_Tos_cpu0; // Set interrupt provider
+
+    IfxGtm_Atom_Timer_init(tch->timHw->tim, atomConfig); //init ATOM
+    IfxGtm_Atom_Ch_setCompareZero(tch->timHw->tim->atom, tch->timHw->triggerOut->channel, period);
 }
 
 void impl_enableTimer(TCH_t * tch){
-    IfxGtm_Tom_Timer_run(tch->timHw->tim);
+    UNUSED(tch);
 }
 
 void impl_timerEnableIT(TCH_t * tch, uint32_t interrupt){
@@ -109,16 +131,21 @@ void impl_timerChCaptureCompareEnable(TCH_t * tch, bool enable){
 }
 
 void impl_timerPWMConfigChannel(TCH_t * tch, uint16_t value){
-    UNUSED(tch);
-    UNUSED(value);
+    // PWM Part of ATOM TIMER
+    IfxGtm_Atom_Ch_setSignalLevel(tch->timHw->tim->atom, tch->timHw->triggerOut->channel, Ifx_ActiveState_high);
+
+    IfxGtm_Atom_Ch_setMode(tch->timHw->tim->atom, tch->timHw->triggerOut->channel, IfxGtm_Atom_Mode_outputPwm);
+
+    IfxGtm_PinMap_setAtomTout(tch->timHw->triggerOut, IfxPort_OutputMode_pushPull, IfxPort_PadDriver_cmosAutomotiveSpeed1);
+
+    IfxGtm_Atom_Ch_setCompareOne(tch->timHw->tim->atom, tch->timHw->triggerOut->channel, (uint32_t)value);
     return;
 }
 
 void impl_timerPWMStart(TCH_t * tch){
-    //copied from IfxGtm_Tom_Pwm_start();
-    IfxGtm_Tom_Tgc_enableChannel(tch->timHw->tim->tgc[0], tch->timHw->tim->timerChannel, TRUE, TRUE);
-    IfxGtm_Tom_Tgc_enableChannelOutput(tch->timHw->tim->tgc[0], tch->timHw->tim->timerChannel, TRUE, TRUE);
-    IfxGtm_Tom_Tgc_trigger(tch->timHw->tim->tgc[0]);
+    IfxGtm_Atom_Agc_enableChannel(tch->timHw->tim->agc, tch->timHw->triggerOut->channel, TRUE, FALSE);
+    IfxGtm_Atom_Agc_enableChannelOutput(tch->timHw->tim->agc, tch->timHw->triggerOut->channel, TRUE, FALSE);
+    IfxGtm_Atom_Agc_trigger(tch->timHw->tim->agc);
     return;
 }
 

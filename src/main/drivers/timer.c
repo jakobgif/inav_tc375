@@ -218,7 +218,7 @@ uint16_t timerGetPeriod(TCH_t * tch)
 #if defined(AT32F43x)
     return tch->timHw->tim->pr;     //tmr pr registe
 #elif defined(TC375)
-    return IfxGtm_Tom_Timer_getPeriod(tch->timHw->tim); 
+    return (uint16_t)IfxGtm_Atom_Ch_getCompareZero(tch->timHw->tim->atom, tch->timHw->triggerOut->channel);
 #else
     return tch->timHw->tim->ARR;
 #endif

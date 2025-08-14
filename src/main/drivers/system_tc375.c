@@ -104,6 +104,9 @@ void systemResetRequest(uint32_t requestId){
 
 void systemInit(void){
     cycleCounterInit();
+    
+    //needed for timers
+    IfxGtm_enable(&MODULE_GTM);
 
     //init die temperature measurement
     IfxDts_Dts_Config dtsConf;

@@ -107,7 +107,7 @@ typedef   boolean   bool;
 
 //timer
 #include "IfxStm.h"
-#include "IfxGtm_Tom_Timer.h"
+#include "IfxGtm_Atom_Timer.h"
 
 //uart
 #include "IfxAsclin_Asc.h"
@@ -174,22 +174,22 @@ typedef   boolean   bool;
 #define INTPRIO_QSPI0_TX    98
 #define INTPRIO_QSPI0_RX    99
 
-#define INTPRIO_GTM_TOM_15  100
-#define INTPRIO_GTM_TOM_14  101
-#define INTPRIO_GTM_TOM_13  102
-#define INTPRIO_GTM_TOM_12  103
-#define INTPRIO_GTM_TOM_11  104
-#define INTPRIO_GTM_TOM_10  105
-#define INTPRIO_GTM_TOM_09  106
-#define INTPRIO_GTM_TOM_08  107
-#define INTPRIO_GTM_TOM_07  108
-#define INTPRIO_GTM_TOM_06  109
-#define INTPRIO_GTM_TOM_05  110
-#define INTPRIO_GTM_TOM_04  111
-#define INTPRIO_GTM_TOM_03  112
-#define INTPRIO_GTM_TOM_02  113
-#define INTPRIO_GTM_TOM_01  114
-#define INTPRIO_GTM_TOM_00  115
+#define INTPRIO_GTM_ATOM_15  100
+#define INTPRIO_GTM_ATOM_14  101
+#define INTPRIO_GTM_ATOM_13  102
+#define INTPRIO_GTM_ATOM_12  103
+#define INTPRIO_GTM_ATOM_11  104
+#define INTPRIO_GTM_ATOM_10  105
+#define INTPRIO_GTM_ATOM_09  106
+#define INTPRIO_GTM_ATOM_08  107
+#define INTPRIO_GTM_ATOM_07  108
+#define INTPRIO_GTM_ATOM_06  109
+#define INTPRIO_GTM_ATOM_05  110
+#define INTPRIO_GTM_ATOM_04  111
+#define INTPRIO_GTM_ATOM_03  112
+#define INTPRIO_GTM_ATOM_02  113
+#define INTPRIO_GTM_ATOM_01  114
+#define INTPRIO_GTM_ATOM_00  115
 
 #define INTPRIO_MAX         255 //max will be served first
 //interrupt prios end
