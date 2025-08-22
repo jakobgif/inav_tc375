@@ -113,6 +113,11 @@ typedef struct timerHardware_s {
     uint8_t alternateFunction; //unused for aurix but keep for legacy
     uint32_t usageFlags;
 } timerHardware_t;
+
+typedef struct timerDmaSource_s {
+    timerDMASafeType_t * dmaBuffer;
+    Ifx_DMA_CH * dmaLinkedList;
+} timerDmaSource_t;
 #else
 typedef TIM_TypeDef HAL_Timer_t;
 typedef struct timerDef_s {
@@ -189,8 +194,11 @@ typedef struct TCH_s {
 #endif
     const timerHardware_t *         timHw;          // Link to timerHardware_t definition (target-specific)
     const timerCallbacks_t *        cb;
-
-#if !defined(TC375) //disabled for now because no DMA yet
+#if defined(TC375)
+    IfxDma_Dma dma;
+    IfxDma_Dma_Channel dmaChannel;
+    IfxDma_Dma_ChannelConfig dmaChnCfg;
+#else
     DMA_t                           dma;            // Timer channel DMA handle
 #endif
     volatile tchDmaState_e          dmaState;

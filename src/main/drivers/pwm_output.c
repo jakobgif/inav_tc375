@@ -86,6 +86,11 @@ typedef struct {
 #ifdef USE_DSHOT
     // DSHOT parameters
     timerDMASafeType_t dmaBuffer[DSHOT_DMA_BUFFER_SIZE];
+#if defined(TC375)
+    //linked list is needed for aurix DMA
+    IFX_ALIGN(256) Ifx_DMA_CH dmaLinkedList[DSHOT_DMA_BUFFER_SIZE];
+    timerDmaSource_t dmaSource;
+#endif
 #ifdef USE_DSHOT_DMAR
     timerDMASafeType_t *dmaBurstBuffer;
 #endif
@@ -304,7 +309,14 @@ static pwmOutputPort_t * motorConfigDshot(const timerHardware_t * timerHardware,
         port->configured = true;
     }
 #else
+#if defined(TC375)
+    port->dmaSource.dmaBuffer = &(port->dmaBuffer[0]);
+    port->dmaSource.dmaLinkedList = &(port->dmaLinkedList[0]);
+
+    if (timerPWMConfigChannelDMA(port->tch, &(port->dmaSource), sizeof(port->dmaBuffer[0]), DSHOT_DMA_BUFFER_SIZE)) {
+#else
     if (timerPWMConfigChannelDMA(port->tch, port->dmaBuffer, sizeof(port->dmaBuffer[0]), DSHOT_DMA_BUFFER_SIZE)) {
+#endif
         // Only mark as DSHOT channel if DMA was set successfully
         ZERO_FARRAY(port->dmaBuffer);
         port->configured = true;
