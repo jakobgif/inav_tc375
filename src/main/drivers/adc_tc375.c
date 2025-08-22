@@ -41,8 +41,8 @@ STATIC_ASSERT(ADC_CHN_COUNT <= 7, adc_channel_limit_exceeded);
 STATIC_ASSERT(ADC_AVERAGE_N_SAMPLES == 16, adc_averaging_not_compatible);
 
 static adcDevice_t adcHardware[ADCDEV_COUNT];
-IfxEvadc_Adc_Channel adcChannel[ADC_CHN_COUNT];
-IfxDma_Dma_Channel dmaChannel[ADC_CHN_COUNT];
+static IfxEvadc_Adc_Channel adcChannel[ADC_CHN_COUNT];
+static IfxDma_Dma_Channel dmaChannel[ADC_CHN_COUNT];
 
 ADCDevice adcDeviceByInstance(IfxEvadc_GroupId *instance)
 {
@@ -114,7 +114,7 @@ void adcHardwareInit(drv_adc_config_t *init){
         /* Assign the DMA channel as priority of the interrupt in order to trigger the DMA when a new result is
         * available.
         */
-        adcChannelConfig.resultPriority = ADC_DMA_CHANNEL_1 + (adcConfig[i].dmaIndex-1);
+        adcChannelConfig.resultPriority = DMA_CHANNEL_ADC_1 + (adcConfig[i].dmaIndex-1);
         /* Assign the DMA as service provider for the interrupt */
         adcChannelConfig.resultServProvider = IfxSrc_Tos_dma;
 
@@ -159,7 +159,7 @@ void adcHardwareInit(drv_adc_config_t *init){
         //dmaChnsCfg.channelInterruptPriority = INTPRIO_DISABLED;
 
         /* Channel specific configurations */
-        dmaChnsCfg.channelId = ADC_DMA_CHANNEL_1 + (adcConfig[i].dmaIndex-1);
+        dmaChnsCfg.channelId = DMA_CHANNEL_ADC_1 + (adcConfig[i].dmaIndex-1);
         dmaChnsCfg.sourceAddress = 0xF0020700u + (sizeof(Ifx_EVADC_GLOB_RES_Bits) * (adcConfig[i].dmaIndex-1)); //Address of EVADC Group 0 Result Register 0 (EVADC_G0_RES0) + offset per channel
         dmaChnsCfg.destinationAddress = (uint32_t)&(adcValues[adcConfig[i].adcDevice][adcConfig[i].dmaIndex * ADC_AVERAGE_N_SAMPLES]);
 

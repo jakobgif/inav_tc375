@@ -135,13 +135,35 @@ typedef   boolean   bool;
 #include "IfxCbs_reg.h"
 #include "IfxCpu.h"
 
+//DMA channels
+#define DMA_CHANNEL_NONE      -1
+
 //dma channels start
-#define ADC_DMA_CHANNEL_1    0
-#define ADC_DMA_CHANNEL_2    1
-#define ADC_DMA_CHANNEL_3    2
-#define ADC_DMA_CHANNEL_4    3
-#define ADC_DMA_CHANNEL_5    4
-#define ADC_DMA_CHANNEL_6    5
+#define DMA_CHANNEL_ADC_1     10
+#define DMA_CHANNEL_ADC_2     11
+#define DMA_CHANNEL_ADC_3     12
+#define DMA_CHANNEL_ADC_4     13
+#define DMA_CHANNEL_ADC_5     14
+#define DMA_CHANNEL_ADC_6     15
+
+#define DMA_CHANNEL_TIMER_0   100
+#define DMA_CHANNEL_TIMER_1   101
+#define DMA_CHANNEL_TIMER_2   102
+#define DMA_CHANNEL_TIMER_3   103
+#define DMA_CHANNEL_TIMER_4   104
+#define DMA_CHANNEL_TIMER_5   105
+#define DMA_CHANNEL_TIMER_6   106
+#define DMA_CHANNEL_TIMER_7   107
+#define DMA_CHANNEL_TIMER_8   108
+#define DMA_CHANNEL_TIMER_9   109
+#define DMA_CHANNEL_TIMER_10  110
+#define DMA_CHANNEL_TIMER_11  111
+#define DMA_CHANNEL_TIMER_12  112
+#define DMA_CHANNEL_TIMER_13  113
+#define DMA_CHANNEL_TIMER_14  114
+#define DMA_CHANNEL_TIMER_15  115
+
+#define DMA_CHANNEL_MAX       127
 //dma channels end
 
 //interrupt prios start
