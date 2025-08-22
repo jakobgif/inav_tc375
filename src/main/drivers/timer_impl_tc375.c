@@ -173,7 +173,7 @@ bool impl_timerPWMConfigChannelDMA(TCH_t * tch, void * dmaBuffer, uint8_t dmaBuf
     tch->dmaBuffer = dmaBuffer;
 
     timerDef_t timerDef = timerDefinitions[timer2id(tch->timHw->tim)];
-    IfxGtm_Atom_Timer_Config *atomConfig = timerDef.config;
+    IfxGtm_Atom_Timer_Config *atomConfig = (IfxGtm_Atom_Timer_Config *)(timerDef.config);
     volatile Ifx_GTM_ATOM_AGC * agc = tch->timHw->tim->agc;
     //disable channel
     IfxGtm_Atom_Agc_enableChannel(agc, tch->timHw->triggerOut->channel, FALSE, FALSE);
@@ -223,18 +223,18 @@ void impl_timerPWMPrepareDMA(TCH_t * tch, uint32_t dmaBufferElementCount){
     IfxDma_Dma_ChannelConfig * dmaChnCfg = &(tch->dmaChnCfg);
 
     for(uint32_t i = 0; i < dmaBufferElementCount; i++){
-        dmaChnCfg->sourceAddress = dmaSourceBuffer+i;
-        dmaChnCfg->destinationAddress = impl_timerCCR(tch);
+        dmaChnCfg->sourceAddress = (uint32_t)(dmaSourceBuffer+i);
+        dmaChnCfg->destinationAddress = (uint32_t)impl_timerCCR(tch);
 
         //point to next list element, but dont point the last anywhere
         if(i < (dmaBufferElementCount-1)){
-            dmaChnCfg->shadowAddress = dmaLinkedList+i+1;
+            dmaChnCfg->shadowAddress = (uint32_t)(dmaLinkedList+i+1);
         }
 
-        IfxDma_Dma_initLinkedListEntry((dmaLinkedList+i), dmaChnCfg);
+        IfxDma_Dma_initLinkedListEntry((void *)(dmaLinkedList+i), (const IfxDma_Dma_ChannelConfig *)dmaChnCfg);
 
         if(i == 0){
-            IfxDma_Dma_initChannel(&tch->dmaChannel, dmaChnCfg);
+            IfxDma_Dma_initChannel(&tch->dmaChannel, (const IfxDma_Dma_ChannelConfig *)dmaChnCfg);
         }
     }
 
@@ -250,10 +250,8 @@ void impl_timerPWMStartDMA(TCH_t * tch){
 }
 void impl_timerPWMStopDMA(TCH_t * tch){
     //terminate if any transaction is in progress
-    IfxDma_disableChannelTransaction(&(tch->dma), tch->dmaChannel.channelId);
+    IfxDma_disableChannelTransaction((Ifx_DMA *)&(tch->dma), tch->dmaChannel.channelId);
 
-    timerDef_t timerDef = timerDefinitions[timer2id(tch->timHw->tim)];
-    IfxGtm_Atom_Timer_Config *atomConfig = timerDef.config;
     volatile Ifx_GTM_ATOM_AGC * agc = tch->timHw->tim->agc;
     //disable channel
     IfxGtm_Atom_Agc_enableChannel(agc, tch->timHw->triggerOut->channel, FALSE, FALSE);
