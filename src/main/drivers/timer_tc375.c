@@ -19,51 +19,39 @@
  * @file timer_tc375.c
  * @author Jakob Frenzel (jakob.frenzel@hotmail.com)
  * @brief implementation for timer 
- * @version 0.1
  * @date 2025-03-22
- * 
- * @copyright Copyright (c) 2025
- * 
  */
 
 #include <stdbool.h>
 #include <stdint.h>
 
 #include "platform.h"
-
-//#include "common/utils.h"
-
-// #include "drivers/io.h"
-// #include "drivers/rcc.h"
-// #include "drivers/time.h"
-// #include "drivers/nvic.h"
 #include "drivers/timer.h"
-// #include "drivers/timer_impl.h"
 
 //we can create timers in runtime so we need to prepare structs for every available timer
-IfxGtm_Tom_Timer tomDriver[HARDWARE_TIMER_DEFINITION_COUNT];
-IfxGtm_Tom_Timer_Config tomConfig[HARDWARE_TIMER_DEFINITION_COUNT];
+IfxGtm_Atom_Timer atomDriver[HARDWARE_TIMER_DEFINITION_COUNT];
+static IfxGtm_Atom_Timer_Config atomConfig[HARDWARE_TIMER_DEFINITION_COUNT];
 
 timerDef_t const timerDefinitions[HARDWARE_TIMER_DEFINITION_COUNT] = {
-    [0] = { .tim=&tomDriver[0], .config=&tomConfig[0], .isrPriority=INTPRIO_GTM_TOM_00, .rcc=NULL, .irq=NULL, .secondIrq=NULL },
-    [1] = { .tim=&tomDriver[1], .config=&tomConfig[1], .isrPriority=INTPRIO_GTM_TOM_01, .rcc=NULL, .irq=NULL, .secondIrq=NULL },
-    [2] = { .tim=&tomDriver[2], .config=&tomConfig[2], .isrPriority=INTPRIO_GTM_TOM_02, .rcc=NULL, .irq=NULL, .secondIrq=NULL },
-    [3] = { .tim=&tomDriver[3], .config=&tomConfig[3], .isrPriority=INTPRIO_GTM_TOM_03, .rcc=NULL, .irq=NULL, .secondIrq=NULL },
-    [4] = { .tim=&tomDriver[4], .config=&tomConfig[4], .isrPriority=INTPRIO_GTM_TOM_04, .rcc=NULL, .irq=NULL, .secondIrq=NULL },
-    [5] = { .tim=&tomDriver[5], .config=&tomConfig[5], .isrPriority=INTPRIO_GTM_TOM_05, .rcc=NULL, .irq=NULL, .secondIrq=NULL },
-    [6] = { .tim=&tomDriver[6], .config=&tomConfig[6], .isrPriority=INTPRIO_GTM_TOM_06, .rcc=NULL, .irq=NULL, .secondIrq=NULL },
-    [7] = { .tim=&tomDriver[7], .config=&tomConfig[7], .isrPriority=INTPRIO_GTM_TOM_07, .rcc=NULL, .irq=NULL, .secondIrq=NULL },
-    [8] = { .tim=&tomDriver[8], .config=&tomConfig[8], .isrPriority=INTPRIO_GTM_TOM_08, .rcc=NULL, .irq=NULL, .secondIrq=NULL },
-    [9] = { .tim=&tomDriver[9], .config=&tomConfig[9], .isrPriority=INTPRIO_GTM_TOM_09, .rcc=NULL, .irq=NULL, .secondIrq=NULL },
-    [10] = { .tim=&tomDriver[10], .config=&tomConfig[10], .isrPriority=INTPRIO_GTM_TOM_10, .rcc=NULL, .irq=NULL, .secondIrq=NULL },
-    [11] = { .tim=&tomDriver[11], .config=&tomConfig[11], .isrPriority=INTPRIO_GTM_TOM_11, .rcc=NULL, .irq=NULL, .secondIrq=NULL },
-    [12] = { .tim=&tomDriver[12], .config=&tomConfig[12], .isrPriority=INTPRIO_GTM_TOM_12, .rcc=NULL, .irq=NULL, .secondIrq=NULL },
-    [13] = { .tim=&tomDriver[13], .config=&tomConfig[13], .isrPriority=INTPRIO_GTM_TOM_13, .rcc=NULL, .irq=NULL, .secondIrq=NULL },
-    [14] = { .tim=&tomDriver[14], .config=&tomConfig[14], .isrPriority=INTPRIO_GTM_TOM_14, .rcc=NULL, .irq=NULL, .secondIrq=NULL },
-    [15] = { .tim=&tomDriver[15], .config=&tomConfig[15], .isrPriority=INTPRIO_GTM_TOM_15, .rcc=NULL, .irq=NULL, .secondIrq=NULL }
+    [0] = { .tim=&atomDriver[0], .config=&atomConfig[0], .isrPriority=INTPRIO_GTM_ATOM_00},
+    [1] = { .tim=&atomDriver[1], .config=&atomConfig[1], .isrPriority=INTPRIO_GTM_ATOM_01},
+    [2] = { .tim=&atomDriver[2], .config=&atomConfig[2], .isrPriority=INTPRIO_GTM_ATOM_02},
+    [3] = { .tim=&atomDriver[3], .config=&atomConfig[3], .isrPriority=INTPRIO_GTM_ATOM_03},
+    [4] = { .tim=&atomDriver[4], .config=&atomConfig[4], .isrPriority=INTPRIO_GTM_ATOM_04},
+    [5] = { .tim=&atomDriver[5], .config=&atomConfig[5], .isrPriority=INTPRIO_GTM_ATOM_05},
+    [6] = { .tim=&atomDriver[6], .config=&atomConfig[6], .isrPriority=INTPRIO_GTM_ATOM_06},
+    [7] = { .tim=&atomDriver[7], .config=&atomConfig[7], .isrPriority=INTPRIO_GTM_ATOM_07},
+    [8] = { .tim=&atomDriver[8], .config=&atomConfig[8], .isrPriority=INTPRIO_GTM_ATOM_08},
+    [9] = { .tim=&atomDriver[9], .config=&atomConfig[9], .isrPriority=INTPRIO_GTM_ATOM_09},
+    [10] = { .tim=&atomDriver[10], .config=&atomConfig[10], .isrPriority=INTPRIO_GTM_ATOM_10},
+    [11] = { .tim=&atomDriver[11], .config=&atomConfig[11], .isrPriority=INTPRIO_GTM_ATOM_11},
+    [12] = { .tim=&atomDriver[12], .config=&atomConfig[12], .isrPriority=INTPRIO_GTM_ATOM_12},
+    [13] = { .tim=&atomDriver[13], .config=&atomConfig[13], .isrPriority=INTPRIO_GTM_ATOM_13},
+    [14] = { .tim=&atomDriver[14], .config=&atomConfig[14], .isrPriority=INTPRIO_GTM_ATOM_14},
+    [15] = { .tim=&atomDriver[15], .config=&atomConfig[15], .isrPriority=INTPRIO_GTM_ATOM_15}
 };
 
 //return clock speed of this timer
-uint32_t timerClock(timerDef_t *tim){
-    return IfxGtm_Tom_Ch_getClockFrequency(tim->tim->gtm, tim->tim->tom, tim->tim->timerChannel);
+uint32_t timerClock(HAL_Timer_t *tim){
+    return IfxGtm_Cmu_getGclkFrequency(&MODULE_GTM);
 }

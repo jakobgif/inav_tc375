@@ -162,7 +162,6 @@ TCH_t * timerGetTCH(const timerHardware_t * timHw)
 
     // Initialize timer channel object
     tch[timerIndex]->timHw = timHw;
-    //tch[timerIndex]->dma = NULL; //TODO: bring DMA back at some point
     tch[timerIndex]->cb = NULL;
     tch[timerIndex]->dmaState = TCH_DMA_IDLE;
 
@@ -218,7 +217,7 @@ uint16_t timerGetPeriod(TCH_t * tch)
 #if defined(AT32F43x)
     return tch->timHw->tim->pr;     //tmr pr registe
 #elif defined(TC375)
-    return IfxGtm_Tom_Timer_getPeriod(tch->timHw->tim); 
+    return (uint16_t)IfxGtm_Atom_Ch_getCompareZero(tch->timHw->tim->atom, tch->timHw->triggerOut->channel);
 #else
     return tch->timHw->tim->ARR;
 #endif
@@ -236,13 +235,6 @@ void timerInit(void)
     }
 #else
     memset(tch, 0, sizeof(tch));
-
-    // enable timer hardware
-    // done by aurix driver?
-    /*for (int i = 0; i < timerHardwareCount; i++) {
-        //unsigned timer = lookupTimerIndex(timerHardware[i].tim);
-        //RCC_ClockCmd(timerDefinitions[timer].rcc, ENABLE);
-    }*/
 #endif
     /* Before 2.0 timer outputs were initialized to IOCFG_AF_PP_PD even if not used */
     /* To keep compatibility make sure all timer output pins are mapped to INPUT with weak pull-down */

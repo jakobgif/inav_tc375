@@ -66,7 +66,7 @@ typedef uint32_t timCNT_t;
 #elif defined(AT32F43x)
 #define HARDWARE_TIMER_DEFINITION_COUNT 15
 #elif defined(TC375)
-#define HARDWARE_TIMER_DEFINITION_COUNT IFXGTM_NUM_TOM_CHANNELS
+#define HARDWARE_TIMER_DEFINITION_COUNT 16 //in theory IFXGTM_NUM_ATOM_OBJECTS * IFXGTM_NUM_ATOM_CHANNELS but we dont need so many
 #elif defined(SITL_BUILD)
 #define HARDWARE_TIMER_DEFINITION_COUNT 0
 #else
@@ -94,31 +94,30 @@ typedef struct timerHardware_s {
     uint32_t dmaMuxid; //DMAMUX ID
 } timerHardware_t;
 #elif defined(TC375)
-typedef IfxGtm_Tom_Timer HAL_Timer_t; //inav uses HAL_Timer_t
+typedef IfxGtm_Atom_Timer HAL_Timer_t; //inav uses HAL_Timer_t
 typedef struct timerDef_s {
-    HAL_Timer_t *tim; //tomDriver is named tim because inav legacy
-    IfxGtm_Tom_Timer_Config *config;
+    const HAL_Timer_t *tim; //atomDriver is named tim because inav legacy
+    const IfxGtm_Atom_Timer_Config *config;
     Ifx_Priority isrPriority; //aurix interrupt priority
-    rccPeriphTag_t  rcc; //TODO: unused?
-    uint8_t         irq; //unused?
-    uint8_t         secondIrq; //unused?
+    rccPeriphTag_t  rcc;
+    uint8_t         irq;
+    uint8_t         secondIrq;
 } timerDef_t;
 
 // hardware definition (listed in target.c)
 typedef struct timerHardware_s {
-    timerDef_t *tim;
-    //IfxGtm_Tom_Timer *tim;
-    //IfxGtm_Tom_Timer_Config *config; //we store this statically somewhere so we can modifiy the existing config afterwards
-    IfxGtm_Tom_ToutMap *triggerOut; //output mapping, saved into config during impl_timerInitContext()
+    HAL_Timer_t *tim;
+    IfxGtm_Atom_ToutMap *triggerOut;
     ioTag_t tag;
-    //uint8_t channelIndex;
-    //uint8_t output; 
     ioConfig_t ioMode;
     uint8_t alternateFunction; //unused for aurix but keep for legacy
     uint32_t usageFlags;
-    //dmaTag_t dmaTag;
-    
 } timerHardware_t;
+
+typedef struct timerDmaSource_s {
+    timerDMASafeType_t * dmaBuffer;
+    Ifx_DMA_CH * dmaLinkedList;
+} timerDmaSource_t;
 #else
 typedef TIM_TypeDef HAL_Timer_t;
 typedef struct timerDef_s {
@@ -195,8 +194,11 @@ typedef struct TCH_s {
 #endif
     const timerHardware_t *         timHw;          // Link to timerHardware_t definition (target-specific)
     const timerCallbacks_t *        cb;
-
-#if !defined(TC375) //disabled for now because no DMA yet
+#if defined(TC375)
+    IfxDma_Dma dma;
+    IfxDma_Dma_Channel dmaChannel;
+    IfxDma_Dma_ChannelConfig dmaChnCfg;
+#else
     DMA_t                           dma;            // Timer channel DMA handle
 #endif
     volatile tchDmaState_e          dmaState;
@@ -230,8 +232,7 @@ extern const timerDef_t timerDefinitions[HARDWARE_TIMER_DEFINITION_COUNT];
 extern timerHardware_t timerHardware[];
 extern const int timerHardwareCount;
 #if defined(TC375)
-extern IfxGtm_Tom_Timer tomDriver[HARDWARE_TIMER_DEFINITION_COUNT];
-extern IfxGtm_Tom_Timer_Config tomConfig[HARDWARE_TIMER_DEFINITION_COUNT];
+extern IfxGtm_Atom_Timer atomDriver[HARDWARE_TIMER_DEFINITION_COUNT];
 #endif
 
 #ifdef USE_DSHOT_DMAR
@@ -270,8 +271,8 @@ typedef enum {
     uint32_t timerClock(tmr_type *tim);
     uint16_t timerGetPrescalerByDesiredMhz(tmr_type *tim, uint16_t mhz);
 #elif defined(TC375)
-    uint32_t timerClock(timerDef_t *tim);
-    uint16_t timerGetPrescalerByDesiredMhz(IfxGtm_Tom_Timer *tim, uint16_t mhz);
+    uint32_t timerClock(HAL_Timer_t *tim);
+    uint16_t timerGetPrescalerByDesiredMhz(HAL_Timer_t *tim, uint16_t mhz);
 #else
     uint32_t timerClock(TIM_TypeDef *tim);
     uint16_t timerGetPrescalerByDesiredMhz(TIM_TypeDef *tim, uint16_t mhz);
