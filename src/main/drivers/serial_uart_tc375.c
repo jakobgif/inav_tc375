@@ -42,6 +42,7 @@
 
 //for interrupt vector
 #define AURIX_CORE_ID 0
+#define PSPR_FUNCTION CPU0_PSPR_FUNCTION
 
 typedef struct uartDevice_s {
     IfxAsclin_Asc *handle; //handle statically defined somewhere and referenced here
@@ -270,19 +271,46 @@ void uartGetPortPins(UARTDevice_e device, serialPortPins_t * pins){
     }
 }
 
-void uartTxIrqHandler(uartPort_t *s) {
+//copy of write and read function that can be inlined
+IFX_INLINE uint32 IfxAsclin_write8_inlined(Ifx_ASCLIN *asclin, uint8 *data, uint32 count)
+{
+    volatile Ifx_ASCLIN_TXDATA *txData = (volatile Ifx_ASCLIN_TXDATA *)&asclin->TXDATA.U;
+
+    while ((count > 0))
+    {
+        txData->U = *data++;
+        count--;
+    }
+
+    return count;
+}
+
+IFX_INLINE uint32 IfxAsclin_read8_inlined(Ifx_ASCLIN *asclin, uint8 *data, uint32 count)
+{
+    volatile Ifx_ASCLIN_RXDATA *rxData = (volatile Ifx_ASCLIN_RXDATA *)&asclin->RXDATA.U;
+
+    while (count > 0)
+    {
+        *data++ = (uint8)rxData->U;
+        count--;
+    }
+
+    return count;
+}
+
+PSPR_FUNCTION void uartTxIrqHandler(uartPort_t *s) {
     //IfxAsclin_Asc_isrTransmit(s->handle);
 
     if (s->port.txBufferTail == s->port.txBufferHead) {
         s->handle->txInProgress = FALSE;
     }
     else {
-        IfxAsclin_write8(s->handle->asclin, (uint8_t*)&(s->port.txBuffer[s->port.txBufferTail]), 1);
+        IfxAsclin_write8_inlined(s->handle->asclin, (uint8_t*)&(s->port.txBuffer[s->port.txBufferTail]), 1);
         s->port.txBufferTail = (s->port.txBufferTail + 1) % s->port.txBufferSize;
     }
 }
 
-void uartRxIrqHandler(uartPort_t *s) {
+PSPR_FUNCTION void uartRxIrqHandler(uartPort_t *s) {
     //move data to FIFO
     //IfxAsclin_Asc_isrReceive(s->handle);
 
@@ -290,7 +318,7 @@ void uartRxIrqHandler(uartPort_t *s) {
 	//Ifx_SizeT size = sizeof(uint8_t); //one byte
     //IfxAsclin_Asc_read(s->handle, &rxData, &size, TIME_NULL); //read from FIFO //TIME_INFINITE
 
-    IfxAsclin_read8(s->handle->asclin, &rxData, 1);
+    IfxAsclin_read8_inlined(s->handle->asclin, &rxData, 1);
 
 	if(s->port.rxCallback) {
 		s->port.rxCallback(rxData, s->port.rxCallbackData);
@@ -379,13 +407,13 @@ uartPort_t *serialUART1(uint32_t baudRate, portMode_t mode, portOptions_t option
 }
 
 IFX_INTERRUPT(asclin0TxISR, AURIX_CORE_ID, INTPRIO_ASCLIN0_TX);
-void asclin0TxISR(void) {
+PSPR_FUNCTION void asclin0TxISR(void) {
     uartPort_t *s = &(uartHardwareMap[UARTDEV_1]->port);
     uartTxIrqHandler(s);
 }
 
 IFX_INTERRUPT(asclin0RxISR, AURIX_CORE_ID, INTPRIO_ASCLIN0_RX);
-void asclin0RxISR(void) {
+PSPR_FUNCTION void asclin0RxISR(void) {
     uartPort_t *s = &(uartHardwareMap[UARTDEV_1]->port);
     uartRxIrqHandler(s);
 }
@@ -404,13 +432,13 @@ uartPort_t *serialUART2(uint32_t baudRate, portMode_t mode, portOptions_t option
 }
 
 IFX_INTERRUPT(asclin1TxISR, AURIX_CORE_ID, INTPRIO_ASCLIN1_TX);
-void asclin1TxISR(void) {
+PSPR_FUNCTION void asclin1TxISR(void) {
     uartPort_t *s = &(uartHardwareMap[UARTDEV_2]->port);
     uartTxIrqHandler(s);
 }
 
 IFX_INTERRUPT(asclin1RxISR, AURIX_CORE_ID, INTPRIO_ASCLIN1_RX);
-void asclin1RxISR(void) {
+PSPR_FUNCTION void asclin1RxISR(void) {
     uartPort_t *s = &(uartHardwareMap[UARTDEV_2]->port);
     uartRxIrqHandler(s);
 }
@@ -429,13 +457,13 @@ uartPort_t *serialUART3(uint32_t baudRate, portMode_t mode, portOptions_t option
 }
 
 IFX_INTERRUPT(asclin2TxISR, AURIX_CORE_ID, INTPRIO_ASCLIN2_TX);
-void asclin2TxISR(void) {
+PSPR_FUNCTION void asclin2TxISR(void) {
     uartPort_t *s = &(uartHardwareMap[UARTDEV_3]->port);
     uartTxIrqHandler(s);
 }
 
 IFX_INTERRUPT(asclin2RxISR, AURIX_CORE_ID, INTPRIO_ASCLIN2_RX);
-void asclin2RxISR(void) {
+PSPR_FUNCTION void asclin2RxISR(void) {
     uartPort_t *s = &(uartHardwareMap[UARTDEV_3]->port);
     uartRxIrqHandler(s);
 }
@@ -454,13 +482,13 @@ uartPort_t *serialUART4(uint32_t baudRate, portMode_t mode, portOptions_t option
 }
 
 IFX_INTERRUPT(asclin3TxISR, AURIX_CORE_ID, INTPRIO_ASCLIN3_TX);
-void asclin3TxISR(void) {
+PSPR_FUNCTION void asclin3TxISR(void) {
     uartPort_t *s = &(uartHardwareMap[UARTDEV_4]->port);
     uartTxIrqHandler(s);
 }
 
 IFX_INTERRUPT(asclin3RxISR, AURIX_CORE_ID, INTPRIO_ASCLIN3_RX);
-void asclin3RxISR(void) {
+PSPR_FUNCTION void asclin3RxISR(void) {
     uartPort_t *s = &(uartHardwareMap[UARTDEV_4]->port);
     uartRxIrqHandler(s);
 }
@@ -479,13 +507,13 @@ uartPort_t *serialUART5(uint32_t baudRate, portMode_t mode, portOptions_t option
 }
 
 IFX_INTERRUPT(asclin4TxISR, AURIX_CORE_ID, INTPRIO_ASCLIN4_TX);
-void asclin4TxISR(void) {
+PSPR_FUNCTION void asclin4TxISR(void) {
     uartPort_t *s = &(uartHardwareMap[UARTDEV_5]->port);
     uartTxIrqHandler(s);
 }
 
 IFX_INTERRUPT(asclin4RxISR, AURIX_CORE_ID, INTPRIO_ASCLIN4_RX);
-void asclin4RxISR(void) {
+PSPR_FUNCTION void asclin4RxISR(void) {
     uartPort_t *s = &(uartHardwareMap[UARTDEV_5]->port);
     uartRxIrqHandler(s);
 }
@@ -504,13 +532,13 @@ uartPort_t *serialUART6(uint32_t baudRate, portMode_t mode, portOptions_t option
 }
 
 IFX_INTERRUPT(asclin5TxISR, AURIX_CORE_ID, INTPRIO_ASCLIN5_TX);
-void asclin5TxISR(void) {
+PSPR_FUNCTION void asclin5TxISR(void) {
     uartPort_t *s = &(uartHardwareMap[UARTDEV_6]->port);
     uartTxIrqHandler(s);
 }
 
 IFX_INTERRUPT(asclin5RxISR, AURIX_CORE_ID, INTPRIO_ASCLIN5_RX);
-void asclin5RxISR(void) {
+PSPR_FUNCTION void asclin5RxISR(void) {
     uartPort_t *s = &(uartHardwareMap[UARTDEV_6]->port);
     uartRxIrqHandler(s);
 }
@@ -554,13 +582,13 @@ uartPort_t *serialUART8(uint32_t baudRate, portMode_t mode, portOptions_t option
 }
 
 IFX_INTERRUPT(asclin7TxISR, AURIX_CORE_ID, INTPRIO_ASCLIN7_TX);
-void asclin7TxISR(void) {
+PSPR_FUNCTION void asclin7TxISR(void) {
     uartPort_t *s = &(uartHardwareMap[UARTDEV_8]->port);
     uartTxIrqHandler(s);
 }
 
 IFX_INTERRUPT(asclin7RxISR, AURIX_CORE_ID, INTPRIO_ASCLIN7_RX);
-void asclin7RxISR(void) {
+PSPR_FUNCTION void asclin7RxISR(void) {
     uartPort_t *s = &(uartHardwareMap[UARTDEV_8]->port);
     uartRxIrqHandler(s);
 }

@@ -36,6 +36,14 @@
 #define UNIT_TESTED
 #define STATIC_FASTRAM static FASTRAM
 #define STATIC_FASTRAM_UNIT_TESTED  STATIC_UNIT_TESTED FASTRAM
+
+#define AURIX_USE_PSPR_FUNCTIONS //to place functions in CPU specific program ram
+#ifdef AURIX_USE_PSPR_FUNCTIONS
+#define CPU0_PSPR_FUNCTION __attribute__((section(".cpu0_psram")))
+#else
+#define CPU0_PSPR_FUNCTION
+#endif
+
 #else
 #define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
 

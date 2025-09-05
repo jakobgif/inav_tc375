@@ -33,9 +33,13 @@
 #include "drivers/bus.h"
 #include "drivers/io.h"
 #include "drivers/io_impl.h"
+#include "build/build_config.h"
 
 //for interrupt vector
 #define AURIX_CORE_ID 0
+
+//for code optimisation
+#define PSPR_FUNCTION CPU0_PSPR_FUNCTION
 
 static IfxQspi_Sclk_Out * getSclkPinmapFromIoTag(ioTag_t tag, Ifx_QSPI * module){
     IfxQspi_Sclk_Out * pinmap = NULL_PTR;
@@ -185,48 +189,48 @@ SpiBus_t SPI4 = {
  */
 #ifdef USE_SPI_DEVICE_1
 IFX_INTERRUPT(qspi0TxISR, AURIX_CORE_ID, INTPRIO_QSPI0_TX);
-void qspi0TxISR(void){
+void PSPR_FUNCTION qspi0TxISR(void){
     IfxQspi_SpiMaster_isrTransmit(&(SPI1.spiMaster));
 }
 
 IFX_INTERRUPT(qspi0RxISR, AURIX_CORE_ID, INTPRIO_QSPI0_RX);
-void qspi0RxISR(void){
+void PSPR_FUNCTION qspi0RxISR(void){
     IfxQspi_SpiMaster_isrReceive(&(SPI1.spiMaster));
 }
 #endif
 
 #ifdef USE_SPI_DEVICE_2
 IFX_INTERRUPT(qspi1TxISR, AURIX_CORE_ID, INTPRIO_QSPI1_TX);
-void qspi1TxISR(void){
+void PSPR_FUNCTION qspi1TxISR(void){
     IfxQspi_SpiMaster_isrTransmit(&(SPI2.spiMaster));
 }
 
 IFX_INTERRUPT(qspi1RxISR, AURIX_CORE_ID, INTPRIO_QSPI1_RX);
-void qspi1RxISR(void){
+void PSPR_FUNCTION qspi1RxISR(void){
     IfxQspi_SpiMaster_isrReceive(&(SPI2.spiMaster));
 }
 #endif
 
 #ifdef USE_SPI_DEVICE_3
 IFX_INTERRUPT(qspi2TxISR, AURIX_CORE_ID, INTPRIO_QSPI2_TX);
-void qspi2TxISR(void){
+void PSPR_FUNCTION qspi2TxISR(void){
     IfxQspi_SpiMaster_isrTransmit(&(SPI3.spiMaster));
 }
 
 IFX_INTERRUPT(qspi2RxISR, AURIX_CORE_ID, INTPRIO_QSPI2_RX);
-void qspi2RxISR(void){
+void PSPR_FUNCTION qspi2RxISR(void){
     IfxQspi_SpiMaster_isrReceive(&(SPI3.spiMaster));
 }
 #endif
 
 #ifdef USE_SPI_DEVICE_4
 IFX_INTERRUPT(qspi3TxISR, AURIX_CORE_ID, INTPRIO_QSPI3_TX);
-void qspi3TxISR(void){
+void PSPR_FUNCTION qspi3TxISR(void){
     IfxQspi_SpiMaster_isrTransmit(&(SPI4.spiMaster));
 }
 
 IFX_INTERRUPT(qspi3RxISR, AURIX_CORE_ID, INTPRIO_QSPI3_RX);
-void qspi3RxISR(void){
+void PSPR_FUNCTION qspi3RxISR(void){
     IfxQspi_SpiMaster_isrReceive(&(SPI4.spiMaster));
 }
 #endif
@@ -382,7 +386,7 @@ bool spiInitBus(busDevice_t * busDev, bool leadingEdge){
     return true;
 }
 
-uint32_t spiTimeoutUserCallback(IfxQspi_SpiMaster_Channel *instance){
+uint32_t PSPR_FUNCTION spiTimeoutUserCallback(IfxQspi_SpiMaster_Channel *instance){
     SPIDevice device = spiDeviceByInstance(instance);
     if (device == SPIINVALID) {
         return -1;
@@ -391,7 +395,7 @@ uint32_t spiTimeoutUserCallback(IfxQspi_SpiMaster_Channel *instance){
     return spiHardwareMap[device].errorCount;
 }
 
-uint8_t spiTransferByte(IfxQspi_SpiMaster_Channel *instance, uint8_t data){
+uint8_t PSPR_FUNCTION spiTransferByte(IfxQspi_SpiMaster_Channel *instance, uint8_t data){
     uint16_t spiTimeout = 1000;
     uint8_t rxData = 0;
     IfxQspi_SpiMaster_exchange(instance, &data, &rxData, 1); 
@@ -402,11 +406,11 @@ uint8_t spiTransferByte(IfxQspi_SpiMaster_Channel *instance, uint8_t data){
     return rxData;
 }
 
-bool spiIsBusBusy(IfxQspi_SpiMaster_Channel *instance){
+bool PSPR_FUNCTION spiIsBusBusy(IfxQspi_SpiMaster_Channel *instance){
     return (IfxQspi_SpiMaster_getStatus(instance) == SpiIf_Status_busy);
 }
 
-bool spiTransfer(IfxQspi_SpiMaster_Channel *instance, uint8_t *rxData, const uint8_t *txData, int len){
+bool PSPR_FUNCTION spiTransfer(IfxQspi_SpiMaster_Channel *instance, uint8_t *rxData, const uint8_t *txData, int len){
     uint16_t spiTimeout = 1000;
     IfxQspi_SpiMaster_exchange(instance, txData, rxData, len); 
     while(spiIsBusBusy(instance)){
