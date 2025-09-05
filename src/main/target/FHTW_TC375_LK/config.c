@@ -25,11 +25,18 @@
 #include "platform.h"
 #include "io/serial.h"
 #include "log.h"
+#include "navigation/navigation.h"
+#include "navigation/navigation_pos_estimator_private.h"
 
 void targetConfiguration(void){
     serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(SERIAL_PORT_USART1)].functionMask = FUNCTION_MSP;
+    serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(SERIAL_PORT_USART3)].functionMask = FUNCTION_BLACKBOX;
+    serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(SERIAL_PORT_USART3)].peripheral_baudrateIndex = BAUD_250000;
     serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(SERIAL_PORT_USART4)].functionMask = FUNCTION_LOG;
 
     logConfigMutable()->level = LOG_LEVEL_DEBUG; //set to max
     logConfigMutable()->topics = 4294967295; //all topics
+
+    //inav default is GPS but we dont have GPS
+    positionEstimationConfigMutable()->default_alt_sensor = ALTITUDE_SOURCE_BARO_ONLY;
 }

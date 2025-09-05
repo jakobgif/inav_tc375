@@ -90,7 +90,13 @@ To enable a SPI bus you need the use the macro `#define USE_SPI_DEVICE_x`. For t
 ```
 Note that all pins must be valid pinmaps that can be connected to the QPSI module. For the chip select it does not matter if the gpio pinmap uses the same QSPI module.
 ### I2C config
-TBD
+To enable the use of the I2C bus, the macro `#define USE_I2C` needs to be defined. Depending on which I2C bus is going to be used, `#define USE_I2C_DEVICE_x` with the correct bus number needs to be defined too. In total three the implementation offers 3 I2C bus interfaces. Each bus uses the Aurix I2C Module 0. The I2C pins also need to be defined. Eg:
+```C
+#define I2C1_SCL                MODULE_P13_1
+#define I2C1_SDA                MODULE_P13_2
+```
+Note that all pins must be valid pinmaps that can be connected to the I2C module `MODULE_I2C0`.
+
 ### UART config
 Use the macro `USE_UARTx` to enable a UART port. UART1 uses Asclin0, UART2 uses Asclin1 and so on. Afterwards use eg
 ```C

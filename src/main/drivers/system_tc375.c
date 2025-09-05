@@ -105,6 +105,12 @@ void systemResetRequest(uint32_t requestId){
 void systemInit(void){
     cycleCounterInit();
 
+    //init die temperature measurement
+    IfxDts_Dts_Config dtsConf;
+    IfxDts_Dts_initModuleConfig(&dtsConf);    
+    //no other settings needed. default settings work          
+    IfxDts_Dts_initModule(&dtsConf);
+
 #if defined(AURIX_CLEAR_DFLASH_ON_SYSTEM_INIT)
     uint16_t endInitSafetyPassword = IfxScuWdt_getSafetyWatchdogPassword();
 

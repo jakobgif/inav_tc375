@@ -119,11 +119,21 @@ typedef   boolean   bool;
 //SPI
 #include "IfxQspi_SpiMaster.h"
 
+//I2C
+#include "IfxI2c_I2c.h"
+
 //ADC
 #include "IfxEvadc_Adc.h"
 
 //DMA
 #include "IfxDma_Dma.h"
+
+//die temperature
+#include "IfxDts_Dts.h"
+
+//performance counters
+#include "IfxCbs_reg.h"
+#include "IfxCpu.h"
 
 //dma channels start
 #define ADC_DMA_CHANNEL_1    0
@@ -193,6 +203,8 @@ typedef   boolean   bool;
 // #define AURIX_CLEAR_DFLASH_ON_SYSTEM_INIT
 
 #define MCU_FLASH_SIZE  IFXFLASH_PFLASH_SIZE
+
+#define USE_PERFCOUNTER
 
 #endif
 

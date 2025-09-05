@@ -4100,6 +4100,7 @@ static void cliStatus(char *cmdline)
     cliPrintLine("Aurix system clocks:");
     cliPrintLinef("  CPU  = %d MHz", (int)(IfxScuCcu_getCpuFrequency(IfxCpu_getCoreIndex()) / 1000000));
     cliPrintLinef("  STM0 = %d MHz", (int)(IfxStm_getFrequency(IFXSTM_DEFAULT_TIMER) / 1000000));
+    cliPrintLinef("Aurix die temperature: %f degC", IfxDts_Dts_getTemperatureCelsius());
 #else
     cliPrintLine("STM32 system clocks:");
 #if defined(USE_HAL_DRIVER)

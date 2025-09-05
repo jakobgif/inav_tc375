@@ -69,17 +69,15 @@
 #define SERIAL_PORT_COUNT   3
 
 // *************** I2C: BARO & MAG ****************************
-// #define USE_I2C
-// #define USE_I2C_DEVICE_1
-// #define USE_I2C_DEVICE_2
-// #define I2C1_SCL                PB6
-// #define I2C1_SDA                PB7
-// #define I2C2_SCL                PB10
-// #define I2C2_SDA                PB11
+#define USE_I2C
+#define USE_I2C_DEVICE_1
 
-// #define USE_BARO
-// #define USE_BARO_DPS310
-// #define BARO_I2C_BUS            BUS_I2C2
+#define I2C1_SCL                MODULE_P13_1
+#define I2C1_SDA                MODULE_P13_2
+
+#define USE_BARO
+#define USE_BARO_DPS310
+#define BARO_I2C_BUS            BUS_I2C1
 
 // *************** ADC *****************************
 #define USE_ADC
@@ -95,6 +93,7 @@
 
 #define TARGET_IO_PORTMODULE_P00    0b1100000
 #define TARGET_IO_PORTMODULE_P02    0b100000000
+#define TARGET_IO_PORTMODULE_P13    0b110
 #define TARGET_IO_PORTMODULE_P14    0b10000011
 #define TARGET_IO_PORTMODULE_P15    0b111000000
 #define TARGET_IO_PORTMODULE_P20    0b1001

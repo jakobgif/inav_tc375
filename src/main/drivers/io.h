@@ -92,6 +92,8 @@
 
 //from IfxPort_Pin_Config
 #define IO_CONFIG(mode, padDriver) ((mode) | ((padDriver) << 8))
+#define IO_CONFIG_UNPACK_MODE(ioconfig)  (ioconfig & 0xFF)
+#define IO_CONFIG_UNPACK_DRIVER(ioconfig) ((ioconfig >> 8) & 0xFF)
 
 #define DEFAULT_IfxPort_PadDriver IfxPort_PadDriver_cmosAutomotiveSpeed1
 

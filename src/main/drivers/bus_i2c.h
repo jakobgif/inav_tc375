@@ -17,12 +17,6 @@
 
 #pragma once
 
-#include "drivers/io_types.h"
-
-#if defined(TC375)
-
-#else 
-
 /*
 #define I2C_SHORT_TIMEOUT            ((uint32_t)0x1000)
 #define I2C_LONG_TIMEOUT             ((uint32_t)(10 * I2C_SHORT_TIMEOUT))
@@ -52,9 +46,20 @@ typedef enum I2CDevice {
     I2CDEV_COUNT
 } I2CDevice;
 
+#if defined(TC375)
+typedef struct I2cBus_s {
+    IfxI2c_I2c          i2cBusHandle;                               
+    IfxI2c_I2c_Config   i2cBusConfig;
+    Ifx_I2C             *i2cModule;
+} I2cBus_t;
+#endif
+
 typedef struct i2cDevice_s {
 #if defined(AT32F43x) 
     i2c_type *dev;
+#elif defined(TC375)
+    I2cBus_t *dev;
+    bool initDone;
 #else
     I2C_TypeDef *dev;
 #endif
@@ -70,12 +75,19 @@ typedef struct i2cDevice_s {
 } i2cDevice_t;
 
 void i2cSetSpeed(uint8_t speed);
+#if defined (TC375)
+typedef struct busDevice_s busDevice_t;
+void i2cInit(I2CDevice device);
+void i2cInitDevice(const busDevice_t * busDev);
+bool i2cWriteBuffer(const busDevice_t * busDev, uint8_t reg_, uint8_t len_, const uint8_t *data, bool allowRawAccess);
+bool i2cWrite(const busDevice_t * busDev, uint8_t reg, uint8_t data, bool allowRawAccess);
+bool i2cRead(const busDevice_t * busDev, uint8_t reg, uint8_t len, uint8_t* buf, bool allowRawAccess);
+#else
 void i2cInit(I2CDevice device);
 bool i2cWriteBuffer(I2CDevice device, uint8_t addr_, uint8_t reg_, uint8_t len_, const uint8_t *data, bool allowRawAccess);
 bool i2cWrite(I2CDevice device, uint8_t addr_, uint8_t reg, uint8_t data, bool allowRawAccess);
 bool i2cRead(I2CDevice device, uint8_t addr_, uint8_t reg, uint8_t len, uint8_t* buf, bool allowRawAccess);
+#endif
 bool i2cBusy(I2CDevice device, bool *error);
 
 uint16_t i2cGetErrorCounter(void);
-
-#endif //tc375

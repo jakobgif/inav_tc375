@@ -31,7 +31,7 @@
 #if defined(STM32H7)
 #define ADC_VALUES_ALIGNMENT(def) DMA_RAM def __attribute__ ((aligned (32)))
 #elif defined(TC375)
-#define ADC_VALUES_ALIGNMENT(def) def __attribute__ ((aligned (32)))
+#define ADC_VALUES_ALIGNMENT(def) def __attribute__ ((aligned (256)))
 #else
 #define ADC_VALUES_ALIGNMENT(def) def 
 #endif
