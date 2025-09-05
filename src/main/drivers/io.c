@@ -530,13 +530,13 @@ void IOConfigGPIO(IO_t io, ioConfig_t cfg){
     IfxPort_setPinMode(
         IO_GPIO(io)->port, 
         IO_GPIO(io)->pinIndex,
-        (IfxPort_Mode)(cfg & 0xFF)
+        (IfxPort_Mode)(IO_CONFIG_UNPACK_MODE(cfg))
     );
 
     IfxPort_setPinPadDriver(
         IO_GPIO(io)->port, 
         IO_GPIO(io)->pinIndex, 
-        (IfxPort_PadDriver)((cfg >> 8) & 0xFF)
+        (IfxPort_PadDriver)(IO_CONFIG_UNPACK_DRIVER(cfg))
     );
 
     
