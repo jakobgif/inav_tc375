@@ -19,44 +19,23 @@
  * @file target.c
  * @author Jakob Frenzel (jakob.frenzel@hotmail.com)
  * @brief target stuff for FHTW flight controller
- * @version 0.1
  * @date 2025-04-03
- * 
- * @copyright Copyright (c) 2025
- * 
  */
 
 #include <stdint.h>
 
 #include "platform.h"
 
-//#include "drivers/bus.h"
 #include "drivers/io.h"
-//#include "drivers/pwm_mapping.h"
 #include "drivers/timer.h"
-//#include "drivers/pinio.h"
-//#include "drivers/sensor.h"
 
 timerHardware_t timerHardware[] = {
-    DEF_TIM(timerDefinitions[0], LED0_PINMAP, LED0, IOCFG_OUT_PP, TIM_USE_LED),
+    DEF_TIM(atomDriver[0], IfxGtm_ATOM0_0N_TOUT17_P00_8_OUT,    PWM_MOTOR_1_PIN, IOCFG_OUT_PP, TIM_USE_MOTOR),
+    DEF_TIM(atomDriver[1], IfxGtm_ATOM1_1_TOUT10_P00_1_OUT,     PWM_MOTOR_2_PIN, IOCFG_OUT_PP, TIM_USE_MOTOR),
+    DEF_TIM(atomDriver[2], IfxGtm_ATOM2_0_TOUT18_P00_9_OUT,     PWM_MOTOR_3_PIN, IOCFG_OUT_PP, TIM_USE_MOTOR),
+    DEF_TIM(atomDriver[3], IfxGtm_ATOM3_0_TOUT26_P33_4_OUT,     PWM_MOTOR_4_PIN, IOCFG_OUT_PP, TIM_USE_MOTOR),
+    DEF_TIM(atomDriver[4], IfxGtm_ATOM4_0_TOUT48_P22_1_OUT,     PWM_MOTOR_5_PIN, IOCFG_OUT_PP, TIM_USE_MOTOR),
+    DEF_TIM(atomDriver[5], IfxGtm_ATOM3_4_TOUT34_P33_12_OUT,    PWM_MOTOR_6_PIN, IOCFG_OUT_PP, TIM_USE_MOTOR),
 };
-
-// timerHardware_t exampleTimerHardware[] = {
-//     // DEF_TIM(TIM5,   CH1, PA0,  TIM_USE_PWM | TIM_USE_PPM,   0, 0 ), // PPM IN
-//     // DEF_TIM(TIM5,   CH2, PA1,  TIM_USE_PWM,                 0, 0 ),
-//     // DEF_TIM(TIM3,   CH3, PB0,  TIM_USE_PWM,                 0, 0 ),
-//     // DEF_TIM(TIM2,   CH3, PB10, TIM_USE_PWM,                 0, 0 ),
-//     // DEF_TIM(TIM2,   CH4, PB11, TIM_USE_PWM,                 0, 0 ),
-//     // DEF_TIM(TIM1,   CH1, PA8,  TIM_USE_PWM,                 0, 0 ),
-
-//     DEF_TIM(TIM12,  CH1, PB14,  TIM_USE_OUTPUT_AUTO,    0, 0 ),
-//     DEF_TIM(TIM12,  CH2, PB15,  TIM_USE_OUTPUT_AUTO,    0, 0 ),
-//     DEF_TIM(TIM8,   CH1, PC6,   TIM_USE_OUTPUT_AUTO,    0, 0 ),
-//     DEF_TIM(TIM8,   CH2, PC7,   TIM_USE_OUTPUT_AUTO,    0, 0 ),
-//     DEF_TIM(TIM8,   CH3, PC8,   TIM_USE_OUTPUT_AUTO,    0, 0 ),
-//     DEF_TIM(TIM8,   CH4, PC9,   TIM_USE_OUTPUT_AUTO,    0, 0 ),
-
-//     DEF_TIM(TIM3,   CH4, PB1,   TIM_USE_LED,    0, 0 ),
-// };
 
 const int timerHardwareCount = sizeof(timerHardware) / sizeof(timerHardware[0]);
