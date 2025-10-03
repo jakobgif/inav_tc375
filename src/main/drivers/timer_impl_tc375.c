@@ -26,10 +26,13 @@
 
 #include "drivers/timer.h"
 #include "drivers/timer_impl.h"
+#include "build/build_config.h"
 
 #if !defined(UNUSED)
 #define UNUSED(x) ((void)(x))
 #endif
+
+#define PSPR_FUNCTION CPU0_PSPR_FUNCTION
 
 void impl_timerInitContext(TCH_t * tch){
     UNUSED(tch);
@@ -140,7 +143,7 @@ void impl_timerChCaptureCompareEnable(TCH_t * tch, bool enable){
     return;
 }
 
-void impl_timerPWMConfigChannel(TCH_t * tch, uint16_t value){
+void PSPR_FUNCTION impl_timerPWMConfigChannel(TCH_t * tch, uint16_t value){
     Ifx_GTM_ATOM *atom = tch->timHw->tim->atom;
     IfxGtm_Atom_Ch channel = tch->timHw->tim->timerChannel;
 
@@ -152,14 +155,14 @@ void impl_timerPWMConfigChannel(TCH_t * tch, uint16_t value){
     return;
 }
 
-void impl_timerPWMStart(TCH_t * tch){
+void PSPR_FUNCTION impl_timerPWMStart(TCH_t * tch){
     IfxGtm_Atom_Agc_enableChannel(tch->timHw->tim->agc, tch->timHw->tim->timerChannel, TRUE, FALSE);
     IfxGtm_Atom_Agc_enableChannelOutput(tch->timHw->tim->agc, tch->timHw->tim->timerChannel, TRUE, FALSE);
     IfxGtm_Atom_Agc_trigger(tch->timHw->tim->agc);
     return;
 }
 
-bool impl_timerPWMConfigChannelDMA(TCH_t * tch, void * dmaBuffer, uint8_t dmaBufferElementSize, uint32_t dmaBufferElementCount){
+bool PSPR_FUNCTION impl_timerPWMConfigChannelDMA(TCH_t * tch, void * dmaBuffer, uint8_t dmaBufferElementSize, uint32_t dmaBufferElementCount){
     UNUSED(dmaBufferElementCount);
 
     if(dmaBuffer == NULL_PTR){
@@ -214,7 +217,7 @@ bool impl_timerPWMConfigChannelDMA(TCH_t * tch, void * dmaBuffer, uint8_t dmaBuf
     return true;
 }
 
-void impl_timerPWMPrepareDMA(TCH_t * tch, uint32_t dmaBufferElementCount){
+void PSPR_FUNCTION impl_timerPWMPrepareDMA(TCH_t * tch, uint32_t dmaBufferElementCount){
     impl_timerPWMStopDMA(tch);
 
     //create linked list
@@ -241,14 +244,16 @@ void impl_timerPWMPrepareDMA(TCH_t * tch, uint32_t dmaBufferElementCount){
     tch->dmaState = TCH_DMA_READY;
     return;
 }
-void impl_timerPWMStartDMA(TCH_t * tch){
+
+void PSPR_FUNCTION impl_timerPWMStartDMA(TCH_t * tch){
     //start timer
     impl_timerPWMStart(tch);
 
     tch->dmaState = TCH_DMA_ACTIVE;
     return;
 }
-void impl_timerPWMStopDMA(TCH_t * tch){
+
+void PSPR_FUNCTION impl_timerPWMStopDMA(TCH_t * tch){
     //terminate if any transaction is in progress
     IfxDma_disableChannelTransaction((Ifx_DMA *)&(tch->dma), tch->dmaChannel.channelId);
 
