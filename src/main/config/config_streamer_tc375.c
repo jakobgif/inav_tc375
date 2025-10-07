@@ -19,11 +19,7 @@
  * @file config_streamer_tc375.c
  * @author Jakob Frenzel (jakob.frenzel@hotmail.com)
  * @brief store data to flash, based on https://github.com/Infineon/AURIX_code_examples/tree/master/code_examples/Flash_Programming_1_KIT_TC375_LK
- * @version 0.1
  * @date 2025-03-19
- * 
- * @copyright Copyright (c) 2025
- * 
  */
 
 #include <string.h>
