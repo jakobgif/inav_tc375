@@ -104,8 +104,30 @@ Use the macro `USE_UARTx` to enable a UART port. UART1 uses Asclin0, UART2 uses 
 #define UART1_PIN_TX MODULE_P14_0
 ```
 to set the UART pins. Additionally the UART count has to be set to the number of available uart ports: `#define SERIAL_PORT_COUNT`.
+
 ### Timer config
-TBD
+The timer is used for the pwm signal generation. These signals can be used to control motors, LEDs or sound beepers.
+To activate the pwm signals on the out put the `MAX_PWM_OUTPUT_PORTS` define needs to be adjusted to acount for all on board 
+pwm singal outputs.
+```C
+#define MAX_PWM_OUTPUT_PORTS 8
+```
+To control the motors, a pin needs to be defined for each motor and be assigned to an output driven by an atom module.   
+```C
+#define PWM_MOTOR_1_PIN MODULE_P00_6
+#define PWM_MOTOR_2_PIN MODULE_P00_1
+#define PWM_MOTOR_3_PIN MODULE_P00_9
+```
+The assignement of the motor to an atom output is processed in `timerHardware_t timerHardware[]`.
+Up tp 16 motor can be assigned to the list [0 to 15].
+```C
+timerHardware_t timerHardware[] = {
+    DEF_TIM(atomDriver[0], IfxGtm_ATOM0_5_TOUT15_P00_6_OUT, PWM_MOTOR_1_PIN, IOCFG_OUT_PP, TIM_USE_MOTOR),
+    DEF_TIM(atomDriver[1], IfxGtm_ATOM1_1_TOUT10_P00_1_OUT, PWM_MOTOR_2_PIN, IOCFG_OUT_PP, TIM_USE_MOTOR),
+};
+```
+Only one frequency can be used per atom module. Make sure to use different modules if you want to use different frequencies.
+
 
 ### ADC config
 Define `USE_ADC` to enable the ADC. In the current implementation only 6 channels of ADC Group 0 can be used. Define the pin that shall be used by using the macro `#define ADC_CHANNEL_1_PIN 0 //aurix analog input 0`. Afterwards link the ADC channel to a feature: eg `#define VBAT_ADC_CHANNEL ADC_CHN_1` to use analog pin 0 for the battery voltage.
