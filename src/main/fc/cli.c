@@ -714,8 +714,13 @@ static void cliAssert(char *cmdline)
 #ifdef __TRICORE__
 static void cliAurix(char *cmdline){
     cliPrintLinef("\t\t\t\tFirmware: %s", FC_FIRMWARE_NAME);
+#ifdef IS_STANDALONE_PROJECT
     cliPrintf("     _   _   _ ____  _____  __");                cliPrintLinef("\tRelease: %s", INAV_VERSION);   
     cliPrintf("    / \\ | | | |  _ \\|_ _\\ \\/ /");            cliPrintLinef("\tGit Hash: %s", GIT_TAG_INAV);
+#else
+    cliPrintf("     _   _   _ ____  _____  __");                cliPrintLinef("\tRelease: %s: %s, Aurix: %s", FC_FIRMWARE_NAME, INAV_VERSION, AURIX_VERSION);   
+    cliPrintf("    / \\ | | | |  _ \\|_ _\\ \\/ /");            cliPrintLinef("\tGit Hash: %s: %s, Aurix: %s", FC_FIRMWARE_NAME, GIT_TAG_INAV, GIT_TAG);
+#endif
     cliPrintf("   / _ \\| | | | |_) || | \\  /");               cliPrintLinef("\tCompiled: %s %s as %s", buildDate, buildTime, buildType);
     cliPrintf("  / ___ \\ |_| |  _ < | | /  \\");               cliPrintLinef("\tCompiler: GCC-%s", compilerVersion);
     cliPrintf(" /_/   \\_\\___/|_| \\_\\___/_/\\_\\");          cliPrintLinef("\tTarget: %s/%s", targetName, TARGET_BOARD_IDENTIFIER);
