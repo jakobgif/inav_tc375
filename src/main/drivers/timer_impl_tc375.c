@@ -206,46 +206,43 @@ bool PSPR_FUNCTION impl_timerPWMConfigChannelDMA(TCH_t * tch, void * dmaBuffer, 
     IfxDma_Dma_ChannelConfig * dmaChnCfg = &(tch->dmaChnCfg);
     IfxDma_Dma_initChannelConfig(dmaChnCfg, &(tch->dma));
 
-    dmaChnCfg->transferCount = 1;
-    dmaChnCfg->requestMode = IfxDma_ChannelRequestMode_completeTransactionPerRequest;
+    dmaChnCfg->transferCount = 18; //equals DSHOT_DMA_BUFFER_SIZE
+    dmaChnCfg->requestMode = IfxDma_ChannelRequestMode_oneTransferPerRequest; //a request initiates a single transfer = 32bit
     dmaChnCfg->moveSize = IfxDma_ChannelMoveSize_32bit; //equals timerDMASafeType_t
-    dmaChnCfg->operationMode = IfxDma_ChannelOperationMode_continuous;
+    dmaChnCfg->operationMode = IfxDma_ChannelOperationMode_single; //channel disabled after transaction
     dmaChnCfg->hardwareRequestEnabled = TRUE;
-    dmaChnCfg->shadowControl = IfxDma_ChannelShadow_linkedList;
     dmaChnCfg->channelId = channelId;
+    dmaChnCfg->sourceAddressIncrementStep = IfxDma_ChannelIncrementStep_1; //count up one move size (32bit)
+    dmaChnCfg->sourceAddressIncrementDirection = IfxDma_ChannelIncrementDirection_positive;
+    dmaChnCfg->destinationAddressCircularRange = IfxDma_ChannelIncrementCircular_none; //destination address stays the same
+    dmaChnCfg->destinationCircularBufferEnabled = TRUE;     
     
     return true;
 }
 
 void PSPR_FUNCTION impl_timerPWMPrepareDMA(TCH_t * tch, uint32_t dmaBufferElementCount){
-    impl_timerPWMStopDMA(tch);
-
-    //create linked list
-    Ifx_DMA_CH * dmaLinkedList = ((timerDmaSource_t *)tch->dmaBuffer)->dmaLinkedList;
-    uint32_t * dmaSourceBuffer = ((timerDmaSource_t *)tch->dmaBuffer)->dmaBuffer;
-    IfxDma_Dma_ChannelConfig * dmaChnCfg = &(tch->dmaChnCfg);
-
-    for(uint32_t i = 0; i < dmaBufferElementCount; i++){
-        dmaChnCfg->sourceAddress = (uint32_t)(dmaSourceBuffer+i);
-        dmaChnCfg->destinationAddress = (uint32_t)impl_timerCCR(tch);
-
-        //point to next list element, but dont point the last anywhere
-        if(i < (dmaBufferElementCount-1)){
-            dmaChnCfg->shadowAddress = (uint32_t)(dmaLinkedList+i+1);
-        }
-
-        IfxDma_Dma_initLinkedListEntry((void *)(dmaLinkedList+i), (const IfxDma_Dma_ChannelConfig *)dmaChnCfg);
-
-        if(i == 0){
-            IfxDma_Dma_initChannel(&tch->dmaChannel, (const IfxDma_Dma_ChannelConfig *)dmaChnCfg);
-        }
+    if(IfxDma_getChannelTransferCount((Ifx_DMA *)&(tch->dma), tch->dmaChannel.channelId) != 0){
+        //ignore if transfer is already in progress
+        //firmware will call this again anyways
+        //one missed frame does not matter too much
+        return;
     }
+
+    IfxDma_Dma_ChannelConfig * dmaChnCfg = &(tch->dmaChnCfg);
+    dmaChnCfg->sourceAddress = (uint32_t)(tch->dmaBuffer);
+    dmaChnCfg->destinationAddress = (uint32_t)impl_timerCCR(tch);
+
+    IfxDma_Dma_initChannel(&tch->dmaChannel, (const IfxDma_Dma_ChannelConfig *)dmaChnCfg);
 
     tch->dmaState = TCH_DMA_READY;
     return;
 }
 
 void PSPR_FUNCTION impl_timerPWMStartDMA(TCH_t * tch){
+    if(tch->dmaState != TCH_DMA_READY){
+        return;
+    }
+
     //start timer
     impl_timerPWMStart(tch);
 

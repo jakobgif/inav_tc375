@@ -13,8 +13,10 @@ echo "#pragma once" >> "$OUTPUT_FILE"
 #now we get versions at but them into file
 GIT_HASH=$(git describe --match="" --always --dirty)
 GIT_TAG=$(git describe --tags --dirty)
+AURIX_VERSION=$(git describe --tags --abbrev=0)
 echo "#define GIT_HASH \"${GIT_HASH}\"" >> "$OUTPUT_FILE"
 echo "#define GIT_TAG \"${GIT_TAG}\"" >> "$OUTPUT_FILE"
+echo "#define AURIX_VERSION \"${AURIX_VERSION}\"" >> "$OUTPUT_FILE"
 
 #go to folder where this script is
 SCRIPT_DIR="$(dirname "$0")"

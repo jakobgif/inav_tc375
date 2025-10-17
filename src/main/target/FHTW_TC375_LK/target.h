@@ -24,7 +24,7 @@
 
 #pragma once
 
-#define TARGET_BOARD_IDENTIFIER "FHTW_TC375_LK"
+#define TARGET_BOARD_IDENTIFIER "TCLK"
 
 // *************** LED **********************
 #define LED0        MODULE_P00_5
