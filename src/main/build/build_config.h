@@ -21,13 +21,13 @@
 #ifdef BUILD_CONFIG_DEBUG
 //#warning Building for debug
 #endif
-#define DMA_RAM
 #define SLOW_RAM
 #define FASTRAM_CPU0 __attribute__((section(".bss_cpu0")))
 #define FASTRAM_CPU1 __attribute__((section(".bss_cpu1")))
 #define FASTRAM_CPU2 __attribute__((section(".bss_cpu2")))
 #define FASTRAM FASTRAM_CPU0
 #define EXTENDED_FASTRAM FASTRAM
+#define DMA_RAM FASTRAM
 #define REQUIRE_CC_ARM_PRINTF_SUPPORT
 #define REQUIRE_PRINTF_LONG_SUPPORT
 #define STATIC_UNIT_TESTED static
