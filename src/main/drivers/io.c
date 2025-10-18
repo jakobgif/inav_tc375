@@ -97,7 +97,7 @@ const char * portModuleName[] = {
     STR_HELPER(MODULE_P33),
     STR_HELPER(MODULE_P34),
     STR_HELPER(MODULE_P40),
-    "UNKNWON"
+    "UNKNOWN"
 };
 # endif
 
