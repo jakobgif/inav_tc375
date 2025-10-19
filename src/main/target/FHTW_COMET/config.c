@@ -35,16 +35,20 @@
 #include "sensors/barometer.h"
 #include "sensors/gyro.h"
 #include "fc/rc_modes.h"
+#include "sensors/battery.h"
+#include "blackbox.h"
 
 void targetConfiguration(void){
     serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(SERIAL_PORT_USART1)].functionMask = FUNCTION_MSP;
 
     //blackbox
-    //serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(SERIAL_PORT_USART4)].functionMask = FUNCTION_BLACKBOX;
-    //serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(SERIAL_PORT_USART4)].peripheral_baudrateIndex = BAUD_250000;
-    
+    serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(SERIAL_PORT_USART3)].functionMask = FUNCTION_BLACKBOX;
+    serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(SERIAL_PORT_USART3)].peripheral_baudrateIndex = BAUD_250000;
+    blackboxConfigMutable()->rate_denom = 32; //log 1/32 loop iterations
+    blackboxIncludeFlagClear(UINT32_MAX); //clear all flags, only log minimum
+
     //log
-    serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(SERIAL_PORT_USART3)].functionMask = FUNCTION_LOG;
+    serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(SERIAL_PORT_USART4)].functionMask = FUNCTION_LOG;
     logConfigMutable()->level = LOG_LEVEL_DEBUG; //set to max
     logConfigMutable()->topics = 4294967295; //all topics
 
@@ -72,26 +76,31 @@ void targetConfiguration(void){
     rxConfigMutable()->serialrx_provider = SERIALRX_IBUS;
 
     //Modes config
+    //arm
     modeActivationCondition_t *mode = modeActivationConditionsMutable(0);
     mode->modeId = BOXARM;
     mode->auxChannelIndex = 3;
-    mode->range.startStep = CHANNEL_VALUE_TO_STEP(1975);
-    mode->range.endStep   = CHANNEL_VALUE_TO_STEP(2025);
+    mode->range.startStep = CHANNEL_VALUE_TO_STEP(1950);
+    mode->range.endStep   = CHANNEL_VALUE_TO_STEP(2050);
+    //angled mode
+    mode = modeActivationConditionsMutable(1);
+    mode->modeId = BOXANGLE;
+    mode->auxChannelIndex = 3;
+    mode->range.startStep = CHANNEL_VALUE_TO_STEP(900);
+    mode->range.endStep   = CHANNEL_VALUE_TO_STEP(2100);
 
     //sensors
     accelerometerConfigMutable()->acc_hardware = 7; //BMI088
     barometerConfigMutable()->baro_hardware = 9; //DPS310
-    //sensor calibration
-    accelerometerConfigMutable()->accZero.raw[X] = 11;
-    accelerometerConfigMutable()->accZero.raw[Y] = -17;
-    accelerometerConfigMutable()->accZero.raw[Z] = -9;
-    accelerometerConfigMutable()->accGain.raw[X] = 4089;
-    accelerometerConfigMutable()->accGain.raw[Y] = 4093;
-    accelerometerConfigMutable()->accGain.raw[Z] = 4098;
-    gyroConfigMutable()->gravity_cmss_cal = 980.851;
 
     //fail safe
     failsafeConfigMutable()->failsafe_procedure = FAILSAFE_PROCEDURE_DROP_IT;
+
+    //motor arm idle throttle
+    for (uint8_t i = 0; i < MAX_BATTERY_PROFILE_COUNT; ++i) {
+        batteryProfile_t *profile = (batteryProfile_t *)batteryProfiles(i);
+        profile->motor.throttleIdle = 7;
+    }
 
     //PID
     ezTuneMutable()->enabled = TRUE;

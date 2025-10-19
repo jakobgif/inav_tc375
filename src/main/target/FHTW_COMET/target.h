@@ -24,7 +24,7 @@
 
 #pragma once
 
-#define TARGET_BOARD_IDENTIFIER "FHTW_COMET"
+#define TARGET_BOARD_IDENTIFIER "CMET"
 
 // *************** LED **********************
 //lite kit onboard LEDs
@@ -34,11 +34,11 @@
 // *************** Motor outputs **********************
 //pins to ESC
 #define MOTOR_1_PIN     MODULE_P00_1
-#define MOTOR_2_PIN     MODULE_P00_6 //double use with led, use IfxGtm_ATOM0_0_TOUT9_P00_0_OUT
+#define MOTOR_2_PIN     MODULE_P00_6
 #define MOTOR_3_PIN     MODULE_P00_3
 #define MOTOR_4_PIN     MODULE_P00_9
-#define MOTOR_5_PIN     MODULE_P00_5 //double use with led, use IfxGtm_ATOM0_7_TOUT17_P00_8_OUT
-#define MOTOR_6_PIN     MODULE_P00_7 //double with button short circuit danger! use P00_10
+#define MOTOR_5_PIN     MODULE_P00_5
+#define MOTOR_6_PIN     MODULE_P00_7
 
 // *************** SPI: Gyro & ACC & OSD **********************
 #define USE_SPI
@@ -66,18 +66,19 @@
 #define UART2_PIN_RX    MODULE_P15_5
 #define UART2_PIN_TX    MODULE_P15_4
 
-//logging output
+//connection to openlog blackbox
 //Shield2Go connector 1
 #define USE_UART3
 #define UART3_PIN_RX    MODULE_P33_8
 #define UART3_PIN_TX    MODULE_P33_9
 
-//connection to openlog blackbox
-//#define USE_UART4
-//#define UART4_PIN_RX    
-//#define UART4_PIN_TX
+//logging output
+//Shield2Go connector 2
+#define USE_UART4
+#define UART4_PIN_RX    MODULE_P20_3
+#define UART4_PIN_TX    MODULE_P20_0
 
-#define SERIAL_PORT_COUNT   3
+#define SERIAL_PORT_COUNT   4
 
 // *************** I2C: BARO & MAG ****************************
 //baro plugged into Shield2Go connector 2
@@ -97,7 +98,7 @@
 #define VBAT_ADC_CHANNEL    ADC_CHN_1
 #define VBAT_SCALE_DEFAULT  127
 
-#define DEFAULT_FEATURES    (FEATURE_VBAT | FEATURE_PWM_OUTPUT_ENABLE)
+#define DEFAULT_FEATURES    (FEATURE_VBAT | FEATURE_PWM_OUTPUT_ENABLE | FEATURE_BLACKBOX)
 
 #define USE_DSHOT
 #define USE_SERIAL_4WAY_BLHELI_INTERFACE
@@ -107,8 +108,7 @@
 #define TARGET_IO_PORTMODULE_P13    0b110
 #define TARGET_IO_PORTMODULE_P14    0b10000011
 #define TARGET_IO_PORTMODULE_P15    0b111110000
-#define TARGET_IO_PORTMODULE_P20    0b0
-#define TARGET_IO_PORTMODULE_P22    0b0
+#define TARGET_IO_PORTMODULE_P20    0b1001
 #define TARGET_IO_PORTMODULE_P33    0b1100000000
 
 #define MAX_PWM_OUTPUT_PORTS 6
