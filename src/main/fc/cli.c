@@ -711,6 +711,24 @@ static void cliAssert(char *cmdline)
 }
 #endif
 
+#ifdef __TRICORE__
+static void cliAurix(char *cmdline){
+    cliPrintLinef("\t\t\t\tFirmware: %s", FC_FIRMWARE_NAME);
+#ifdef IS_STANDALONE_PROJECT
+    cliPrintf("     _   _   _ ____  _____  __");                cliPrintLinef("\tRelease: %s", INAV_VERSION);   
+    cliPrintf("    / \\ | | | |  _ \\|_ _\\ \\/ /");            cliPrintLinef("\tGit Hash: %s", GIT_TAG_INAV);
+#else
+    cliPrintf("     _   _   _ ____  _____  __");                cliPrintLinef("\tRelease: %s: %s, Aurix: %s", FC_FIRMWARE_NAME, INAV_VERSION, AURIX_VERSION);   
+    cliPrintf("    / \\ | | | |  _ \\|_ _\\ \\/ /");            cliPrintLinef("\tGit Hash: %s: %s, Aurix: %s", FC_FIRMWARE_NAME, GIT_TAG_INAV, GIT_TAG);
+#endif
+    cliPrintf("   / _ \\| | | | |_) || | \\  /");               cliPrintLinef("\tCompiled: %s %s as %s", buildDate, buildTime, buildType);
+    cliPrintf("  / ___ \\ |_| |  _ < | | /  \\");               cliPrintLinef("\tCompiler: GCC-%s", compilerVersion);
+    cliPrintf(" /_/   \\_\\___/|_| \\_\\___/_/\\_\\");          cliPrintLinef("\tTarget: %s/%s", targetName, TARGET_BOARD_IDENTIFIER);
+    cliPrintLinef("\t\t\t\tSystem Uptime: %d seconds", millis() / 1000);
+    cliPrintLinef("\t\t\t\tCore: CPU%d", (int)IfxCpu_getCoreIndex());
+}
+#endif
+
 static void printAux(uint8_t dumpMask, const modeActivationCondition_t *modeActivationConditions, const modeActivationCondition_t *defaultModeActivationConditions)
 {
     const char *format = "aux %u %u %u %u %u";
@@ -4055,7 +4073,9 @@ static void cliStatus(char *cmdline)
     dateTimeFormatLocal(buf, &dt);
     cliPrintLinef("Current Time: %s", buf);
     cliPrintLinef("Voltage: %d.%02dV (%dS battery - %s)", getBatteryVoltage() / 100, getBatteryVoltage() % 100, getBatteryCellCount(), getBatteryStateString());
+#if !defined(TC375)
     cliPrintf("CPU Clock=%dMHz", (SystemCoreClock / 1000000));
+#endif
 
     const uint32_t detectedSensorsMask = sensorsMask();
 
@@ -4081,6 +4101,11 @@ static void cliStatus(char *cmdline)
     cliPrintLinef("  ABH    = %d MHz", clocks.ahb_freq  / 1000000);
     cliPrintLinef("  ABP1   = %d MHz", clocks.apb1_freq / 1000000);
     cliPrintLinef("  ABP2   = %d MHz", clocks.apb2_freq / 1000000);
+#elif defined(TC375)
+    cliPrintLine("Aurix system clocks:");
+    cliPrintLinef("  CPU  = %d MHz", (int)(IfxScuCcu_getCpuFrequency(IfxCpu_getCoreIndex()) / 1000000));
+    cliPrintLinef("  STM0 = %d MHz", (int)(IfxStm_getFrequency(IFXSTM_DEFAULT_TIMER) / 1000000));
+    cliPrintLinef("Aurix die temperature: %f degC", IfxDts_Dts_getTemperatureCelsius());
 #else
     cliPrintLine("STM32 system clocks:");
 #if defined(USE_HAL_DRIVER)
@@ -4354,11 +4379,15 @@ static void cliResource(char *cmdline)
         const char* resource;
         resource = resourceNames[ioRecs[i].resource];
 
+#if defined(TC375)
+        cliPrintLinef("%s,%d: %s %s", IO_GPIOPortName(&ioRecs[i]), ioRecs[i].gpio.pinIndex, owner, resource);
+#else
         if (ioRecs[i].index > 0) {
             cliPrintLinef("%c%02d: %s%d %s", IO_GPIOPortIdx(ioRecs + i) + 'A', IO_GPIOPinIdx(ioRecs + i), owner, ioRecs[i].index, resource);
         } else {
             cliPrintLinef("%c%02d: %s %s", IO_GPIOPortIdx(ioRecs + i) + 'A', IO_GPIOPinIdx(ioRecs + i), owner, resource);
         }
+#endif
     }
 }
 
@@ -4805,6 +4834,9 @@ const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("adjrange", "configure adjustment ranges", NULL, cliAdjustmentRange),
 #if defined(USE_ASSERT)
     CLI_COMMAND_DEF("assert", "", NULL, cliAssert),
+#endif
+#ifdef __TRICORE__
+    CLI_COMMAND_DEF("aurix", "platform infos", NULL, cliAurix),
 #endif
     CLI_COMMAND_DEF("aux", "configure modes", NULL, cliAux),
 #ifdef USE_CLI_BATCH

@@ -23,12 +23,14 @@
 
 #include "drivers/io.h"
 #include "drivers/io_impl.h"
+#if !defined(TC375) //rcc not needed on aurix
 #include "drivers/rcc.h"
 
 // io ports defs are stored in array by index now
 struct ioPortDef_s {
     rccPeriphTag_t rcc;
 };
+#endif
 
 #if defined(STM32F4)
 const struct ioPortDef_s ioPortDefs[] = {
@@ -71,8 +73,35 @@ const struct ioPortDef_s ioPortDefs[] = {
     { RCC_AHB1(GPIOG) },
     { RCC_AHB1(GPIOH) },
 };
+#elif defined(TC375)
+static Ifx_P * const portModule[] = {
+    &MODULE_P00, &MODULE_P01, &MODULE_P02, &MODULE_P10, &MODULE_P11, &MODULE_P12, 
+    &MODULE_P13, &MODULE_P14, &MODULE_P15, &MODULE_P20, &MODULE_P21, &MODULE_P22, 
+    &MODULE_P23, &MODULE_P32, &MODULE_P33, &MODULE_P34, &MODULE_P40
+};
+const char * portModuleName[] = {
+    STR_HELPER(MODULE_P00),
+    STR_HELPER(MODULE_P01),
+    STR_HELPER(MODULE_P02),
+    STR_HELPER(MODULE_P10),
+    STR_HELPER(MODULE_P11),
+    STR_HELPER(MODULE_P12),
+    STR_HELPER(MODULE_P13),
+    STR_HELPER(MODULE_P14),
+    STR_HELPER(MODULE_P15),
+    STR_HELPER(MODULE_P20),
+    STR_HELPER(MODULE_P21),
+    STR_HELPER(MODULE_P22),
+    STR_HELPER(MODULE_P23),
+    STR_HELPER(MODULE_P32),
+    STR_HELPER(MODULE_P33),
+    STR_HELPER(MODULE_P34),
+    STR_HELPER(MODULE_P40),
+    "UNKNOWN"
+};
 # endif
 
+//#if !defined(TC375)
 ioRec_t* IO_Rec(IO_t io)
 {
     ASSERT(io != NULL);
@@ -81,12 +110,19 @@ ioRec_t* IO_Rec(IO_t io)
 
     return io;
 }
+//#endif
 
 #if defined(AT32F43x)   
 gpio_type * IO_GPIO(IO_t io)
 {
     const ioRec_t *ioRec = IO_Rec(io);
     return ioRec->gpio;
+}
+#elif defined(TC375)
+IfxPort_Pin * IO_GPIO(IO_t io)
+{
+    ioRec_t *ioRec = IO_Rec(io);
+    return &(ioRec->gpio);
 }
 #else
 GPIO_TypeDef * IO_GPIO(IO_t io)
@@ -96,6 +132,7 @@ GPIO_TypeDef * IO_GPIO(IO_t io)
 }
 # endif
  
+#if !defined(TC375) //helper functions we dont need on aurix
 uint16_t IO_Pin(IO_t io)
 {
     const ioRec_t *ioRec = IO_Rec(io);
@@ -153,6 +190,7 @@ uint32_t IO_EXTI_Line(IO_t io)
 # error "Unknown target type"
 #endif
 }
+#endif
 
 bool IORead(IO_t io)
 {
@@ -163,6 +201,8 @@ bool IORead(IO_t io)
     return !! HAL_GPIO_ReadPin(IO_GPIO(io),IO_Pin(io));
 #elif defined(AT32F43x)
     return !! (IO_GPIO(io)->idt & IO_Pin(io));
+#elif defined(TC375)
+    return !! IfxPort_getPinState(IO_GPIO(io)->port, IO_GPIO(io)->pinIndex);
 #else
     return !! (IO_GPIO(io)->IDR & IO_Pin(io));
 #endif
@@ -187,6 +227,13 @@ void IOWrite(IO_t io, bool hi)
     }
 #elif defined(AT32F43x)
     IO_GPIO(io)->scr = IO_Pin(io) << (hi ? 0 : 16); 
+#elif defined(TC375)
+    if(hi){
+        IfxPort_setPinHigh(IO_GPIO(io)->port, IO_GPIO(io)->pinIndex);
+    }
+    else{
+        IfxPort_setPinLow(IO_GPIO(io)->port, IO_GPIO(io)->pinIndex);
+    }
 #else
     IO_GPIO(io)->BSRR = IO_Pin(io) << (hi ? 0 : 16);  
 #endif
@@ -203,6 +250,8 @@ void IOHi(IO_t io)
     IO_GPIO(io)->BSRRL = IO_Pin(io);
 #elif defined(AT32F43x)
     IO_GPIO(io)->scr = IO_Pin(io);
+#elif defined(TC375)
+    IfxPort_setPinHigh(IO_GPIO(io)->port, IO_GPIO(io)->pinIndex);
 #else
     IO_GPIO(io)->BSRR = IO_Pin(io);
 #endif
@@ -218,7 +267,9 @@ void IOLo(IO_t io)
 #elif defined(STM32F4)  
     IO_GPIO(io)->BSRRH = IO_Pin(io);
 #elif defined(AT32F43x)
-    IO_GPIO(io)->clr = IO_Pin(io);  
+    IO_GPIO(io)->clr = IO_Pin(io); 
+#elif defined(TC375)
+    IfxPort_setPinLow(IO_GPIO(io)->port, IO_GPIO(io)->pinIndex);
 #else
     IO_GPIO(io)->BRR = IO_Pin(io);
 #endif
@@ -229,11 +280,12 @@ void IOToggle(IO_t io)
     if (!io) {
         return;
     }
-
+#if !defined(TC375)
     uint32_t mask = IO_Pin(io);
     // Read pin state from ODR but write to BSRR because it only changes the pins
     // high in the mask value rather than all pins. XORing ODR directly risks
     // setting other pins incorrectly because it change all pins' state.
+#endif
 #if defined(USE_HAL_DRIVER)
     (void)mask;
     HAL_GPIO_TogglePin(IO_GPIO(io),IO_Pin(io));
@@ -248,6 +300,8 @@ void IOToggle(IO_t io)
         mask <<= 16;   // bit is set, shift mask to reset half 
     
     IO_GPIO(io)->scr = IO_Pin(io);
+#elif defined(TC375)
+    IfxPort_togglePin(IO_GPIO(io)->port, IO_GPIO(io)->pinIndex);
 #else
     if (IO_GPIO(io)->ODR & mask)
         mask <<= 16;   // bit is set, shift mask to reset half
@@ -407,6 +461,92 @@ void IOConfigGPIOAF(IO_t io, ioConfig_t cfg, uint8_t af)
     gpio_init(IO_GPIO(io), &init);
 }
 
+#elif defined(TC375)
+
+const char * IO_GPIOPortName(IO_t io){
+    ioRec_t* ioRec = io;
+    if(false){ }
+    else if(ioRec->gpio.port == &MODULE_P00){
+        return portModuleName[0];
+    }
+    else if(ioRec->gpio.port == &MODULE_P01){
+        return portModuleName[1];
+    }
+    else if(ioRec->gpio.port == &MODULE_P02){
+        return portModuleName[2];
+    }
+    else if(ioRec->gpio.port == &MODULE_P10){
+        return portModuleName[3];
+    }
+    else if(ioRec->gpio.port == &MODULE_P11){
+        return portModuleName[4];
+    }
+    else if(ioRec->gpio.port == &MODULE_P12){
+        return portModuleName[5];
+    }
+    else if(ioRec->gpio.port == &MODULE_P13){
+        return portModuleName[6];
+    }
+    else if(ioRec->gpio.port == &MODULE_P14){
+        return portModuleName[7];
+    }
+    else if(ioRec->gpio.port == &MODULE_P15){
+        return portModuleName[8];
+    }
+    else if(ioRec->gpio.port == &MODULE_P20){
+        return portModuleName[9];
+    }
+    else if(ioRec->gpio.port == &MODULE_P21){
+        return portModuleName[10];
+    }
+    else if(ioRec->gpio.port == &MODULE_P22){
+        return portModuleName[11];
+    }
+    else if(ioRec->gpio.port == &MODULE_P23){
+        return portModuleName[12];
+    }
+    else if(ioRec->gpio.port == &MODULE_P32){
+        return portModuleName[13];
+    }
+    else if(ioRec->gpio.port == &MODULE_P33){
+        return portModuleName[14];
+    }
+    else if(ioRec->gpio.port == &MODULE_P34){
+        return portModuleName[15];
+    }
+    else if(ioRec->gpio.port == &MODULE_P40){
+        return portModuleName[16];
+    }
+
+    //if not returned by now send "UNKNOWN"
+    return portModuleName[17];
+}
+
+void IOConfigGPIO(IO_t io, ioConfig_t cfg){
+    if (!io) {
+        return;
+    }
+
+    IfxPort_setPinMode(
+        IO_GPIO(io)->port, 
+        IO_GPIO(io)->pinIndex,
+        (IfxPort_Mode)(IO_CONFIG_UNPACK_MODE(cfg))
+    );
+
+    IfxPort_setPinPadDriver(
+        IO_GPIO(io)->port, 
+        IO_GPIO(io)->pinIndex, 
+        (IfxPort_PadDriver)(IO_CONFIG_UNPACK_DRIVER(cfg))
+    );
+
+    
+}
+
+void IOConfigGPIOAF(IO_t io, ioConfig_t cfg, uint8_t af){
+    //no difference for aurix
+    IOConfigGPIO(io, cfg);
+}
+
 #endif
 
 #if DEFIO_PORT_USED_COUNT > 0
@@ -425,15 +565,24 @@ void IOInitGlobal(void)
 {
     ioRec_t *ioRec = ioRecs;
 
-    for (unsigned port = 0; port < ARRAYLEN(ioDefUsedMask); port++) {
-        for (unsigned pin = 0; pin < sizeof(ioDefUsedMask[0]) * 8; pin++) {
-            if (ioDefUsedMask[port] & (1 << pin)) {
+    for (unsigned port = 0; port < ARRAYLEN(ioDefUsedMask); port++) { //go through all used ports
+#if defined(TC375)
+        for (unsigned pin = 0; pin < IFXPORT_PINMAP_PIN_NUM_ITEMS; pin++) { //go through all bits this port has
+#else
+        for (unsigned pin = 0; pin < sizeof(ioDefUsedMask[0]) * 8; pin++) { //go through all bits this port has
+#endif
+            if (ioDefUsedMask[port] & (1 << pin)) { //only run if this specific pin is used
 #if defined(AT32F43x)
                 ioRec->gpio = (gpio_type *)(GPIOA_BASE + (port << 10));   // ports are 0x400 apart
+#elif defined(TC375)
+                ioRec->gpio.port = portModule[port];
+                ioRec->gpio.pinIndex = pin;
 #else
                 ioRec->gpio = (GPIO_TypeDef *)(GPIOA_BASE + (port << 10));   // ports are 0x400 apart 
 # endif
+#if !defined(TC375)
                 ioRec->pin = 1 << pin;
+# endif              
                 ioRec++;
             }
         }

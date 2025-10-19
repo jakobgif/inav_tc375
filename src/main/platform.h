@@ -78,6 +78,156 @@ typedef enum
 #define U_ID_1 (*(uint32_t*)0x1fff7a14)
 #define U_ID_2 (*(uint32_t*)0x1fff7a18)
 
+#elif defined(TC375)
+//#warning Building for TC375
+//types
+#include "Platform_Types.h"
+typedef   uint8     uint8_t;
+typedef   uint16    uint16_t;
+typedef   sint16    int16_t;
+typedef   sint32    int32_t;
+typedef   uint32    uint32_t;
+typedef   uint64    uint64_t;
+typedef   float32   float32_t;
+typedef   boolean   bool;
+
+#ifndef true
+#define true TRUE
+#endif
+#ifndef false
+#define false FALSE
+#endif
+
+//GPIOs
+#include "IfxPort.h"
+#include "IfxPort_PinMap.h"
+
+//flash
+#include "IfxFlash.h"
+
+//timer
+#include "IfxStm.h"
+#include "IfxGtm_Atom_Timer.h"
+
+//uart
+#include "IfxAsclin_Asc.h"
+
+//software reset
+#include "IfxScuWdt.h"
+#include "IfxScuRcu.h"
+
+//SPI
+#include "IfxQspi_SpiMaster.h"
+
+//I2C
+#include "IfxI2c_I2c.h"
+
+//ADC
+#include "IfxEvadc_Adc.h"
+
+//DMA
+#include "IfxDma_Dma.h"
+
+//die temperature
+#include "IfxDts_Dts.h"
+
+//performance counters
+#include "IfxCbs_reg.h"
+#include "IfxCpu.h"
+
+//DMA channels
+#define DMA_CHANNEL_NONE      -1
+
+//dma channels start
+#define DMA_CHANNEL_ADC_1     10
+#define DMA_CHANNEL_ADC_2     11
+#define DMA_CHANNEL_ADC_3     12
+#define DMA_CHANNEL_ADC_4     13
+#define DMA_CHANNEL_ADC_5     14
+#define DMA_CHANNEL_ADC_6     15
+
+#define DMA_CHANNEL_TIMER_0   100
+#define DMA_CHANNEL_TIMER_1   101
+#define DMA_CHANNEL_TIMER_2   102
+#define DMA_CHANNEL_TIMER_3   103
+#define DMA_CHANNEL_TIMER_4   104
+#define DMA_CHANNEL_TIMER_5   105
+#define DMA_CHANNEL_TIMER_6   106
+#define DMA_CHANNEL_TIMER_7   107
+#define DMA_CHANNEL_TIMER_8   108
+#define DMA_CHANNEL_TIMER_9   109
+#define DMA_CHANNEL_TIMER_10  110
+#define DMA_CHANNEL_TIMER_11  111
+#define DMA_CHANNEL_TIMER_12  112
+#define DMA_CHANNEL_TIMER_13  113
+#define DMA_CHANNEL_TIMER_14  114
+#define DMA_CHANNEL_TIMER_15  115
+
+#define DMA_CHANNEL_MAX       127
+//dma channels end
+
+//interrupt prios start
+#include "target.h"
+#define INTPRIO_DISABLED    0   //0 will never be served, 1 is the minimum level
+
+#define INTPRIO_ASCLIN7_TX  66
+#define INTPRIO_ASCLIN7_RX  65
+#define INTPRIO_ASCLIN6_TX  64
+#define INTPRIO_ASCLIN6_RX  63
+#define INTPRIO_ASCLIN5_TX  62
+#define INTPRIO_ASCLIN5_RX  61
+#define INTPRIO_ASCLIN4_TX  60
+#define INTPRIO_ASCLIN4_RX  59
+#define INTPRIO_ASCLIN3_TX  58
+#define INTPRIO_ASCLIN3_RX  56
+#define INTPRIO_ASCLIN2_TX  55
+#define INTPRIO_ASCLIN2_RX  54
+#define INTPRIO_ASCLIN1_TX  53
+#define INTPRIO_ASCLIN1_RX  52
+#define INTPRIO_ASCLIN0_TX  51
+#define INTPRIO_ASCLIN0_RX  50
+
+#define INTPRIO_QSPI3_TX    92
+#define INTPRIO_QSPI3_RX    93
+#define INTPRIO_QSPI2_TX    94
+#define INTPRIO_QSPI2_RX    95
+#define INTPRIO_QSPI1_TX    96
+#define INTPRIO_QSPI1_RX    97
+#define INTPRIO_QSPI0_TX    98
+#define INTPRIO_QSPI0_RX    99
+
+#define INTPRIO_GTM_ATOM_15  100
+#define INTPRIO_GTM_ATOM_14  101
+#define INTPRIO_GTM_ATOM_13  102
+#define INTPRIO_GTM_ATOM_12  103
+#define INTPRIO_GTM_ATOM_11  104
+#define INTPRIO_GTM_ATOM_10  105
+#define INTPRIO_GTM_ATOM_09  106
+#define INTPRIO_GTM_ATOM_08  107
+#define INTPRIO_GTM_ATOM_07  108
+#define INTPRIO_GTM_ATOM_06  109
+#define INTPRIO_GTM_ATOM_05  110
+#define INTPRIO_GTM_ATOM_04  111
+#define INTPRIO_GTM_ATOM_03  112
+#define INTPRIO_GTM_ATOM_02  113
+#define INTPRIO_GTM_ATOM_01  114
+#define INTPRIO_GTM_ATOM_00  115
+
+#define INTPRIO_MAX         255 //max will be served first
+//interrupt prios end
+
+#define U_ID_0 (*(uint32_t*)&SCU_CHIPID)
+#define U_ID_1 (*(uint32_t*)&SCU_MANID)
+#define U_ID_2 0x0
+
+#define __NOP(n) __nop(n) //some inav functions use __NOP() but aurix only has __nop()
+
+// #define AURIX_CLEAR_DFLASH_ON_SYSTEM_INIT
+
+#define MCU_FLASH_SIZE  IFXFLASH_PFLASH_SIZE
+
+#define USE_PERFCOUNTER
+
 #endif
 
 #include "target/common.h"

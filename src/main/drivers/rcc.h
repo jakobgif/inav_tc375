@@ -1,5 +1,6 @@
 #pragma once
 
+#if !defined(TC375) //not needed on aurix
 #include "rcc_types.h"
 #include "rcc_at32f43x_periph.h"
 
@@ -48,3 +49,4 @@ enum rcc_reg {
 void RCC_ClockCmd(rccPeriphTag_t periphTag, FunctionalState NewState);
 void RCC_ResetCmd(rccPeriphTag_t periphTag, FunctionalState NewState);
 
+#endif

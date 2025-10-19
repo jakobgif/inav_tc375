@@ -85,7 +85,11 @@ typedef struct {
 
 #ifdef USE_DSHOT
     // DSHOT parameters
+#if defined(TC375)
+    __attribute__ ((aligned (4))) timerDMASafeType_t dmaBuffer[DSHOT_DMA_BUFFER_SIZE];
+#else
     timerDMASafeType_t dmaBuffer[DSHOT_DMA_BUFFER_SIZE];
+#endif
 #ifdef USE_DSHOT_DMAR
     timerDMASafeType_t *dmaBurstBuffer;
 #endif

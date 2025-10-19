@@ -2312,13 +2312,13 @@ groups:
         min: 0
         max: 20
       - name: fw_iterm_lock_time_max_ms
-        description: Defines max time in milliseconds for how long ITerm Lock will shut down Iterm after sticks are release
+        description: Defines max time in milliseconds for how long ITerm Lock will depress Iterm after sticks are release
         default_value: 500
         field: fwItermLockTimeMaxMs
         min: 100
         max: 1000
       - name: fw_iterm_lock_rate_threshold
-        description: Defines rate percentage when full P I and D attenuation should happen. 100 disables Iterm Lock for P and D term
+        description: Defines the steepness of the attenuation curve. Higher values result in flatter attenuation. Lower values force full attenuation with lower stick deflection
         field: fwItermLockRateLimit
         default_value: 40
         min: 10
@@ -4319,18 +4319,21 @@ groups:
         field: sensitivity
         min: -16
         max: 15
+        type: int8_t
       - name: gimbal_pan_trim
         field: panTrim
         description: "Trim gimbal pan center position."
         default_value: 0
         min: -500
         max: 500
+        type: int16_t
       - name: gimbal_tilt_trim
         field: tiltTrim
         description: "Trim gimbal tilt center position."
         default_value: 0
         min: -500
         max: 500
+        type: int16_t
       - name: gimbal_roll_trim
         field: rollTrim
         description: "Trim gimbal roll center position."

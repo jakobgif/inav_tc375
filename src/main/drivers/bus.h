@@ -200,6 +200,16 @@ typedef struct busDevice_s {
         } i2c;
 #endif
     } busdev;
+#if defined(TC375)
+#ifdef USE_SPI
+    //pointer to spi channel (this is needed by aurix driver)
+    IfxQspi_SpiMaster_Channel * spiChannel; //dynamically allocated
+#endif
+#ifdef USE_I2C
+    //pointer to i2c device handle
+    IfxI2c_I2c_Device *i2cBusDevice;
+#endif
+#endif
     IO_t irqPin;                    // Device IRQ pin. Bus system will only assign IO_t object to this var. Initialization is up to device driver
     uint32_t * scratchpad;          // Memory where device driver can store persistent data. Zeroed out when initializing the device
                                     // for the first time. Useful when once device is shared between several sensors

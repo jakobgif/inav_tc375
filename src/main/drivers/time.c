@@ -33,6 +33,7 @@
 #include "drivers/nvic.h"
 #include "drivers/time.h"
 
+#if !defined(TC375)
 // cycles per microsecond, this is deliberately uint32_t to avoid type conversions
 // This is not static so system.c can set it up for us.
 uint32_t usTicks = 0;
@@ -132,6 +133,47 @@ timeUs_t micros(void)
     const uint32_t partial = (usTicks * 1000U - cycle_cnt) / usTicks;
     return ((timeUs_t)ms * 1000LL) + ((timeUs_t)partial);
 }
+#else
+// cycles per microsecond, this is deliberately uint64_t to avoid type conversions
+// This is not static so system.c can set it up for us.
+// use IfxStm_getTicksFromMicroseconds(IFXSTM_DEFAULT_TIMER, 1);
+ticks_t usTicks = 0;
+
+timeMs_t millis(void){
+    //uint64_t tick = IfxStm_get(&MODULE_STM0);
+    //return (timeMs_t)(tick/usTicks/1000);
+    return (timeMs_t)(US2MS(IfxStm_get(IFXSTM_DEFAULT_TIMER)/usTicks));
+}
+
+ticks_t ticks(void){
+    return IfxStm_get(IFXSTM_DEFAULT_TIMER);
+}
+
+void delayNanos(timeDelta_t ns){
+#if 0
+    //TODO: check timing
+    //actually with aurix default STM runs at 100MHz. So we get 10ns tick
+    if(ns < 10) ns = 10;
+    const ticks_t startTicks = ticks();
+    const ticks_t ticksToWait = ns/10;
+    while (ticks() - startTicks <= ticksToWait);
+#else
+    //from inav above
+    const ticks_t startTicks = ticks();
+    const ticks_t ticksToWait = (ns * usTicks) / 1000;
+    while (ticks() - startTicks <= ticksToWait);
+#endif
+}
+
+// Return system uptime in microseconds
+timeUs_t microsISR(void){
+    return (timeUs_t)(IfxStm_get(IFXSTM_DEFAULT_TIMER)/usTicks);
+}
+
+timeUs_t micros(void){
+    return microsISR();
+}
+#endif
 
 #if 1
 void delayMicroseconds(timeUs_t us)
