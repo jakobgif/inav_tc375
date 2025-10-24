@@ -26,10 +26,14 @@
 
 #include "io_impl.h"
 
+#include "build/build_config.h"
+
 
 #if !defined(UNUSED)
 #define UNUSED(x) ((void)(x))
 #endif
+
+#define PSPR_FUNCTION CPU0_PSPR_FUNCTION
 
 // Warning Message if Devicecount is over 3
 STATIC_ASSERT(I2CDEV_COUNT<= 3, only_3_bus_on_aurix);
@@ -223,7 +227,7 @@ uint16_t i2cGetErrorCounter(void)
 }
 
 // i2c buffer write function
-bool i2cWriteBuffer(const busDevice_t * busDev, uint8_t reg, uint8_t len, const uint8_t * data, bool allowRawAccess)
+bool PSPR_FUNCTION i2cWriteBuffer(const busDevice_t * busDev, uint8_t reg, uint8_t len, const uint8_t * data, bool allowRawAccess)
 {
     I2CDevice device = busDev->busdev.i2c.i2cBus;
     
@@ -277,13 +281,13 @@ bool i2cWriteBuffer(const busDevice_t * busDev, uint8_t reg, uint8_t len, const 
 
 
 // i2c write function
-bool i2cWrite(const busDevice_t * busDev, uint8_t reg, uint8_t data, bool allowRawAccess)
+bool PSPR_FUNCTION i2cWrite(const busDevice_t * busDev, uint8_t reg, uint8_t data, bool allowRawAccess)
 {
     return i2cWriteBuffer(busDev, reg, 1, &data, allowRawAccess);
 }
 
 // i2c read function
-bool i2cRead(const busDevice_t * busDev, uint8_t reg, uint8_t len, uint8_t* buf, bool allowRawAccess)
+bool PSPR_FUNCTION i2cRead(const busDevice_t * busDev, uint8_t reg, uint8_t len, uint8_t* buf, bool allowRawAccess)
 {
     I2CDevice device = busDev->busdev.i2c.i2cBus;
     
