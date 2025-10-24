@@ -68,36 +68,42 @@ void impl_timerConfigBase(TCH_t * tch, uint16_t period, uint32_t hz){
     {
         case IfxGtm_Atom_0:
             atomConfig->clock = IfxGtm_Cmu_Clk_0; // Select the CMU clock
+            (&MODULE_GTM)->CMU.CLK_EN.U &= ~(IFXGTM_CMU_CLKEN_CLK0); //disable clock, needs to be done in case it was already enabled before
             IfxGtm_Cmu_setClkFrequency(&MODULE_GTM, IfxGtm_Cmu_Clk_0, (float32)hz); // Set the clock frequency
             IfxGtm_Cmu_enableClocks(&MODULE_GTM, IFXGTM_CMU_CLKEN_CLK0); // Enable the CMU clock 0
             IfxGtm_Atom_Ch_setClockSource(atom, channel, IfxGtm_Cmu_Clk_0);
             break;
         case IfxGtm_Atom_1:
             atomConfig->clock = IfxGtm_Cmu_Clk_1;
+            (&MODULE_GTM)->CMU.CLK_EN.U &= ~(IFXGTM_CMU_CLKEN_CLK1);
             IfxGtm_Cmu_setClkFrequency(&MODULE_GTM, IfxGtm_Cmu_Clk_1, (float32)hz);
             IfxGtm_Cmu_enableClocks(&MODULE_GTM, IFXGTM_CMU_CLKEN_CLK1);
             IfxGtm_Atom_Ch_setClockSource(atom, channel, IfxGtm_Cmu_Clk_1);
             break;
         case IfxGtm_Atom_2:
             atomConfig->clock = IfxGtm_Cmu_Clk_2;
+            (&MODULE_GTM)->CMU.CLK_EN.U &= ~(IFXGTM_CMU_CLKEN_CLK2);
             IfxGtm_Cmu_setClkFrequency(&MODULE_GTM, IfxGtm_Cmu_Clk_2, (float32)hz);
             IfxGtm_Cmu_enableClocks(&MODULE_GTM, IFXGTM_CMU_CLKEN_CLK2);
             IfxGtm_Atom_Ch_setClockSource(atom, channel, IfxGtm_Cmu_Clk_2);
             break;
         case IfxGtm_Atom_3:
             atomConfig->clock = IfxGtm_Cmu_Clk_3;
+            (&MODULE_GTM)->CMU.CLK_EN.U &= ~(IFXGTM_CMU_CLKEN_CLK3);
             IfxGtm_Cmu_setClkFrequency(&MODULE_GTM, IfxGtm_Cmu_Clk_3, (float32)hz);
             IfxGtm_Cmu_enableClocks(&MODULE_GTM, IFXGTM_CMU_CLKEN_CLK3);
             IfxGtm_Atom_Ch_setClockSource(atom, channel, IfxGtm_Cmu_Clk_3);
             break;
         case IfxGtm_Atom_4:
             atomConfig->clock = IfxGtm_Cmu_Clk_4;
+            (&MODULE_GTM)->CMU.CLK_EN.U &= ~(IFXGTM_CMU_CLKEN_CLK4);
             IfxGtm_Cmu_setClkFrequency(&MODULE_GTM, IfxGtm_Cmu_Clk_4, (float32)hz);
             IfxGtm_Cmu_enableClocks(&MODULE_GTM, IFXGTM_CMU_CLKEN_CLK4);
             IfxGtm_Atom_Ch_setClockSource(atom, channel, IfxGtm_Cmu_Clk_4);
             break;
         case IfxGtm_Atom_5:
             atomConfig->clock = IfxGtm_Cmu_Clk_5;
+            (&MODULE_GTM)->CMU.CLK_EN.U &= ~(IFXGTM_CMU_CLKEN_CLK5);
             IfxGtm_Cmu_setClkFrequency(&MODULE_GTM, IfxGtm_Cmu_Clk_5, (float32)hz);
             IfxGtm_Cmu_enableClocks(&MODULE_GTM, IFXGTM_CMU_CLKEN_CLK5);
             IfxGtm_Atom_Ch_setClockSource(atom, channel, IfxGtm_Cmu_Clk_5);
