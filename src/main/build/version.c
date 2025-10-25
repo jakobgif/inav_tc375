@@ -18,7 +18,7 @@
 #include "version.h"
 
 #ifdef TC375 
-const char * const targetName = __TARGET__;
+const char * const targetName = TARGET_BOARD_IDENTIFIER "_" __TARGET__;
 const char * const compilerVersion = __VERSION__;
 const char * const shortGitRevision = GIT_TAG_INAV;
 #ifdef BUILD_CONFIG_RELEASE

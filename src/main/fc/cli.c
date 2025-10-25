@@ -723,7 +723,7 @@ static void cliAurix(char *cmdline){
 #endif
     cliPrintf("   / _ \\| | | | |_) || | \\  /");               cliPrintLinef("\tCompiled: %s %s as %s", buildDate, buildTime, buildType);
     cliPrintf("  / ___ \\ |_| |  _ < | | /  \\");               cliPrintLinef("\tCompiler: GCC-%s", compilerVersion);
-    cliPrintf(" /_/   \\_\\___/|_| \\_\\___/_/\\_\\");          cliPrintLinef("\tTarget: %s/%s", targetName, TARGET_BOARD_IDENTIFIER);
+    cliPrintf(" /_/   \\_\\___/|_| \\_\\___/_/\\_\\");          cliPrintLinef("\tTarget: %s", targetName);
     cliPrintLinef("\t\t\t\tSystem Uptime: %d seconds", millis() / 1000);
     cliPrintLinef("\t\t\t\tCore: CPU%d", (int)IfxCpu_getCoreIndex());
 }
