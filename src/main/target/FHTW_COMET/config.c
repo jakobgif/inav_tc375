@@ -29,12 +29,16 @@
 #include "navigation/navigation_pos_estimator_private.h"
 #include "flight/mixer.h"
 #include "flight/ez_tune.h"
+#include "flight/pid.h"
 #include "config/config_master.h"
+#include "config/general_settings.h"
 #include "drivers/pwm_mapping.h"
 #include "sensors/acceleration.h"
 #include "sensors/barometer.h"
 #include "sensors/gyro.h"
 #include "fc/rc_modes.h"
+#include "fc/rc_controls.h"
+#include "fc/controlrate_profile.h"
 #include "sensors/battery.h"
 #include "blackbox.h"
 
@@ -99,9 +103,88 @@ void targetConfiguration(void){
     //motor arm idle throttle
     for (uint8_t i = 0; i < MAX_BATTERY_PROFILE_COUNT; ++i) {
         batteryProfile_t *profile = (batteryProfile_t *)batteryProfiles(i);
-        profile->motor.throttleIdle = 7;
+        profile->motor.throttleIdle = 8;
     }
 
-    //PID
+    //air mode only active above threshold
+    rcControlsConfigMutable()->airmodeHandlingType = THROTTLE_THRESHOLD;
+
+    //gyro based on micoair
+    //set gyro_main_lpf_hz = 110
+    gyroConfigMutable()->gyro_main_lpf_hz = 110;
+    //set gyro_dyn_lpf_min_hz = 85
+    gyroConfigMutable()->gyroDynamicLpfMinHz = 85;
+    //set gyro_dyn_lpf_max_hz = 300
+    gyroConfigMutable()->gyroDynamicLpfMaxHz = 300;
+    //set gyro_dyn_lpf_curve_expo = 3
+    gyroConfigMutable()->gyroDynamicLpfCurveExpo = 3;
+    //set setpoint_kalman_q = 200
+    gyroConfigMutable()->kalman_q = 200;
+
+    //PID based on micoair
+    //set mc_p_pitch = 40
+    pidProfileMutable()->bank_mc.pid[PID_PITCH].P = 40;
+    //set mc_i_pitch = 90
+    pidProfileMutable()->bank_mc.pid[PID_PITCH].I = 90;
+    //set mc_d_pitch = 27
+    pidProfileMutable()->bank_mc.pid[PID_PITCH].D = 27;
+    //set mc_cd_pitch = 88
+    pidProfileMutable()->bank_mc.pid[PID_PITCH].FF = 88;
+    //set mc_p_roll = 36
+    pidProfileMutable()->bank_mc.pid[PID_ROLL].P = 36;
+    //set mc_i_roll = 82
+    pidProfileMutable()->bank_mc.pid[PID_ROLL].I = 82;
+    //set mc_d_roll = 24
+    pidProfileMutable()->bank_mc.pid[PID_ROLL].D = 24;
+    //set mc_cd_roll = 80
+    pidProfileMutable()->bank_mc.pid[PID_ROLL].FF = 80;
+    //set mc_p_yaw = 43
+    pidProfileMutable()->bank_mc.pid[PID_YAW].P = 43;
+    //set mc_i_yaw = 84
+    pidProfileMutable()->bank_mc.pid[PID_YAW].I = 84;
+    //set mc_cd_yaw = 90
+    pidProfileMutable()->bank_mc.pid[PID_YAW].FF = 90;
+    //set d_boost_max =  1.000
+    pidProfileMutable()->dBoostMax = 1.000;
+    //set antigravity_gain =  2.000
+    pidProfileMutable()->antigravityGain = 2.000;
+    //set antigravity_accelerator =  5.000
+    pidProfileMutable()->antigravityAccelerator = 5.000;
+
+    //controlRateProfiles based on micoair
+    for (uint8_t i = 0; i < MAX_CONTROL_RATE_PROFILE_COUNT; ++i) {
+        controlRateConfig_t *config = (controlRateConfig_t *)controlRateProfiles(i);
+        //set tpa_rate = 20
+        config->throttle.dynPID = 20;
+        //set tpa_breakpoint = 1200
+        config->throttle.pa_breakpoint = 1200;
+        //set rc_expo = 80
+        config->stabilized.rcExpo8 = 80;
+        //set rc_yaw_expo = 80
+        config->stabilized.rcYawExpo8 = 80;
+        //set roll_rate = 70
+        config->stabilized.rates[FD_ROLL] = 70;
+        //set pitch_rate = 70
+        config->stabilized.rates[FD_PITCH] = 70;
+        //set yaw_rate = 60
+        config->stabilized.rates[FD_YAW] = 60;
+    }
+
+    //Ez tune based on micoair
     ezTuneMutable()->enabled = TRUE;
+    //set ez_response = 92
+    ezTuneMutable()->response = 92;
+    //set ez_damping = 108
+    ezTuneMutable()->damping = 108;
+    //set ez_stability = 110
+    ezTuneMutable()->stability = 110;
+    //set ez_aggressiveness = 80
+    ezTuneMutable()->aggressiveness = 80;
+    //set ez_rate = 134
+    ezTuneMutable()->rate = 134;
+    //set ez_expo = 118
+    ezTuneMutable()->expo = 118;
+
+    //indicate that defaults are applied
+    generalSettingsMutable()->appliedDefaults = APPLIED_DEFAULTS_CUSTOM;
 }
