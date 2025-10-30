@@ -14,6 +14,10 @@
 #include <math.h>
 #include <string.h>
 
+#include "memory.h"
+#include "resource.h"
+#include "build/build_config.h"
+
 // Define KISS_FFT_SHARED macro to properly export symbols
 #ifdef KISS_FFT_SHARED
 # ifdef _WIN32
@@ -26,7 +30,7 @@
 #  define KISS_FFT_API __attribute__ ((visibility ("default")))
 # endif
 #else
-# define KISS_FFT_API
+# define KISS_FFT_API CPU0_PSPR_FUNCTION
 #endif
 
 #ifdef __cplusplus
@@ -45,6 +49,9 @@ extern "C" {
  Then see kfc.h kiss_fftr.h kiss_fftnd.h fftutil.c kiss_fastfir.c
   in the tools/ directory.
 */
+
+#define KISS_FFT_MALLOC(size) memAllocate(size, OWNER_SYSTEM)
+#define KISS_FFT_FREE
 
 /* User may override KISS_FFT_MALLOC and/or KISS_FFT_FREE. */
 #ifdef USE_SIMD
