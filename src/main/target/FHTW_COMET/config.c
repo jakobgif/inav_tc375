@@ -48,8 +48,9 @@ void targetConfiguration(void){
     //blackbox
     serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(SERIAL_PORT_USART3)].functionMask = FUNCTION_BLACKBOX;
     serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(SERIAL_PORT_USART3)].peripheral_baudrateIndex = BAUD_250000;
-    blackboxConfigMutable()->rate_denom = 32; //log 1/32 loop iterations
+    blackboxConfigMutable()->rate_denom = 4; //log 1/4 loop iterations
     blackboxIncludeFlagClear(UINT32_MAX); //clear all flags, only log minimum
+    blackboxIncludeFlagSet(BLACKBOX_FEATURE_MOTORS);
 
     //log
     serialConfigMutable()->portConfigs[findSerialPortIndexByIdentifier(SERIAL_PORT_USART4)].functionMask = FUNCTION_LOG;
