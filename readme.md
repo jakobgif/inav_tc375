@@ -18,9 +18,6 @@ This entire repo can be added as submodule to an existing project. In this case 
   - add `inav_tc375\src\main` as source folder
   - add all CPU specific files that are not for aurix to the source filter.
 
-## cmake based building
-Not done yet. 
-
 ## Aurix specific macros
 To build for TC375 the follwing macros have to be defined in the build environment:
 - `__TRICORE__`
