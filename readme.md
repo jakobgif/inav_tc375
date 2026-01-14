@@ -6,6 +6,8 @@ This fork adds code to support Aurix Tricore CPUs.
 | Supported Targets | TC375 Litekit |
 | ----------------- | ----- |
 
+**Want to contribute?** Just open an [issue](https://github.com/jakobgif/inav_tc375/issues) and we will get back to you.
+
 ## Aurix Development Studio Setup
 This entire repo can be added as submodule to an existing project. In this case the Aurix project has to be configured as follows:
 - C/C++ Build -> Settings -> AURIX GCC Compiler -> Dialect -> Language standard: `none` & Other dialect flags: `-std=gnu11`
