@@ -325,13 +325,13 @@ bool spiInitBus(busDevice_t * busDev, bool leadingEdge){
         spiMasterConfig->base.isrProvider = IfxCpu_Irq_getTos(IfxCpu_getCoreIndex());
 
         // pin configuration
-        const IfxQspi_SpiMaster_Pins pins = {
+        spi->dev->pins = (IfxQspi_SpiMaster_Pins){
             getSclkPinmapFromIoTag(spi->sck, spi->dev->qspi), IfxPort_OutputMode_pushPull, // SCLK
             getMtsrPinmapFromIoTag(spi->mosi, spi->dev->qspi), IfxPort_OutputMode_pushPull, // MTSR
             getMrstPinmapFromIoTag(spi->miso, spi->dev->qspi), IfxPort_InputMode_pullUp,  // MRST
             IfxPort_PadDriver_cmosAutomotiveSpeed1 // pad driver mode, fastest rise time
         };
-        spiMasterConfig->pins = &pins;
+        spiMasterConfig->pins = &spi->dev->pins;
 
         // initialize module
         IfxQspi_SpiMaster_initModule(&(spi->dev->spiMaster), spiMasterConfig);

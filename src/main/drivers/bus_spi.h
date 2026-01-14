@@ -76,6 +76,7 @@ typedef struct SpiBus_s {
     Ifx_QSPI *qspi;
     Ifx_Priority rxPriority;
     Ifx_Priority txPriority;
+    IfxQspi_SpiMaster_Pins pins;
 } SpiBus_t;
 #endif
 
