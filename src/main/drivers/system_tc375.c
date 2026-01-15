@@ -124,3 +124,23 @@ void systemInit(void){
     IfxFlash_waitUnbusy(0, IfxFlash_FlashType_D0);
 #endif
 }
+
+bool waitAndAcquireMutex(mutex_t *mutex, uint32_t timeout){
+    //return true by default
+    bool retval = true;
+
+    timeMs_t currentTime = millis();
+
+    while(!IfxCpu_acquireMutex((IfxCpu_mutexLock*)mutex)){
+        if ((millis() - currentTime) >= timeout){
+            retval = false;
+            break;
+        }
+    }
+
+    return retval;
+}
+
+void releaseMutex(mutex_t *mutex){
+    IfxCpu_releaseMutex((IfxCpu_mutexLock*)mutex);
+}
