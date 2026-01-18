@@ -129,10 +129,10 @@ bool waitAndAcquireMutex(mutex_t *mutex, uint32_t timeout){
     //return true by default
     bool retval = true;
 
-    timeMs_t currentTime = millis();
+    timeMs_t currentTime = micros();
 
     while(!IfxCpu_acquireMutex((IfxCpu_mutexLock*)mutex)){
-        if ((millis() - currentTime) >= timeout){
+        if ((micros() - currentTime) >= timeout){
             retval = false;
             break;
         }
