@@ -210,7 +210,7 @@ void _logf(logTopic_e topic, unsigned level, const char *fmt, ...)
     bufPtr = &buf[charCount];
 
 #ifdef USE_AURIX_MULTICORE
-    int n = snprintf(bufPtr, sizeof(buf) - (bufPtr - buf), "[CPU%d] ", IfxCpu_getCoreIndex());
+    int n = tfp_snprintf(bufPtr, sizeof(buf) - (bufPtr - buf), "[CPU%d] ", IfxCpu_getCoreIndex());
     bufPtr += n;
     charCount += n;
 #endif
