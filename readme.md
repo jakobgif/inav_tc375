@@ -8,6 +8,10 @@ This fork adds code to support Aurix Tricore CPUs.
 
 **Want to contribute?** Just open an [issue](https://github.com/jakobgif/inav_tc375/issues) and we will get back to you.
 
+Refer to [how_to_upgrade.md](./how_to_upgrade.md) for information regarding upgrading to the latest inav version.
+
+Refer to [how_to_develop.md](./how_to_develop.md) for information regarding the branch names and development.
+
 ## Aurix Development Studio Setup
 This entire repo can be added as submodule to an existing project. In this case the Aurix project has to be configured as follows:
 - C/C++ Build -> Settings -> AURIX GCC Compiler -> Dialect -> Language standard: `none` & Other dialect flags: `-std=gnu11`
