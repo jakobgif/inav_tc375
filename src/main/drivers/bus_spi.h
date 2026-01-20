@@ -80,6 +80,10 @@ typedef struct SpiBus_s {
 } SpiBus_t;
 #endif
 
+#if defined(AT32F43x)
+typedef spi_type SPI_TypeDef;
+#endif
+
 typedef struct SPIDevice_s {
 #if defined(AT32F43x)
      spi_type *dev;
