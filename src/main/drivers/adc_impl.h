@@ -30,6 +30,8 @@
 
 #if defined(STM32H7)
 #define ADC_VALUES_ALIGNMENT(def) DMA_RAM def __attribute__ ((aligned (32)))
+#elif defined(TC375)
+#define ADC_VALUES_ALIGNMENT(def) def __attribute__ ((aligned (256)))
 #else
 #define ADC_VALUES_ALIGNMENT(def) def 
 #endif
@@ -53,6 +55,10 @@ typedef struct adcTagMap_s {
 } adcTagMap_t;
 
 typedef struct adcDevice_s {
+#if defined(TC375)
+    IfxEvadc_Adc evadc;
+    IfxEvadc_Adc_Group adcGroup;
+#else
 #if defined(AT32F43x) 
     adc_type* ADCx;
 #else
@@ -73,26 +79,36 @@ typedef struct adcDevice_s {
     ADC_HandleTypeDef ADCHandle;
     DMA_HandleTypeDef DmaHandle;
 #endif
+#endif
     bool enabled;
     int usedChannelCount;
 } adcDevice_t;
 
 typedef struct adc_config_s {
+#if defined(TC375)
+    uint8_t analogPinId; //0xFF is for unused
+    ADCDevice adcDevice;
+#else
     ioTag_t tag;
     ADCDevice adcDevice;
     uint32_t adcChannel;         // ADC1_INxx channel number
+#endif
     uint8_t dmaIndex;           // index into DMA buffer in case of sparse channels
     bool enabled;
     uint8_t sampleTime;
 } adc_config_t;
 
+#if !defined(TC375)
 extern const adcTagMap_t adcTagMap[ADC_TAG_MAP_COUNT];
+#endif
 extern adc_config_t adcConfig[ADC_CHN_COUNT];
 extern volatile ADC_VALUES_ALIGNMENT(uint16_t adcValues[ADCDEV_COUNT][ADC_CHN_COUNT * ADC_AVERAGE_N_SAMPLES]);
 
 void adcHardwareInit(drv_adc_config_t *init);
 #if defined(AT32F43x) 
 ADCDevice adcDeviceByInstance(adc_type *instance);
+#elif defined(TC375)
+ADCDevice adcDeviceByInstance(IfxEvadc_GroupId *instance);
 #else
 ADCDevice adcDeviceByInstance(ADC_TypeDef *instance);
 #endif

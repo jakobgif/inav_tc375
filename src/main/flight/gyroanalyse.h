@@ -22,7 +22,12 @@
 
 #ifdef USE_DYNAMIC_FILTERS
 
+#ifdef __TRICORE__
+#include "kiss_fft.h"
+#include "kiss_fftr.h"
+#else
 #include "arm_math.h"
+#endif
 #include "common/filter.h"
 
 /*
@@ -48,9 +53,11 @@ typedef struct gyroAnalyseState_s {
     uint8_t updateStep;
     uint8_t updateAxis;
 
+#ifndef __TRICORE__
     arm_rfft_fast_instance_f32 fftInstance;
     float fftData[FFT_WINDOW_SIZE];
     float rfftData[FFT_WINDOW_SIZE];
+#endif
 
     pt1Filter_t detectedFrequencyFilter[XYZ_AXIS_COUNT][DYN_NOTCH_PEAK_COUNT];
     float centerFrequency[XYZ_AXIS_COUNT][DYN_NOTCH_PEAK_COUNT];
@@ -69,6 +76,15 @@ typedef struct gyroAnalyseState_s {
 
     // Hanning window, see https://en.wikipedia.org/wiki/Window_function#Hann_.28Hanning.29_window
     float hanningWindow[FFT_WINDOW_SIZE];
+#ifdef __TRICORE__
+    float fftData[FFT_WINDOW_SIZE];
+    /* kissFFTR configuration and output buffer. Use FFT_WINDOW_SIZE to store the
+    * full real-FFT complex output (N/2 + 1 bins). Rest of the code may still
+    * iterate up to FFT_BIN_COUNT as before.
+    */
+    kiss_fftr_cfg kissCfg;
+    kiss_fft_cpx rfftOut[FFT_WINDOW_SIZE];
+#endif
 } gyroAnalyseState_t;
 
 STATIC_ASSERT(FFT_WINDOW_SIZE <= (uint8_t) -1, window_size_greater_than_underlying_type);

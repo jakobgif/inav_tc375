@@ -124,6 +124,18 @@ void initEEPROM(void)
     BUILD_BUG_ON(CONFIG_STREAMER_BUFFER_SIZE != 32);
 #endif
 
+#if defined(TC375)
+    //disable data flash error correction. Inav uses native checksum
+    Ifx_SCU_WDTCPU *watchdog;
+    uint16_t endInitCpuPassword;
+    watchdog = &MODULE_SCU.WDTCPU[IfxCpu_getCoreIndex()];
+    endInitCpuPassword = IfxScuWdt_getCpuWatchdogPasswordInline(watchdog);
+    IfxScuWdt_clearCpuEndinitInline(watchdog, endInitCpuPassword);
+    DMU_HF_ECCC.B.ECCCORDIS = 0x3;
+    DMU_HF_ECCC.B.TRAPDIS = 0x3;
+    IfxScuWdt_setCpuEndinitInline(watchdog, endInitCpuPassword);
+#endif
+
 #if defined(CONFIG_IN_EXTERNAL_FLASH)
     bool eepromLoaded = loadEEPROMFromExternalFlash();
     if (!eepromLoaded) {

@@ -31,6 +31,12 @@
 
 #include "drivers/adc_impl.h"
 
+#if defined(TC375)
+#ifndef ADC_INSTANCE
+#define ADC_INSTANCE                IfxEvadc_GroupId_0  
+#endif
+#endif
+
 #ifndef ADC_INSTANCE
 #define ADC_INSTANCE                ADC1
 #endif
@@ -67,10 +73,14 @@ volatile ADC_VALUES_ALIGNMENT(uint16_t adcValues[ADCDEV_COUNT][ADC_CHN_COUNT * A
 
 uint32_t adcChannelByTag(ioTag_t ioTag)
 {
+#if defined(TC375)
+    UNUSED(ioTag);
+#else
     for (uint8_t i = 0; i < ARRAYLEN(adcTagMap); i++) {
         if (ioTag == adcTagMap[i].tag)
             return adcTagMap[i].channel;
     }
+#endif
     return 0;
 }
 
@@ -97,7 +107,11 @@ uint16_t adcGetChannel(uint8_t function)
 #else
         uint32_t acc = 0;
         for (int i = 0; i < ADC_AVERAGE_N_SAMPLES; i++) {
+#if defined(TC375) //different mapping for aurix because of how DMA works
+            acc += adcValues[adcConfig[channel].adcDevice][adcConfig[channel].dmaIndex*ADC_AVERAGE_N_SAMPLES + i];
+#else
             acc += adcValues[adcConfig[channel].adcDevice][adcConfig[channel].dmaIndex + i * activeChannelCount[adcConfig[channel].adcDevice]];
+#endif
         }
         return acc / ADC_AVERAGE_N_SAMPLES;
 #endif
@@ -133,6 +147,12 @@ void adcInit(drv_adc_config_t *init)
 {
     memset(&adcConfig, 0, sizeof(adcConfig));
 
+#if defined(TC375)
+    for(int i = 0; i < ARRAYLEN(adcConfig); i++){
+        adcConfig[i].analogPinId = 0xFF; //0xFF signals unused
+    }
+#endif
+
     // Remember ADC function to ADC channel mapping
     for (int i = 0; i < ADC_FUNCTION_COUNT; i++) {
         if (init->adcFunctionChannel[i] >= ADC_CHN_1 && init->adcFunctionChannel[i] <= ADC_CHN_MAX) {
@@ -147,7 +167,11 @@ void adcInit(drv_adc_config_t *init)
     if (isChannelInUse(ADC_CHN_1)) {
         adcConfig[ADC_CHN_1].adcDevice = adcDeviceByInstance(ADC_CHANNEL_1_INSTANCE);
         if (adcConfig[ADC_CHN_1].adcDevice != ADCINVALID) {
+#if defined(TC375)
+            adcConfig[ADC_CHN_1].analogPinId = ADC_CHANNEL_1_PIN;
+#else
             adcConfig[ADC_CHN_1].tag = IO_TAG(ADC_CHANNEL_1_PIN);
+#endif
 #if defined(USE_ADC_AVERAGING)
             activeChannelCount[adcConfig[ADC_CHN_1].adcDevice] += 1;
 #endif
@@ -161,7 +185,11 @@ void adcInit(drv_adc_config_t *init)
     if (isChannelInUse(ADC_CHN_2)) {
         adcConfig[ADC_CHN_2].adcDevice = adcDeviceByInstance(ADC_CHANNEL_2_INSTANCE);
         if (adcConfig[ADC_CHN_2].adcDevice != ADCINVALID) {
+#if defined(TC375)
+            adcConfig[ADC_CHN_2].analogPinId = ADC_CHANNEL_2_PIN;
+#else
             adcConfig[ADC_CHN_2].tag = IO_TAG(ADC_CHANNEL_2_PIN);
+#endif
 #if defined(USE_ADC_AVERAGING)
             activeChannelCount[adcConfig[ADC_CHN_2].adcDevice] += 1;
 #endif
@@ -175,7 +203,11 @@ void adcInit(drv_adc_config_t *init)
     if (isChannelInUse(ADC_CHN_3)) {
         adcConfig[ADC_CHN_3].adcDevice = adcDeviceByInstance(ADC_CHANNEL_3_INSTANCE);
         if (adcConfig[ADC_CHN_3].adcDevice != ADCINVALID) {
+#if defined(TC375)
+            adcConfig[ADC_CHN_3].analogPinId = ADC_CHANNEL_3_PIN;
+#else
             adcConfig[ADC_CHN_3].tag = IO_TAG(ADC_CHANNEL_3_PIN);
+#endif
 #if defined(USE_ADC_AVERAGING)
             activeChannelCount[adcConfig[ADC_CHN_3].adcDevice] += 1;
 #endif
@@ -189,7 +221,11 @@ void adcInit(drv_adc_config_t *init)
     if (isChannelInUse(ADC_CHN_4)) {
         adcConfig[ADC_CHN_4].adcDevice = adcDeviceByInstance(ADC_CHANNEL_4_INSTANCE);
         if (adcConfig[ADC_CHN_4].adcDevice != ADCINVALID) {
+#if defined(TC375)
+            adcConfig[ADC_CHN_4].analogPinId = ADC_CHANNEL_4_PIN;
+#else
             adcConfig[ADC_CHN_4].tag = IO_TAG(ADC_CHANNEL_4_PIN);
+#endif
 #if defined(USE_ADC_AVERAGING)
             activeChannelCount[adcConfig[ADC_CHN_4].adcDevice] += 1;
 #endif
@@ -203,7 +239,11 @@ void adcInit(drv_adc_config_t *init)
     if (isChannelInUse(ADC_CHN_5)) {
         adcConfig[ADC_CHN_5].adcDevice = adcDeviceByInstance(ADC_CHANNEL_5_INSTANCE);
         if (adcConfig[ADC_CHN_5].adcDevice != ADCINVALID) {
+#if defined(TC375)
+            adcConfig[ADC_CHN_5].analogPinId = ADC_CHANNEL_5_PIN;
+#else
             adcConfig[ADC_CHN_5].tag = IO_TAG(ADC_CHANNEL_5_PIN);
+#endif
 #if defined(USE_ADC_AVERAGING)
             activeChannelCount[adcConfig[ADC_CHN_5].adcDevice] += 1;
 #endif
@@ -217,7 +257,11 @@ void adcInit(drv_adc_config_t *init)
     if (isChannelInUse(ADC_CHN_6)) {
         adcConfig[ADC_CHN_6].adcDevice = adcDeviceByInstance(ADC_CHANNEL_6_INSTANCE);
         if (adcConfig[ADC_CHN_6].adcDevice != ADCINVALID) {
+#if defined(TC375)
+            adcConfig[ADC_CHN_6].analogPinId = ADC_CHANNEL_6_PIN;
+#else
             adcConfig[ADC_CHN_6].tag = IO_TAG(ADC_CHANNEL_6_PIN);
+#endif
 #if defined(USE_ADC_AVERAGING)
             activeChannelCount[adcConfig[ADC_CHN_6].adcDevice] += 1;
 #endif

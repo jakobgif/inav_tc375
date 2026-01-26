@@ -17,6 +17,10 @@
 
 #pragma once
 
+#if defined(TC375)
+
+#else 
+
 #include "resource.h"
 
 struct dmaChannelDescriptor_s;
@@ -145,3 +149,5 @@ void dmaInit(DMA_t dma, resourceOwner_e owner, uint8_t resourceIndex);
 void dmaEnableClock(DMA_t dma);
 void dmaSetHandler(DMA_t dma, dmaCallbackHandlerFuncPtr callback, uint32_t priority, uint32_t userParam);
 void dmaCleanInterrupts(DMA_t dma);
+
+#endif //TC375

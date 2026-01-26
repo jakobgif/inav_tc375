@@ -209,7 +209,7 @@ void init(void)
     // Initialize system and CPU clocks to their initial values
     systemInit();
 
-#if !defined(SITL_BUILD)
+#if !(defined(SITL_BUILD) || defined(TC375))
     __enable_irq();
 #endif
 
@@ -257,7 +257,7 @@ void init(void)
     latchActiveFeatures();
 
     ledInit(false);
-#if !defined(SITL_BUILD)
+#if !(defined(SITL_BUILD) || defined(TC375))
     EXTIInit();
 #endif
 
@@ -743,8 +743,12 @@ void init(void)
 #endif
 
 #if !defined(SITL_BUILD)
-    // Considering that the persistent reset reason is only used during init
+// Considering that the persistent reset reason is only used during init
+#if defined(TC375)
+    checkAndHandleResetReason();
+#else
     persistentObjectWrite(PERSISTENT_OBJECT_RESET_REASON, RESET_NONE);
+#endif
 #endif
 
     statsInit();

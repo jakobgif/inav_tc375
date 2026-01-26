@@ -22,11 +22,19 @@
 // get ioRec by index
 #define DEFIO_REC_INDEXED(idx) (ioRecs + (idx))
 
+#if !defined(TC375)
 // ioTag_t accessor macros
 #define DEFIO_TAG_MAKE(gpioid, pin) ((((gpioid) + 1) << 4) | (pin))
 #define DEFIO_TAG_ISEMPTY(tag) (!(tag))
 #define DEFIO_TAG_GPIOID(tag) (((tag) >> 4) - 1)
 #define DEFIO_TAG_PIN(tag) ((tag) & 0x0f)
+#else
+//ioTag_t accessor macros
+#define DEFIO_TAG_MAKE(portIndex, pinIndex) (((portIndex) << 8) | ((pinIndex) & 0xFF)) //upper 8 bits are port index, and lower 8 bits are pin index
+#define DEFIO_TAG_ISEMPTY(tag) (!(tag))
+#define DEFIO_TAG_GPIOID(tag) (((tag) >> 8) & 0xFF)  //upper 8 bits (port index)
+#define DEFIO_TAG_PIN(tag) ((tag) & 0xFF)            //lower 8 bits (pin index)
+#endif
 
 // TARGET must define used pins
 #include "target.h"

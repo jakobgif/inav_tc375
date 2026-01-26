@@ -49,6 +49,10 @@ void initialiseMemorySections(void);
 
 void enableGPIOPowerUsageAndNoiseReductions(void);
 
+#ifdef TC375
+void checkAndHandleResetReason(void);
+#endif
+
 extern uint32_t hse_value;
 extern uint32_t cachedRccCsrValue;
 

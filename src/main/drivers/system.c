@@ -36,6 +36,7 @@
 #define DWT_LAR_UNLOCK_VALUE 0xC5ACCE55
 #endif
 
+#if !defined(TC375)
 // cached value of RCC->CSR
 uint32_t cachedRccCsrValue;
 
@@ -128,6 +129,7 @@ void checkForBootLoaderRequest(void)
 
     while (1);
 }
+#endif
 
 #define SHORT_FLASH_DURATION 50
 #define CODE_FLASH_DURATION 250

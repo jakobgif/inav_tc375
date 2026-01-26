@@ -57,6 +57,17 @@ static void usartConfigurePinInversion(uartPort_t *uartPort) {
 
 static void uartReconfigure(uartPort_t *uartPort)
 {
+#if defined(TC375) //AURIX code below
+    //https://github.com/Infineon/AURIX_code_examples/blob/master/code_examples/ASCLIN_UART_1_KIT_TC375_LK/ASCLIN_UART.c
+    //IfxAsclin_Asc_initModuleConfig(&ascConfig, uartPort->handle->asclin); this must be done the first time we create the handle
+
+    uartPort->config->baudrate.baudrate = uartPort->port.baudRate;
+
+    //int prio and buffer set when instance is created. By design this cannot be changed in runtime
+    //pins are set when instance is created
+
+    IfxAsclin_Asc_initModule(uartPort->handle, uartPort->config); //init module
+#else
     USART_InitTypeDef USART_InitStructure;
     USART_Cmd(uartPort->USARTx, DISABLE);
 
@@ -90,8 +101,10 @@ static void uartReconfigure(uartPort_t *uartPort)
         USART_HalfDuplexCmd(uartPort->USARTx, DISABLE);
 
     USART_Cmd(uartPort->USARTx, ENABLE);
+#endif
 }
 
+#if !defined(TC375)
 serialPort_t *uartOpen(USART_TypeDef *USARTx, serialReceiveCallbackPtr rxCallback, void *rxCallbackData, uint32_t baudRate, portMode_t mode, portOptions_t options)
 {
     uartPort_t *s = NULL;
@@ -160,6 +173,63 @@ serialPort_t *uartOpen(USART_TypeDef *USARTx, serialReceiveCallbackPtr rxCallbac
 
     return (serialPort_t *)s;
 }
+#else
+serialPort_t *uartOpen(Ifx_ASCLIN *module, serialReceiveCallbackPtr rxCallback, void *rxCallbackData, uint32_t baudRate, portMode_t mode, portOptions_t options){
+    uartPort_t *s = NULL;
+
+    if (false) { //check which uart port we want to open based on ASCLIN register base address
+#ifdef USE_UART1
+    } else if (module == &MODULE_ASCLIN0) {
+        s = serialUART1(baudRate, mode, options);
+#endif
+#ifdef USE_UART2
+    } else if (module == &MODULE_ASCLIN1) {
+        s = serialUART2(baudRate, mode, options);
+#endif
+#ifdef USE_UART3
+    } else if (module == &MODULE_ASCLIN2) {
+        s = serialUART3(baudRate, mode, options);
+#endif
+#ifdef USE_UART4
+    } else if (module == &MODULE_ASCLIN3) {
+        s = serialUART4(baudRate, mode, options);
+#endif
+#ifdef USE_UART5
+    } else if (module == &MODULE_ASCLIN4) {
+        s = serialUART5(baudRate, mode, options);
+#endif
+#ifdef USE_UART6
+    } else if (module == &MODULE_ASCLIN5) {
+        s = serialUART6(baudRate, mode, options);
+#endif
+#ifdef USE_UART7
+    } else if (module == &MODULE_ASCLIN6) {
+        s = serialUART7(baudRate, mode, options);
+#endif
+#ifdef USE_UART8
+    } else if (module == &MODULE_ASCLIN7) {
+        s = serialUART8(baudRate, mode, options);
+#endif
+    } else {
+        return (serialPort_t *)s;
+    }
+
+    // common serial initialisation code
+    s->port.rxBufferHead = s->port.rxBufferTail = 0;
+    s->port.txBufferHead = s->port.txBufferTail = 0;
+    // callback works for IRQ-based RX ONLY
+    s->port.rxCallback = rxCallback;
+    s->port.rxCallbackData = rxCallbackData;
+    s->port.mode = mode;
+    s->port.baudRate = baudRate;
+    s->port.options = options;
+
+    //perform config on hardware level
+    uartReconfigure(s);
+
+    return (serialPort_t *)s;
+}
+#endif
 
 void uartSetBaudRate(serialPort_t *instance, uint32_t baudRate)
 {
@@ -186,17 +256,24 @@ uint32_t uartTotalRxBytesWaiting(const serialPort_t *instance)
 {
     const uartPort_t *s = (const uartPort_t*)instance;
 
+#if defined(noTC375)
+    return IfxAsclin_Asc_getReadCount(s->handle);
+#else
     if (s->port.rxBufferHead >= s->port.rxBufferTail) {
         return s->port.rxBufferHead - s->port.rxBufferTail;
     } else {
         return s->port.rxBufferSize + s->port.rxBufferHead - s->port.rxBufferTail;
     }
+#endif
 }
 
 uint32_t uartTotalTxBytesFree(const serialPort_t *instance)
 {
     const uartPort_t *s = (const uartPort_t*)instance;
 
+#if defined(noTC375)
+    return IfxAsclin_Asc_getWriteCount(s->handle); // - 1;
+#else
     uint32_t bytesUsed;
 
     if (s->port.txBufferHead >= s->port.txBufferTail) {
@@ -206,12 +283,17 @@ uint32_t uartTotalTxBytesFree(const serialPort_t *instance)
     }
 
     return (s->port.txBufferSize - 1) - bytesUsed;
+#endif
 }
 
 bool isUartTransmitBufferEmpty(const serialPort_t *instance)
 {
     const uartPort_t *s = (const uartPort_t *)instance;
+#if defined(noTC375)
+    return Ifx_Fifo_isEmpty(s->handle->tx);
+#else  
     return s->port.txBufferTail == s->port.txBufferHead;
+#endif
 }
 
 uint8_t uartRead(serialPort_t *instance)
@@ -219,12 +301,16 @@ uint8_t uartRead(serialPort_t *instance)
     uint8_t ch;
     uartPort_t *s = (uartPort_t *)instance;
 
+#if defined(noTC375)
+    ch = IfxAsclin_Asc_blockingRead(s->handle);
+#else
     ch = s->port.rxBuffer[s->port.rxBufferTail];
     if (s->port.rxBufferTail + 1 >= s->port.rxBufferSize) {
         s->port.rxBufferTail = 0;
     } else {
         s->port.rxBufferTail++;
     }
+#endif
 
     return ch;
 }
@@ -232,6 +318,9 @@ uint8_t uartRead(serialPort_t *instance)
 void uartWrite(serialPort_t *instance, uint8_t ch)
 {
     uartPort_t *s = (uartPort_t *)instance;
+#if defined(noTC375)
+    IfxAsclin_Asc_blockingWrite(s->handle, ch);
+#else
     s->port.txBuffer[s->port.txBufferHead] = ch;
     if (s->port.txBufferHead + 1 >= s->port.txBufferSize) {
         s->port.txBufferHead = 0;
@@ -239,14 +328,26 @@ void uartWrite(serialPort_t *instance, uint8_t ch)
         s->port.txBufferHead++;
     }
 
+#if defined(TC375)
+    if(s->handle->txInProgress == false){
+        s->handle->txInProgress = TRUE;
+        uartTxIrqHandler(s);
+    }
+#else
     USART_ITConfig(s->USARTx, USART_IT_TXE, ENABLE);
+#endif
+#endif
 }
 
 bool isUartIdle(serialPort_t *instance)
 {
     uartPort_t *s = (uartPort_t *)instance;
+#if defined(TC375)
+    if(s->handle->txInProgress == false) {
+#else
     if(USART_GetFlagStatus(s->USARTx, USART_FLAG_IDLE)) {
         uartClearIdleFlag(s);
+#endif
         return true;
     } else {
         return false;

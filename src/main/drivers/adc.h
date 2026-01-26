@@ -50,7 +50,11 @@ int adcGetFunctionChannelAllocation(uint8_t function);
 
 #if defined(USE_ADC_AVERAGING)
 #if !defined(ADC_AVERAGE_N_SAMPLES)
+#if defined(TC375)
+#define ADC_AVERAGE_N_SAMPLES   16 //or 32 etc. because of Aurix DMA implementation
+#else
 #define ADC_AVERAGE_N_SAMPLES   20
+#endif
 #endif
 #else
 #define ADC_AVERAGE_N_SAMPLES   1

@@ -47,7 +47,7 @@
 
 #if defined(USE_HAL_DRIVER)
 #define Bit_RESET GPIO_PIN_RESET
-#elif defined(AT32F43x)
+#elif defined(AT32F43x) || defined(TC375)
 #define Bit_RESET 0U
 #endif
 

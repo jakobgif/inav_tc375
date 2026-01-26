@@ -37,6 +37,8 @@
 #define SPI_IO_AF_SCK_CFG       IO_CONFIG(GPIO_MODE_MUX,  GPIO_DRIVE_STRENGTH_STRONGER, GPIO_OUTPUT_PUSH_PULL, GPIO_PULL_DOWN)
 #define SPI_IO_AF_MISO_CFG      IO_CONFIG(GPIO_MODE_MUX,  GPIO_DRIVE_STRENGTH_STRONGER, GPIO_OUTPUT_PUSH_PULL, GPIO_PULL_UP)
 #define SPI_IO_CS_CFG           IO_CONFIG(GPIO_MODE_OUTPUT, GPIO_DRIVE_STRENGTH_STRONGER, GPIO_OUTPUT_PUSH_PULL, GPIO_PULL_NONE)
+#elif defined(TC375)
+#define SPI_IO_CS_CFG           IOCFG_OUT_PP
 #endif
 
 /*
@@ -67,6 +69,17 @@ typedef enum SPIDevice {
 #define SPIDEV_COUNT 4
 #endif
 
+#if defined(TC375)
+typedef struct SpiBus_s {
+    IfxQspi_SpiMaster spiMaster;
+    IfxQspi_SpiMaster_Config spiConfig; 
+    Ifx_QSPI *qspi;
+    Ifx_Priority rxPriority;
+    Ifx_Priority txPriority;
+    IfxQspi_SpiMaster_Pins pins;
+} SpiBus_t;
+#endif
+
 #if defined(AT32F43x)
 typedef spi_type SPI_TypeDef;
 #endif
@@ -74,6 +87,8 @@ typedef spi_type SPI_TypeDef;
 typedef struct SPIDevice_s {
 #if defined(AT32F43x)
      spi_type *dev;
+#elif defined(TC375)
+    SpiBus_t *dev;
 #else
      SPI_TypeDef *dev;
 #endif
@@ -94,7 +109,12 @@ typedef struct SPIDevice_s {
     bool initDone;
 } spiDevice_t;
 
+#if defined(TC375)
+typedef struct busDevice_s busDevice_t;
+bool spiInitBus(busDevice_t * busDev, bool leadingEdge);
+#else
 bool spiInitDevice(SPIDevice device, bool leadingEdge);
+#endif
 
 #if defined(AT32F43x)
 
@@ -107,7 +127,15 @@ bool spiInitDevice(SPIDevice device, bool leadingEdge);
     void spiResetErrorCounter(spi_type *instance);
     SPIDevice spiDeviceByInstance(spi_type *instance);
     spi_type * spiInstanceByDevice(SPIDevice device);
+#elif defined(TC375)
+    bool spiIsBusBusy(IfxQspi_SpiMaster_Channel *instance);
+    void spiSetSpeed(IfxQspi_SpiMaster_Channel *instance, SPIClockSpeed_e speed);
+    uint8_t spiTransferByte(IfxQspi_SpiMaster_Channel *instance, uint8_t in);
+    bool spiTransfer(IfxQspi_SpiMaster_Channel *instance, uint8_t *rxData, const uint8_t *txData, int len);
 
+    uint16_t spiGetErrorCounter(IfxQspi_SpiMaster_Channel *instance);
+    void spiResetErrorCounter(IfxQspi_SpiMaster_Channel *instance);
+    SPIDevice spiDeviceByInstance(IfxQspi_SpiMaster_Channel *instance);
 #else
     bool spiIsBusBusy(SPI_TypeDef *instance);
     void spiSetSpeed(SPI_TypeDef *instance, SPIClockSpeed_e speed);

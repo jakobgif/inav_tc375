@@ -84,6 +84,7 @@
 #include "flight/wind_estimator.h"
 #include "sensors/temperature.h"
 
+#include "drivers/perf_counter.h"
 
 #if defined(ENABLE_BLACKBOX_LOGGING_ON_SPIFLASH_BY_DEFAULT)
 #define DEFAULT_BLACKBOX_DEVICE     BLACKBOX_DEVICE_FLASH
@@ -395,6 +396,11 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] = {
     {"navAcc",     0, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),   .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB), FLIGHT_LOG_FIELD_CONDITION_NAV_ACC},
     {"navAcc",     1, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),   .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB), FLIGHT_LOG_FIELD_CONDITION_NAV_ACC},
     {"navAcc",     2, SIGNED,   .Ipredict = PREDICT(0),       .Iencode = ENCODING(SIGNED_VB),   .Ppredict = PREDICT(AVERAGE_2),     .Pencode = ENCODING(SIGNED_VB), FLIGHT_LOG_FIELD_CONDITION_NAV_ACC},
+
+#ifdef USE_PERFCOUNTER
+    {"perfInstructionCounter",  -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(UNSIGNED_VB), CONDITION(ALWAYS)},
+    {"perfClockCounter",        -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(UNSIGNED_VB), CONDITION(ALWAYS)},
+#endif
 };
 
 #ifdef USE_GPS
@@ -524,6 +530,10 @@ typedef struct blackboxMainState_s {
 #endif
 #ifdef USE_RANGEFINDER
     int32_t surfaceRaw;
+#endif
+#ifdef USE_PERFCOUNTER
+    uint32_t perfInstructionCounter;
+    uint32_t perfClockCounter;
 #endif
     uint16_t rssi;
     int16_t navState;
@@ -1042,6 +1052,11 @@ static void writeIntraframe(void)
         }
     }
 
+#ifdef USE_PERFCOUNTER
+    blackboxWriteUnsignedVB(blackboxCurrent->perfInstructionCounter);
+    blackboxWriteUnsignedVB(blackboxCurrent->perfClockCounter);
+#endif
+
     //Rotate our history buffers:
 
     //The current state becomes the new "before" state
@@ -1299,6 +1314,11 @@ static void writeInterframe(void)
             blackboxWriteSignedVB(blackboxHistory[0]->navAccNEU[x] - (blackboxHistory[1]->navAccNEU[x] + blackboxHistory[2]->navAccNEU[x]) / 2);
         }
     }
+
+#ifdef USE_PERFCOUNTER
+    blackboxWriteSignedVB(blackboxCurrent->perfInstructionCounter - blackboxLast->perfInstructionCounter);
+    blackboxWriteSignedVB(blackboxCurrent->perfClockCounter - blackboxLast->perfClockCounter);
+#endif
 
     //Rotate our history buffers
     blackboxHistory[2] = blackboxHistory[1];
@@ -1723,6 +1743,11 @@ static void loadMainState(timeUs_t currentTimeUs)
 #ifdef USE_RANGEFINDER
     // Store the raw rangefinder surface readout without applying tilt correction
     blackboxCurrent->surfaceRaw = rangefinderGetLatestRawAltitude();
+#endif
+
+#ifdef USE_PERFCOUNTER
+    blackboxCurrent->perfInstructionCounter = perfCounts.instructionCounter;
+    blackboxCurrent->perfClockCounter = perfCounts.clockCounter;
 #endif
 
     blackboxCurrent->rssi = getRSSI();
