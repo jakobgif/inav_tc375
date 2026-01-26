@@ -140,9 +140,14 @@ extern uint8_t __config_end;
 
 #define USE_ARM_MATH // try to use FPU functions
 
-#if defined(SITL_BUILD) || defined(UNIT_TEST) || defined(__TRICORE__)
+#if defined(SITL_BUILD) || defined(UNIT_TEST)
 // This feature uses 'arm_math.h', which does not exist for x86.
-//#undef USE_DYNAMIC_FILTERS works with kissfft
+#undef USE_DYNAMIC_FILTERS
+#undef USE_ADAPTIVE_FILTER
+#undef USE_ARM_MATH
+#endif
+
+#if defined(__TRICORE__)
 #undef USE_ADAPTIVE_FILTER
 #undef USE_ARM_MATH
 #endif
