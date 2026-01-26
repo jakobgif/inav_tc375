@@ -31,5 +31,5 @@ typedef struct perfCounts_s {
 
 extern perfCounts_t perfCounts;
 
-void Perf_resetAndStartCounters();
-void Perf_stopCounters();
+void Perf_resetAndStartCounters(void);
+void Perf_stopCounters(void);
