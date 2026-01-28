@@ -38,7 +38,7 @@
 #include "sensors/gyro.h"
 #include "fc/rc_modes.h"
 #include "fc/rc_controls.h"
-#include "fc/controlrate_profile.h"
+#include "fc/control_profile.h"
 #include "sensors/battery.h"
 #include "blackbox.h"
 
@@ -153,8 +153,8 @@ void targetConfiguration(void){
     pidProfileMutable()->antigravityAccelerator = 5.000;
 
     //controlRateProfiles based on micoair
-    for (uint8_t i = 0; i < MAX_CONTROL_RATE_PROFILE_COUNT; ++i) {
-        controlRateConfig_t *config = (controlRateConfig_t *)controlRateProfiles(i);
+    for (uint8_t i = 0; i < MAX_CONTROL_PROFILE_COUNT; ++i) {
+        controlConfig_t *config = (controlConfig_t *)controlProfiles(i);
         //set tpa_rate = 20
         config->throttle.dynPID = 20;
         //set tpa_breakpoint = 1200

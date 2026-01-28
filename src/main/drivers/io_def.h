@@ -38,6 +38,9 @@
 
 // TARGET must define used pins
 #include "target.h"
+#ifdef TC375
+#include "io_def_generated_tc375.h"
+#else
 // include template-generated macros for IO pins
 #include "io_def_generated.h"
-
+#endif
