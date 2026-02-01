@@ -132,6 +132,9 @@ bool spiInitDevice(SPIDevice device, bool leadingEdge);
     uint16_t spiGetErrorCounter(IfxQspi_SpiMaster_Channel *instance);
     void spiResetErrorCounter(IfxQspi_SpiMaster_Channel *instance);
     SPIDevice spiDeviceByInstance(IfxQspi_SpiMaster_Channel *instance);
+#ifdef USE_AURIX_MULTICORE
+    void spiSetHandlingCpu(SPIDevice spiBus, IfxCpu_ResourceCpu cpu);
+#endif
 #else
     bool spiIsBusBusy(SPI_TypeDef *instance);
     void spiSetSpeed(SPI_TypeDef *instance, SPIClockSpeed_e speed);
