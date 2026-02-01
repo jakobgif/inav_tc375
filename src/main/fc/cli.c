@@ -712,7 +712,7 @@ static void cliAssert(char *cmdline)
 #endif
 
 #ifdef __TRICORE__
-extern bool cpuRunning[];
+extern bool g_cpuIsUsed[];
 static void cliAurix(char *cmdline){
     bool isMulticore = false;
 #ifdef USE_AURIX_MULTICORE
@@ -730,9 +730,9 @@ static void cliAurix(char *cmdline){
     cliPrintf("  / ___ \\ |_| |  _ < | | /  \\");               cliPrintLinef("\tCompiler: GCC-%s", compilerVersion);
     cliPrintf(" /_/   \\_\\___/|_| \\_\\___/_/\\_\\");          cliPrintLinef("\tTarget: %s", targetName);
     cliPrintLinef("\t\t\t\tSystem Uptime: %d seconds", millis() / 1000);
-    cliPrintf("\t\t\t\tCore:");
+    cliPrintf("\t\t\t\t");
     for(int i = 0; i < sizeof(IfxCpu_ResourceCpu)-1; i++){
-        cliPrintf(" CPU%d:%s", i, cpuRunning[i]?"true":"false");
+        cliPrintf("CPU%d:%s ", i, g_cpuIsUsed[i]?"running":"idle");
     }
 }
 #endif
