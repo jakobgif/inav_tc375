@@ -851,7 +851,12 @@ void FAST_CODE taskGyro(timeUs_t currentTimeUs) {
     const timeDelta_t currentDeltaTime = getTaskDeltaTime(TASK_SELF);
 
     /* Update actual hardware readings */
+#ifdef USE_AURIX_MULTICORE
+    //fetch data from other core
+    gyroGetUpdatedData();
+#else
     gyroUpdate();
+#endif
 
 #ifdef USE_OPFLOW
     if (sensors(SENSOR_OPFLOW)) {

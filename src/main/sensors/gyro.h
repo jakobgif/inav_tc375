@@ -64,7 +64,19 @@ typedef struct gyro_s {
     uint32_t targetLooptime;
     float gyroADCf[XYZ_AXIS_COUNT];
     float gyroRaw[XYZ_AXIS_COUNT];
+#ifdef USE_AURIX_MULTICORE
+    bool schedulerResetTaskStatistics;
+#endif
 } gyro_t;
+
+#ifdef USE_AURIX_MULTICORE
+typedef struct gyro_buffered_s {
+    gyro_t buffers[2];
+    volatile uint8_t writeIndex;
+    volatile uint8_t readIndex;
+    mutex_t mutex;
+} gyro_buffered_t;
+#endif
 
 extern gyro_t gyro;
 extern dynamicGyroNotchState_t dynamicGyroNotchState;
@@ -121,3 +133,7 @@ int16_t gyroGetTemperature(void);
 int16_t gyroRateDps(int axis);
 void gyroUpdateDynamicLpf(float cutoffFreq);
 float averageAbsGyroRates(void);
+
+#ifdef USE_AURIX_MULTICORE
+bool FAST_CODE NOINLINE gyroGetUpdatedData(void);
+#endif
