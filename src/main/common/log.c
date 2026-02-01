@@ -46,6 +46,10 @@
 #include "msp/msp_serial.h"
 #include "msp/msp_protocol.h"
 
+#ifdef USE_AURIX_MULTICORE
+#include "drivers/system.h"
+#endif
+
 #if defined(USE_LOG)
 
 #define LOG_PREFIX                  "[%6d.%03d] "
