@@ -62,6 +62,8 @@
 #include "fc/rc_modes.h"
 #include "fc/runtime_config.h"
 
+#include "fiu/fiu.h"
+
 #include "io/beeper.h"
 #include "io/dashboard.h"
 #include "io/gps.h"
@@ -947,6 +949,9 @@ void taskMainPidLoop(timeUs_t currentTimeUs)
 
     // Calculate stabilisation
     pidController(dT);
+
+    // Update Fault Insertion Unit status
+    fiuUpdate();
 
     mixTable();
 
