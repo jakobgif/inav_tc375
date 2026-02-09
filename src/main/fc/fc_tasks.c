@@ -55,6 +55,8 @@
 #include "flight/wind_estimator.h"
 #include "flight/adaptive_filter.h"
 
+#include "fiu/fiu.h"
+
 #include "navigation/navigation.h"
 
 #include "io/beeper.h"
@@ -333,6 +335,11 @@ void taskUpdateAux(timeUs_t currentTimeUs)
     }
 #else
     updateFixedWingLevelTrim(currentTimeUs);
+#endif
+
+    // FIU: Update motor disable flags from Global Variables (100Hz)
+#ifdef USE_PROGRAMMING_FRAMEWORK
+    fiuUpdateFromGlobalVars();
 #endif
 }
 

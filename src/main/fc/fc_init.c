@@ -90,8 +90,6 @@
 #include "fc/runtime_config.h"
 #include "fc/firmware_update.h"
 
-#include "fiu/fiu.h"
-
 #include "flight/failsafe.h"
 #include "flight/imu.h"
 #include "flight/mixer.h"
@@ -551,9 +549,6 @@ void init(void)
     failsafeInit();
 
     rxInit();
-
-    // Initialize Fault Insertion Unit
-    fiuInit();
 
 #if defined(USE_OSD)
     displayPort_t *osdDisplayPort = NULL;

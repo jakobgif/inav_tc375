@@ -21,73 +21,24 @@
 #include "platform.h"
 
 #include "fiu/fiu.h"
-#include "rx/rx.h"
+#include "programming/global_variables.h"
 
-// FIU configuration - can be modified via configurator later
-static fiuConfig_t fiuConfig = {
-    .enabled = true,              // FIU enabled by default
-    .rcChannelIndex = 2,          // AUX index (0=AUX1, 1=AUX2, 2=AUX3, 3=AUX4)
-    .rcThreshold = 1500,          // Switch threshold (> 1500 = active)
-    .targetMotorIndex = 0         // Motor 0 (front-right on typical quad)
-};
+// Motor disable flags, updated at 100Hz from taskUpdateAux
+static bool motorDisabled[6] = {false};
 
-// FIU runtime state
-static fiuState_t fiuState = {
-    .isActive = false,
-    .activationCount = 0
-};
-
-void fiuInit(void)
+void fiuUpdateFromGlobalVars(void)
 {
-    // Initialize FIU state
-    fiuState.isActive = false;
-    fiuState.activationCount = 0;
-}
+    int32_t motorMask = gvGet(FIU_GV_MOTOR_MASK);
 
-void fiuUpdate(void)
-{
-    if (!fiuConfig.enabled) {
-        fiuState.isActive = false;
-        return;
+    for (int i = 0; i < 6; i++) {
+        motorDisabled[i] = (motorMask & (1 << i)) != 0;
     }
-
-    // Read RC channel value
-    // AUX channels start after the 4 main channels (Roll, Pitch, Yaw, Throttle)
-    // So AUX1=4, AUX2=5, AUX3=6, AUX4=7
-    int16_t channelValue = rxGetChannelValue(fiuConfig.rcChannelIndex + NON_AUX_CHANNEL_COUNT);
-
-    // Determine if fault should be active based on RC switch position
-    bool shouldBeActive = (channelValue > fiuConfig.rcThreshold);
-
-    // Detect rising edge (fault activation)
-    if (shouldBeActive && !fiuState.isActive) {
-        fiuState.activationCount++;
-    }
-
-    fiuState.isActive = shouldBeActive;
 }
 
 bool fiuIsMotorDisabled(uint8_t motorIndex)
 {
-    if (!fiuConfig.enabled) {
+    if (motorIndex >= 6) {
         return false;
     }
-
-    if (!fiuState.isActive) {
-        return false;
-    }
-
-    // DEBUG TEST: Disable ALL motors to verify FIU is working
-    // TODO: Change back to: return (motorIndex == fiuConfig.targetMotorIndex);
-    return true;  // Temporarily disable ALL motors for testing
-}
-
-const fiuState_t* fiuGetState(void)
-{
-    return &fiuState;
-}
-
-const fiuConfig_t* fiuGetConfig(void)
-{
-    return &fiuConfig;
+    return motorDisabled[motorIndex];
 }
