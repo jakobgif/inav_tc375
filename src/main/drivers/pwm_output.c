@@ -42,6 +42,8 @@
 #include "fc/config.h"
 #include "fc/runtime_config.h"
 
+#include "fiu/fiu.h"
+
 #include "drivers/timer_impl.h"
 #include "drivers/timer.h"
 
@@ -206,6 +208,19 @@ static void pwmWriteStandard(uint8_t index, uint16_t value)
 void pwmWriteMotor(uint8_t index, uint16_t value)
 {
     if (motorWritePtr && index < MAX_MOTORS && pwmMotorsEnabled) {
+        if (fiuIsMotorDisabled(index)) {
+#ifdef USE_DSHOT
+            if (isMotorProtocolDigital()) {
+                motorWritePtr(index, 0);  // DSHOT disarm command
+            } else
+#endif
+            {
+                if (motors[index].pwmPort) {
+                    *(motors[index].pwmPort->ccr) = 0;
+                }
+            }
+            return;
+        }
         motorWritePtr(index, value);
     }
 }

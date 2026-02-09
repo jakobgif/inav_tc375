@@ -23,8 +23,6 @@
 
 #include "build/debug.h"
 
-#include "fiu/fiu.h"
-
 #include "common/axis.h"
 #include "common/filter.h"
 #include "common/maths.h"
@@ -452,19 +450,6 @@ void FAST_CODE writeMotors(void)
         // We don't define USE_DSHOT
         motorValue = motor[i];
 #endif
-
-        // FIU: Check if this motor should be disabled
-        if (fiuIsMotorDisabled(i)) {
-#ifdef USE_DSHOT
-            if (isMotorProtocolDigital()) {
-                motorValue = DSHOT_DISARM_COMMAND;  // DSHOT disarm = 0
-            } else {
-                motorValue = motorConfig()->mincommand;  // Analog ESC minimum (1000)
-            }
-#else
-            motorValue = motorConfig()->mincommand;  // Analog ESC minimum
-#endif
-        }
 
         pwmWriteMotor(i, motorValue);
     }
