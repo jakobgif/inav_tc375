@@ -19,6 +19,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "drivers/pwm_mapping.h"
 
 /*
  * Fault Insertion Unit (FIU) for AURIX TC375 Flight Controller
@@ -37,7 +38,6 @@
 
 // GV index for motor disable bitmask
 #define FIU_GV_MOTOR_MASK   0
-#define FIU_MAX_MOTORS      6
 
 // Motor fault bits (Y6 configuration: 6 motors)
 #define FIU_MOTOR_0         (1 << 0)

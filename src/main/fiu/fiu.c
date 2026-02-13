@@ -24,20 +24,20 @@
 #include "programming/global_variables.h"
 
 // Motor disable flags, updated at 100Hz from taskUpdateAux
-static bool motorDisabled[FIU_MAX_MOTORS] = {false};
+static bool motorDisabled[MAX_MOTORS] = {false};
 
 void fiuUpdateFromGlobalVars(void)
 {
     int32_t motorMask = gvGet(FIU_GV_MOTOR_MASK);
 
-    for (int i = 0; i < FIU_MAX_MOTORS; i++) {
+    for (int i = 0; i < MAX_MOTORS; i++) {
         motorDisabled[i] = (motorMask & (1 << i)) != 0;
     }
 }
 
 bool fiuIsMotorDisabled(uint8_t motorIndex)
 {
-    if (motorIndex >= FIU_MAX_MOTORS) {
+    if (motorIndex >= MAX_MOTORS) {
         return false;
     }
     return motorDisabled[motorIndex];
