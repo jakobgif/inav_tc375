@@ -338,7 +338,7 @@ void taskUpdateAux(timeUs_t currentTimeUs)
 #endif
 
     // FIU: Update motor disable flags from Global Variables (100Hz)
-#ifdef USE_PROGRAMMING_FRAMEWORK
+#ifdef USE_FIU
     fiuUpdateFromGlobalVars();
 #endif
 }
