@@ -39,15 +39,6 @@
 // GV index for motor disable bitmask
 #define FIU_GV_MOTOR_MASK   0
 
-// Motor fault bits (Y6 configuration: 6 motors)
-#define FIU_MOTOR_0         (1 << 0)
-#define FIU_MOTOR_1         (1 << 1)
-#define FIU_MOTOR_2         (1 << 2)
-#define FIU_MOTOR_3         (1 << 3)
-#define FIU_MOTOR_4         (1 << 4)
-#define FIU_MOTOR_5         (1 << 5)
-#define FIU_MOTOR_ALL       0x3F
-
 // Update FIU state from Global Variables (call from taskUpdateAux at 100Hz)
 void fiuUpdateFromGlobalVars(void);
 
