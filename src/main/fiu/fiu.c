@@ -20,6 +20,7 @@
 
 #include "platform.h"
 
+#include "common/utils.h"
 #include "fiu/fiu.h"
 #include "programming/global_variables.h"
 
@@ -31,7 +32,7 @@ void fiuUpdateFromGlobalVars(void)
     int32_t motorMask = gvGet(FIU_GV_MOTOR_MASK);
 
     for (int i = 0; i < MAX_MOTORS; i++) {
-        motorDisabled[i] = (motorMask & (1 << i)) != 0;
+        motorDisabled[i] = (motorMask & BIT(i)) != 0;
     }
 }
 
