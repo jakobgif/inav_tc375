@@ -29,7 +29,7 @@ static bool motorDisabled[MAX_MOTORS] = {false};
 
 void fiuUpdateFromGlobalVars(void)
 {
-    int32_t motorMask = gvGet(FIU_GV_MOTOR_MASK);
+    int32_t motorMask = gvGet(FIU_GV_MOTOR);
 
     for (int i = 0; i < MAX_MOTORS; i++) {
         motorDisabled[i] = (motorMask & BIT(i)) != 0;

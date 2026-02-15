@@ -37,7 +37,7 @@
  */
 
 // GV index for motor disable bitmask
-#define FIU_GV_MOTOR_MASK   0
+#define FIU_GV_MOTOR   0
 
 // Update FIU state from Global Variables (call from taskUpdateAux at 100Hz)
 void fiuUpdateFromGlobalVars(void);
