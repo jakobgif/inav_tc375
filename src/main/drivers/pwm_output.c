@@ -208,6 +208,7 @@ static void pwmWriteStandard(uint8_t index, uint16_t value)
 void pwmWriteMotor(uint8_t index, uint16_t value)
 {
     if (motorWritePtr && index < MAX_MOTORS && pwmMotorsEnabled) {
+#ifdef USE_FIU
         if (fiuIsMotorDisabled(index)) {
 #ifdef USE_DSHOT
             if (isMotorProtocolDigital()) {
@@ -221,6 +222,7 @@ void pwmWriteMotor(uint8_t index, uint16_t value)
             }
             return;
         }
+#endif
         motorWritePtr(index, value);
     }
 }
