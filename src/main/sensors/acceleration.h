@@ -65,6 +65,15 @@ typedef struct acc_s {
     float maxG;
 } acc_t;
 
+#ifdef USE_AURIX_MULTICORE
+typedef struct acc_buffered_s {
+    acc_t buffers[2];
+    volatile uint8_t writeIndex;
+    volatile uint8_t readIndex;
+    mutex_t mutex;
+} acc_buffered_t;
+#endif
+
 extern acc_t acc;
 
 typedef struct accelerometerConfig_s {
@@ -91,9 +100,17 @@ void accGetVibrationLevels(fpVector3_t *accVibeLevels);
 float accGetVibrationLevel(void);
 uint32_t accGetClipCount(void);
 bool accIsClipped(void);
+#ifdef USE_AURIX_MULTICORE
+bool accUpdate(void);
+#else
 void accUpdate(void);
+#endif
 void accSetCalibrationValues(void);
 void accInitFilters(void);
 bool accIsHealthy(void);
 bool accGetCalibrationAxisStatus(int axis);
 uint8_t accGetCalibrationAxisFlags(void);
+
+#ifdef USE_AURIX_MULTICORE
+bool FAST_CODE NOINLINE accGetUpdatedData(void);
+#endif
