@@ -548,17 +548,29 @@ void FAST_CODE NOINLINE gyroFilter(void)
 
 }
 
+#ifdef USE_AURIX_MULTICORE
+bool FAST_CODE NOINLINE gyroUpdate(void)
+#else
 void FAST_CODE NOINLINE gyroUpdate(void)
+#endif
 {
 #ifdef USE_SIMULATOR
     if (ARMING_FLAG(SIMULATOR_MODE_HITL)) {
         //output: gyro.gyroADCf[axis]
         //unused: dev->gyroADCRaw[], dev->gyroZero[];
+#ifdef USE_AURIX_MULTICORE
+        return false;
+#else
         return;
+#endif
     }
 #endif
     if (!gyro.initialized) {
+#ifdef USE_AURIX_MULTICORE
+        return false;
+#else
         return;
+#endif
     }
 
 #ifndef USE_AURIX_MULTICORE
@@ -582,7 +594,7 @@ void FAST_CODE NOINLINE gyroUpdate(void)
     }
 #else
     if (!gyroUpdateAndCalibrate(&gyroDev[0], &gyroCalibration[0], gyroBuffered.buffers[gyroBuffered.writeIndex].gyroADCf)) {
-        return;
+        return false;
     }
 
     for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
@@ -602,8 +614,7 @@ void FAST_CODE NOINLINE gyroUpdate(void)
 
     //swap buffer index
     if (!waitAndAcquireMutex(&gyroBuffered.mutex, TASK_GYRO_LOOPTIME)) {
-        LOG_ERROR(GYRO, "Failed to get mutex! (Update)");
-        return; //failed to acquire
+        return false; //failed to acquire
     }
 
     uint8_t oldWrite = gyroBuffered.writeIndex;
@@ -611,6 +622,8 @@ void FAST_CODE NOINLINE gyroUpdate(void)
     gyroBuffered.readIndex = oldWrite;
 
     releaseMutex(&gyroBuffered.mutex);
+
+    return true;
 #endif
 }
 

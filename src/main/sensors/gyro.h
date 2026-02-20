@@ -124,7 +124,11 @@ PG_DECLARE(gyroConfig_t, gyroConfig);
 
 bool gyroInit(void);
 void gyroGetMeasuredRotationRate(fpVector3_t *imuMeasuredRotationBF);
+#ifdef USE_AURIX_MULTICORE
+bool gyroUpdate(void);
+#else
 void gyroUpdate(void);
+#endif
 void gyroFilter(void);
 void gyroStartCalibration(void);
 bool gyroIsCalibrationComplete(void);
