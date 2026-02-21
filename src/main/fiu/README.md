@@ -1,18 +1,31 @@
 # Fault Insertion Unit (FIU)
 
-The FIU is a software-based fault injection module for the AURIX TC375 flight controller, developed as part of a Master Thesis project on embedded fault insertion for unmanned aerial systems (UAS).
+The FIU is a software-based fault injection module for INAV-based flight controllers. It enables controlled fault injection during flight to evaluate how the flight controller handles hardware failures, without requiring physical hardware modifications.
 
 ## Purpose
 
-The FIU allows selective disabling of individual motors during flight. This enables controlled fault injection testing to evaluate how the flight controller handles motor failures, without requiring hardware modifications.
+Supported fault types:
+
+- **Motor faults**: Selective disabling of individual motors (PWM driver level)
+- **Sensor bus faults**: Blocking I2C bus reads for the barometer (bus abstraction level)
 
 ## How it works
 
+### Motor fault injection
+
 The FIU operates at the PWM driver level (`drivers/pwm_output.c`). When a motor is marked as disabled, the `pwmWriteMotor()` function intercepts the motor command and sends a DSHOT disarm command (value 0) instead of the calculated mixer output. The PID controller and mixer remain unmodified, preserving INAV upgrade compatibility.
 
-### Motor disable via Global Variables
+### Barometer bus fault injection
 
-The FIU uses INAV Global Variable **GV0** as a bitmask to select which motors to disable:
+The FIU hooks into the `BUSTYPE_I2C` branch of `drivers/bus.c`. When active, `busRead()` and `busReadBuf()` return zero-filled data with a success status, without performing any actual I2C transfer. This simulates a silent sensor chip failure. The SPI bus (e.g. IMU) is not affected.
+
+## Configuration via Global Variables
+
+FIU faults are controlled through INAV Global Variables, configured at runtime via **Logic Conditions** in the INAV Configurator. No recompilation is needed to change fault targets.
+
+### GV0 - Motor disable bitmask
+
+Each bit corresponds to one motor:
 
 | Bit | Motor |
 |-----|-------|
@@ -25,25 +38,56 @@ The FIU uses INAV Global Variable **GV0** as a bitmask to select which motors to
 
 **Examples:**
 - `GV0 = 7` (0b000111) - disable motors 0, 1, 2
-- `GV0 = 56` (0b111000) - disable motors 3, 4, 5
 - `GV0 = 63` (0b111111) - disable all 6 motors
 
-GV0 is configured via **Logic Conditions** in the INAV Configurator, allowing runtime activation without recompilation.
+**Logic Conditions setup (example: RC Channel 7 controls motor fault):**
+
+| LC | Operation    | Operand A      | Operand B   | Active  |
+|----|--------------|----------------|-------------|---------|
+| 0  | Greater Than | RC Channel 7   | Value 1500  | Always  |
+| 1  | Set GVAR     | Value 0 (GV0)  | Value 63    | LC 0    |
+| 2  | Lower Than   | RC Channel 7   | Value 1500  | Always  |
+| 3  | Set GVAR     | Value 0 (GV0)  | Value 0     | LC 2    |
+
+- LC 0 detects switch ON (>1500 µs) → LC 1 sets GV0 = 63 (all motors disabled)
+- LC 2 detects switch OFF (<1500 µs) → LC 3 sets GV0 = 0 (no fault)
+
+### GV1 - Sensor bus fault bitmask
+
+| Bit | Fault |
+|-----|-------|
+| 2   | Block barometer I2C reads (`FIU_SENSOR_BARO_BUS_BLOCK`) |
+
+**Example:**
+- `GV1 = 4` (0b000100) - block all I2C reads for the barometer
+
+**Logic Conditions setup (example: RC Channel 6 controls barometer fault):**
+
+| LC | Operation    | Operand A      | Operand B   | Active  |
+|----|--------------|----------------|-------------|---------|
+| 4  | Greater Than | RC Channel 6   | Value 1500  | Always  |
+| 5  | Set GVAR     | Value 1 (GV1)  | Value 4     | LC 4    |
+| 6  | Lower Than   | RC Channel 6   | Value 1500  | Always  |
+| 7  | Set GVAR     | Value 1 (GV1)  | Value 0     | LC 6    |
+
+- LC 4 detects switch ON (>1500 µs) → LC 5 sets GV1 = 4 (I2C blocked)
+- LC 6 detects switch OFF (<1500 µs) → LC 7 sets GV1 = 0 (no fault)
 
 ### Update frequency
 
-`fiuUpdateFromGlobalVars()` is called at 100 Hz from `taskUpdateAux()` in `fc/fc_tasks.c`. This reads the current GV0 value and updates the internal motor disable flags.
+`fiuUpdateFromGlobalVars()` is called at 100 Hz from `taskUpdateAux()` in `fc/fc_tasks.c`.
 
 ## API
 
 | Function | Description |
 |----------|-------------|
-| `fiuUpdateFromGlobalVars()` | Reads GV0 bitmask and updates motor disable flags. Called at 100 Hz. |
+| `fiuUpdateFromGlobalVars()` | Reads GV0/GV1, updates all fault flags. Called at 100 Hz. |
 | `fiuIsMotorDisabled(uint8_t motorIndex)` | Returns `true` if the given motor should be disabled. Called by PWM driver. |
+| `fiuIsBusReadBlocked(void)` | Returns `true` if I2C bus reads should be blocked. Called by `bus.c`. |
 
 ## Enabling FIU
 
-The FIU is conditionally compiled using the `USE_FIU` preprocessor macro. To enable it, add `USE_FIU` as a compiler define in the Aurix Development Studio project settings. See the [How to build](../../../../../How_to_build.md#build-with-fault-insertion-unit-fiu) documentation for instructions.
+The FIU is conditionally compiled using the `USE_FIU` preprocessor macro. To enable it, add `USE_FIU` as a compiler define in your build system or IDE project settings.
 
 ## Files
 
@@ -53,5 +97,5 @@ The FIU is conditionally compiled using the `USE_FIU` preprocessor macro. To ena
 ## Modified INAV files
 
 - `drivers/pwm_output.c` - `fiuIsMotorDisabled()` check in `pwmWriteMotor()`
+- `drivers/bus.c` - `fiuIsBusReadBlocked()` check in I2C branch of `busRead()` and `busReadBuf()`
 - `fc/fc_tasks.c` - `fiuUpdateFromGlobalVars()` call in `taskUpdateAux()`
-- `flight/mixer.c` - **unmodified** (original INAV code)

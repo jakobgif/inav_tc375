@@ -94,7 +94,6 @@ jobs:
         with:
           name: ${{ env.BUILD_NAME }}-MICOAIR743-FIU
           path: ./build/*.hex
-          retention-days: 1
 
   upload-artifacts:
     runs-on: ubuntu-latest
