@@ -32,6 +32,10 @@
 #include "drivers/bus.h"
 #include "drivers/io.h"
 
+#ifdef USE_FIU
+#include "fiu/fiu.h"
+#endif
+
 #define BUSDEV_MAX_DEVICES 16
 
 #ifdef USE_SPI
@@ -371,6 +375,12 @@ bool busReadBuf(const busDevice_t * dev, uint8_t reg, uint8_t * data, uint8_t le
 
         case BUSTYPE_I2C:
 #ifdef USE_I2C
+#ifdef USE_FIU
+            if (fiuIsBusReadBlocked()) {
+                memset(data, 0, length);
+                return true;
+            }
+#endif
             return i2cBusReadBuffer(dev, reg, data, length);
 #else
             return false;
@@ -403,6 +413,12 @@ bool busRead(const busDevice_t * dev, uint8_t reg, uint8_t * data)
 
         case BUSTYPE_I2C:
 #ifdef USE_I2C
+#ifdef USE_FIU
+            if (fiuIsBusReadBlocked()) {
+                *data = 0;
+                return true;
+            }
+#endif
             return i2cBusReadRegister(dev, reg, data);
 #else
             return false;

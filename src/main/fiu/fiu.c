@@ -27,13 +27,22 @@
 // Motor disable flags, updated at 100Hz from taskUpdateAux
 static bool motorDisabled[MAX_MOTORS] = {false};
 
+// Sensor bus fault flags, updated at 100Hz from taskUpdateAux
+static bool baroBusBlocked = false;
+
 void fiuUpdateFromGlobalVars(void)
 {
+    // GV0: Motor disable bitmask
     int32_t motorMask = gvGet(FIU_GV_MOTOR);
 
     for (int i = 0; i < MAX_MOTORS; i++) {
         motorDisabled[i] = (motorMask & BIT(i)) != 0;
     }
+
+    // GV1: Sensor bus fault bitmask
+    int32_t sensorMask = gvGet(FIU_GV_SENSOR);
+
+    baroBusBlocked = (sensorMask & FIU_SENSOR_BARO_BUS_BLOCK) != 0;
 }
 
 bool fiuIsMotorDisabled(uint8_t motorIndex)
@@ -42,4 +51,9 @@ bool fiuIsMotorDisabled(uint8_t motorIndex)
         return false;
     }
     return motorDisabled[motorIndex];
+}
+
+bool fiuIsBusReadBlocked(void)
+{
+    return baroBusBlocked;
 }
