@@ -7,7 +7,7 @@ The FIU is a software-based fault injection module for INAV-based flight control
 Supported fault types:
 
 - **Motor faults**: Selective disabling of individual motors (PWM driver level)
-- **Sensor bus faults**: Blocking I2C bus reads for the barometer (bus abstraction level)
+- **Sensor bus faults**: Blocking I2C or SPI bus reads for all devices on the respective bus (bus abstraction level)
 
 ## How it works
 
@@ -15,9 +15,13 @@ Supported fault types:
 
 The FIU operates at the PWM driver level (`drivers/pwm_output.c`). When a motor is marked as disabled, the `pwmWriteMotor()` function intercepts the motor command and sends a DSHOT disarm command (value 0) instead of the calculated mixer output. The PID controller and mixer remain unmodified, preserving INAV upgrade compatibility.
 
-### Barometer bus fault injection
+### Barometer bus fault injection (I2C)
 
-The FIU hooks into the `BUSTYPE_I2C` branch of `drivers/bus.c`. When active, `busRead()` and `busReadBuf()` return zero-filled data with a success status, without performing any actual I2C transfer. This simulates a silent sensor chip failure. The SPI bus (e.g. IMU) is not affected.
+The FIU hooks into the `BUSTYPE_I2C` branch of `drivers/bus.c`. When active, `busRead()` and `busReadBuf()` return zero-filled data with a success status, without performing any actual I2C transfer. This simulates a silent sensor chip failure for all devices on the I2C bus.
+
+### SPI bus fault injection
+
+The FIU hooks into the `BUSTYPE_SPI` branch of `drivers/bus.c`. When active, `busRead()` and `busReadBuf()` return zero-filled data with a success status, without performing any actual SPI transfer. This simulates a silent sensor chip failure for all devices on the SPI bus.
 
 ## Configuration via Global Variables
 
@@ -52,16 +56,16 @@ Each bit corresponds to one motor:
 - LC 0 detects switch ON (>1500 µs) → LC 1 sets GV0 = 63 (all motors disabled)
 - LC 2 detects switch OFF (<1500 µs) → LC 3 sets GV0 = 0 (no fault)
 
-### GV1 - Sensor bus fault bitmask
+### GV1 - I2C sensor bus fault bitmask
 
 | Bit | Fault |
 |-----|-------|
-| 2   | Block barometer I2C reads (`FIU_SENSOR_BARO_BUS_BLOCK`) |
+| 2   | Block all I2C bus reads (`FIU_SENSOR_BARO_BUS_BLOCK`) |
 
 **Example:**
-- `GV1 = 4` (0b000100) - block all I2C reads for the barometer
+- `GV1 = 4` (0b00000100) - block all I2C reads
 
-**Logic Conditions setup (example: RC Channel 6 controls barometer fault):**
+**Logic Conditions setup (example: RC Channel 6 controls I2C fault):**
 
 | LC | Operation    | Operand A      | Operand B   | Active  |
 |----|--------------|----------------|-------------|---------|
@@ -73,6 +77,27 @@ Each bit corresponds to one motor:
 - LC 4 detects switch ON (>1500 µs) → LC 5 sets GV1 = 4 (I2C blocked)
 - LC 6 detects switch OFF (<1500 µs) → LC 7 sets GV1 = 0 (no fault)
 
+### GV2 - SPI sensor bus fault bitmask
+
+| Bit | Fault |
+|-----|-------|
+| 0   | Block all SPI bus reads (`FIU_SPI_BUS_BLOCK`) |
+
+**Example:**
+- `GV2 = 1` (0b00000001) - block all SPI reads
+
+**Logic Conditions setup (example: RC Channel 5 controls SPI fault):**
+
+| LC | Operation    | Operand A      | Operand B   | Active  |
+|----|--------------|----------------|-------------|---------|
+| 8  | Greater Than | RC Channel 5   | Value 1500  | Always  |
+| 9  | Set GVAR     | Value 2 (GV2)  | Value 1     | LC 8    |
+| 10 | Lower Than   | RC Channel 5   | Value 1500  | Always  |
+| 11 | Set GVAR     | Value 2 (GV2)  | Value 0     | LC 10   |
+
+- LC 8 detects switch ON (>1500 µs) → LC 9 sets GV2 = 1 (SPI blocked)
+- LC 10 detects switch OFF (<1500 µs) → LC 11 sets GV2 = 0 (no fault)
+
 ### Update frequency
 
 `fiuUpdateFromGlobalVars()` is called at 100 Hz from `taskUpdateAux()` in `fc/fc_tasks.c`.
@@ -81,9 +106,10 @@ Each bit corresponds to one motor:
 
 | Function | Description |
 |----------|-------------|
-| `fiuUpdateFromGlobalVars()` | Reads GV0/GV1, updates all fault flags. Called at 100 Hz. |
+| `fiuUpdateFromGlobalVars()` | Reads GV0/GV1/GV2, updates all fault flags. Called at 100 Hz. |
 | `fiuIsMotorDisabled(uint8_t motorIndex)` | Returns `true` if the given motor should be disabled. Called by PWM driver. |
-| `fiuIsBusReadBlocked(void)` | Returns `true` if I2C bus reads should be blocked. Called by `bus.c`. |
+| `fiuIsBusReadBlocked(void)` | Returns `true` if all I2C bus reads should be blocked. Called by `bus.c`. |
+| `fiuIsSpiReadBlocked(void)` | Returns `true` if all SPI bus reads should be blocked. Called by `bus.c`. |
 
 ## Enabling FIU
 
@@ -97,5 +123,5 @@ The FIU is conditionally compiled using the `USE_FIU` preprocessor macro. To ena
 ## Modified INAV files
 
 - `drivers/pwm_output.c` - `fiuIsMotorDisabled()` check in `pwmWriteMotor()`
-- `drivers/bus.c` - `fiuIsBusReadBlocked()` check in I2C branch of `busRead()` and `busReadBuf()`
+- `drivers/bus.c` - `fiuIsBusReadBlocked()` check in I2C branch and `fiuIsSpiReadBlocked()` check in SPI branch of `busRead()` and `busReadBuf()`
 - `fc/fc_tasks.c` - `fiuUpdateFromGlobalVars()` call in `taskUpdateAux()`
