@@ -210,16 +210,7 @@ void pwmWriteMotor(uint8_t index, uint16_t value)
     if (motorWritePtr && index < MAX_MOTORS && pwmMotorsEnabled) {
 #ifdef USE_FIU
         if (fiuIsMotorDisabled(index)) {
-#ifdef USE_DSHOT
-            if (isMotorProtocolDigital()) {
-                motorWritePtr(index, 0);  // DSHOT disarm command
-            } else
-#endif
-            {
-                if (motors[index].pwmPort) {
-                    *(motors[index].pwmPort->ccr) = 0;
-                }
-            }
+            motorWritePtr(index, 0);
             return;
         }
 #endif
