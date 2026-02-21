@@ -337,7 +337,8 @@ void taskUpdateAux(timeUs_t currentTimeUs)
     updateFixedWingLevelTrim(currentTimeUs);
 #endif
 
-    // FIU: Update motor disable flags from Global Variables (100Hz)
+    // FIU: used to inject faults into the inav system
+    // via global variables. (Motor disable, sensor data manipulation, etc.)
 #ifdef USE_FIU
     fiuUpdateFromGlobalVars();
 #endif
