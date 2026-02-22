@@ -364,7 +364,7 @@ bool busReadBuf(const busDevice_t * dev, uint8_t reg, uint8_t * data, uint8_t le
         case BUSTYPE_SPI:
 #ifdef USE_SPI
 #ifdef USE_FIU
-            if (fiuIsSpiReadBlocked()) {
+            if (fiuIsSpiReadBlocked(dev->busdev.spi.spiBus)) {
                 memset(data, 0, length);
                 return true;
             }
@@ -382,7 +382,7 @@ bool busReadBuf(const busDevice_t * dev, uint8_t reg, uint8_t * data, uint8_t le
         case BUSTYPE_I2C:
 #ifdef USE_I2C
 #ifdef USE_FIU
-            if (fiuIsBusReadBlocked()) {
+            if (fiuIsBusReadBlocked(dev->busdev.i2c.i2cBus)) {
                 memset(data, 0, length);
                 return true;
             }
@@ -408,7 +408,7 @@ bool busRead(const busDevice_t * dev, uint8_t reg, uint8_t * data)
         case BUSTYPE_SPI:
 #ifdef USE_SPI
 #ifdef USE_FIU
-            if (fiuIsSpiReadBlocked()) {
+            if (fiuIsSpiReadBlocked(dev->busdev.spi.spiBus)) {
                 *data = 0;
                 return true;
             }
@@ -426,7 +426,7 @@ bool busRead(const busDevice_t * dev, uint8_t reg, uint8_t * data)
         case BUSTYPE_I2C:
 #ifdef USE_I2C
 #ifdef USE_FIU
-            if (fiuIsBusReadBlocked()) {
+            if (fiuIsBusReadBlocked(dev->busdev.i2c.i2cBus)) {
                 *data = 0;
                 return true;
             }
