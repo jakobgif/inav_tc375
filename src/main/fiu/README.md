@@ -15,7 +15,7 @@ Supported fault types:
 
 The FIU operates at the PWM driver level (`drivers/pwm_output.c`). When a motor is marked as disabled, the `pwmWriteMotor()` function intercepts the motor command and sends a DSHOT disarm command (value 0) instead of the calculated mixer output. The PID controller and mixer remain unmodified, preserving INAV upgrade compatibility.
 
-### Barometer bus fault injection (I2C)
+### I2C bus fault injection
 
 The FIU hooks into the `BUSTYPE_I2C` branch of `drivers/bus.c`. When active, `busRead()` and `busReadBuf()` return zero-filled data with a success status, without performing any actual I2C transfer. This simulates a silent sensor chip failure for all devices on the I2C bus.
 
@@ -56,35 +56,31 @@ Each bit corresponds to one motor:
 - LC 0 detects switch ON (>1500 µs) → LC 1 sets GV0 = 63 (all motors disabled)
 - LC 2 detects switch OFF (<1500 µs) → LC 3 sets GV0 = 0 (no fault)
 
-### GV1 - I2C sensor bus fault bitmask
+### GV1 - I2C bus block
 
-| Bit | Fault |
-|-----|-------|
-| 2   | Block all I2C bus reads (`FIU_SENSOR_BARO_BUS_BLOCK`) |
-
-**Example:**
-- `GV1 = 4` (0b00000100) - block all I2C reads
+| Value | Effect |
+|-------|--------|
+| 0     | No fault (I2C normal) |
+| 1     | Block all I2C bus reads (`FIU_I2C_BUS_BLOCK`) |
 
 **Logic Conditions setup (example: RC Channel 6 controls I2C fault):**
 
 | LC | Operation    | Operand A      | Operand B   | Active  |
 |----|--------------|----------------|-------------|---------|
 | 4  | Greater Than | RC Channel 6   | Value 1500  | Always  |
-| 5  | Set GVAR     | Value 1 (GV1)  | Value 4     | LC 4    |
+| 5  | Set GVAR     | Value 1 (GV1)  | Value 1     | LC 4    |
 | 6  | Lower Than   | RC Channel 6   | Value 1500  | Always  |
 | 7  | Set GVAR     | Value 1 (GV1)  | Value 0     | LC 6    |
 
-- LC 4 detects switch ON (>1500 µs) → LC 5 sets GV1 = 4 (I2C blocked)
+- LC 4 detects switch ON (>1500 µs) → LC 5 sets GV1 = 1 (I2C blocked)
 - LC 6 detects switch OFF (<1500 µs) → LC 7 sets GV1 = 0 (no fault)
 
-### GV2 - SPI sensor bus fault bitmask
+### GV2 - SPI bus block
 
-| Bit | Fault |
-|-----|-------|
-| 0   | Block all SPI bus reads (`FIU_SPI_BUS_BLOCK`) |
-
-**Example:**
-- `GV2 = 1` (0b00000001) - block all SPI reads
+| Value | Effect |
+|-------|--------|
+| 0     | No fault (SPI normal) |
+| 1     | Block all SPI bus reads (`FIU_SPI_BUS_BLOCK`) |
 
 **Logic Conditions setup (example: RC Channel 5 controls SPI fault):**
 
