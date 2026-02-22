@@ -27,9 +27,9 @@
 // Motor disable flags, updated at 100Hz from taskUpdateAux
 static bool motorDisabled[MAX_MOTORS] = {false};
 
-// Sensor bus fault flags, updated at 100Hz from taskUpdateAux
-static bool baroBusBlocked = false;
-static bool imuSpiBlocked = false;
+// Bus fault flags, updated at 100Hz from taskUpdateAux
+static bool i2cBusBlocked = false;
+static bool spiBusBlocked = false;
 
 void fiuUpdateFromGlobalVars(void)
 {
@@ -40,15 +40,15 @@ void fiuUpdateFromGlobalVars(void)
         motorDisabled[i] = (motorMask & BIT(i)) != 0;
     }
 
-    // GV1: Sensor bus fault bitmask
-    int32_t sensorMask = gvGet(FIU_GV_SENSOR);
+    // GV1: I2C bus block (0=off, 1=block)
+    int32_t i2cMask = gvGet(FIU_GV_I2C);
 
-    baroBusBlocked = (sensorMask & FIU_SENSOR_BARO_BUS_BLOCK) != 0;
+    i2cBusBlocked = (i2cMask & FIU_I2C_BUS_BLOCK) != 0;
 
-    // GV2: SPI sensor bus fault bitmask
+    // GV2: SPI bus block (0=off, 1=block)
     int32_t spiMask = gvGet(FIU_GV_SPI);
 
-    imuSpiBlocked = (spiMask & FIU_SPI_BUS_BLOCK) != 0;
+    spiBusBlocked = (spiMask & FIU_SPI_BUS_BLOCK) != 0;
 }
 
 bool fiuIsMotorDisabled(uint8_t motorIndex)
@@ -61,10 +61,10 @@ bool fiuIsMotorDisabled(uint8_t motorIndex)
 
 bool fiuIsBusReadBlocked(void)
 {
-    return baroBusBlocked;
+    return i2cBusBlocked;
 }
 
 bool fiuIsSpiReadBlocked(void)
 {
-    return imuSpiBlocked;
+    return spiBusBlocked;
 }

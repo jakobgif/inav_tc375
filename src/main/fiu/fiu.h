@@ -33,14 +33,12 @@
  *     Example: GV0 = 56 (0b111000) -> disable motors 3, 4, 5
  *     Example: GV0 = 63 (0b111111) -> disable all 6 motors
  *
- *   GV1 (FIU_GV_SENSOR): Bitmask of I2C sensor bus faults to activate
- *     Bit 2 = Block all I2C bus reads
- *     When active: busRead/busReadBuf returns zero-filled data + true
+ *   GV1 (FIU_GV_I2C): Block all I2C bus reads
+ *     0 = off, 1 = block (zero-fill + return true)
  *     Simulates sensor chip failure at bus level
  *
- *   GV2 (FIU_GV_SPI): Bitmask of SPI sensor bus faults to activate
- *     Bit 0 = Block all SPI bus reads
- *     When active: busRead/busReadBuf returns zero-filled data + true
+ *   GV2 (FIU_GV_SPI): Block all SPI bus reads
+ *     0 = off, 1 = block (zero-fill + return true)
  *     Simulates sensor chip failure at bus level
  *
  * Configure via INAV Configurator Logic Conditions to set GV0/GV1/GV2.
@@ -48,14 +46,14 @@
 
 // GV indices
 #define FIU_GV_MOTOR   0    // GV0: Bitmask of motors to disable
-#define FIU_GV_SENSOR  1    // GV1: Bitmask of I2C sensor bus faults to activate
-#define FIU_GV_SPI     2    // GV2: Bitmask of SPI sensor bus faults to activate
+#define FIU_GV_I2C     1    // GV1: 0=off, 1=block all I2C bus reads
+#define FIU_GV_SPI     2    // GV2: 0=off, 1=block all SPI bus reads
 
-// GV1 I2C sensor bus fault bitmask bits
-#define FIU_SENSOR_BARO_BUS_BLOCK   BIT(2)  // Bit 2: Block all I2C bus reads
+// GV1: I2C bus block enable bit
+#define FIU_I2C_BUS_BLOCK   BIT(0)  // Bit 0 (value 1): Block all I2C bus reads
 
-// GV2 SPI sensor bus fault bitmask bits
-#define FIU_SPI_BUS_BLOCK           BIT(0)  // Bit 0: Block all SPI bus reads
+// GV2: SPI bus block enable bit
+#define FIU_SPI_BUS_BLOCK   BIT(0)  // Bit 0 (value 1): Block all SPI bus reads
 
 // Update FIU state from Global Variables (call from taskUpdateAux at 100Hz)
 void fiuUpdateFromGlobalVars(void);
