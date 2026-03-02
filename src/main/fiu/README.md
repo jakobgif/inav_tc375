@@ -13,15 +13,15 @@ Supported fault types:
 
 ### Motor fault injection
 
-The FIU operates at the PWM driver level (`drivers/pwm_output.c`). When a motor is marked as disabled, the `pwmWriteMotor()` function intercepts the motor command and sends a DSHOT disarm command (value 0) instead of the calculated mixer output. The PID controller and mixer remain unmodified, preserving INAV upgrade compatibility.
+The FIU operates at the PWM driver level (`drivers/pwm_output.c`). When a motor is marked as disabled, the `pwmWriteMotor()` function intercepts the motor command and sets the target speed to 0 instead of the calculated mixer output. The PID controller and mixer remain unmodified, preserving INAV upgrade compatibility.
 
 ### I2C bus fault injection
 
-The FIU hooks into the `BUSTYPE_I2C` branch of `drivers/bus.c`. When active, `busRead()` and `busReadBuf()` return zero-filled data with a success status, without performing any actual I2C transfer. This simulates a silent sensor chip failure for all devices on the I2C bus.
+The FIU hooks into the `BUSTYPE_I2C` branch of `drivers/bus.c`. When active, `busRead()` and `busReadBuf()` return zero-filled data with a success status, without performing any actual I2C transfer. The affected bus is selected by the GV1 bitmask (Bit N blocks I2CDEV_(N+1)). This simulates a bus failure for all devices on the blocked bus.
 
 ### SPI bus fault injection
 
-The FIU hooks into the `BUSTYPE_SPI` branch of `drivers/bus.c`. When active, `busRead()` and `busReadBuf()` return zero-filled data with a success status, without performing any actual SPI transfer. This simulates a silent sensor chip failure for all devices on the SPI bus.
+The FIU hooks into the `BUSTYPE_SPI` branch of `drivers/bus.c`. When active, `busRead()` and `busReadBuf()` return zero-filled data with a success status, without performing any actual SPI transfer. The affected bus is selected by the GV2 bitmask (Bit N blocks SPIDEV_(N+1)). This simulates a bus failure for all devices on the blocked bus.
 
 ## Configuration via Global Variables
 
@@ -29,7 +29,7 @@ FIU faults are controlled through INAV Global Variables, configured at runtime v
 
 ### GV0 - Motor disable bitmask
 
-Each bit corresponds to one motor:
+Each bit corresponds to one motor. A maximum of `MAX_MOTORS` motors can be disabled.
 
 | Bit | Motor |
 |-----|-------|
@@ -37,10 +37,10 @@ Each bit corresponds to one motor:
 | 1   | Motor 1 |
 | 2   | Motor 2 |
 | 3   | Motor 3 |
-| 4   | Motor 4 |
-| 5   | Motor 5 |
+| ... | ...     |
+| MAX_MOTORS-1 | Motor MAX_MOTORS-1 |
 
-**Examples:**
+**Examples** (6-motor configuration, MAX_MOTORS = 6, valid bits 0–5):
 - `GV0 = 7` (0b000111) - disable motors 0, 1, 2
 - `GV0 = 63` (0b111111) - disable all 6 motors
 
@@ -104,8 +104,8 @@ Each bit corresponds to one motor:
 |----------|-------------|
 | `fiuUpdateFromGlobalVars()` | Reads GV0/GV1/GV2, updates all fault flags. Called at 100 Hz. |
 | `fiuIsMotorDisabled(uint8_t motorIndex)` | Returns `true` if the given motor should be disabled. Called by PWM driver. |
-| `fiuIsBusReadBlocked(void)` | Returns `true` if all I2C bus reads should be blocked. Called by `bus.c`. |
-| `fiuIsSpiReadBlocked(void)` | Returns `true` if all SPI bus reads should be blocked. Called by `bus.c`. |
+| `fiuIsI2cBusReadBlocked(void)` | Returns `true` if all I2C bus reads should be blocked. Called by `bus.c`. |
+| `fiuIsSpiBusReadBlocked(void)` | Returns `true` if all SPI bus reads should be blocked. Called by `bus.c`. |
 
 ## Enabling FIU
 
@@ -119,5 +119,5 @@ The FIU is conditionally compiled using the `USE_FIU` preprocessor macro. To ena
 ## Modified INAV files
 
 - `drivers/pwm_output.c` - `fiuIsMotorDisabled()` check in `pwmWriteMotor()`
-- `drivers/bus.c` - `fiuIsBusReadBlocked()` check in I2C branch and `fiuIsSpiReadBlocked()` check in SPI branch of `busRead()` and `busReadBuf()`
+- `drivers/bus.c` - `fiuIsI2cBusReadBlocked()` check in I2C branch and `fiuIsSpiBusReadBlocked()` check in SPI branch of `busRead()` and `busReadBuf()`
 - `fc/fc_tasks.c` - `fiuUpdateFromGlobalVars()` call in `taskUpdateAux()`
