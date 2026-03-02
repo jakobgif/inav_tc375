@@ -104,8 +104,8 @@ Each bit corresponds to one motor. A maximum of `MAX_MOTORS` motors can be disab
 |----------|-------------|
 | `fiuUpdateFromGlobalVars()` | Reads GV0/GV1/GV2, updates all fault flags. Called at 100 Hz. |
 | `fiuIsMotorDisabled(uint8_t motorIndex)` | Returns `true` if the given motor should be disabled. Called by PWM driver. |
-| `fiuIsI2cBusReadBlocked(void)` | Returns `true` if all I2C bus reads should be blocked. Called by `bus.c`. |
-| `fiuIsSpiBusReadBlocked(void)` | Returns `true` if all SPI bus reads should be blocked. Called by `bus.c`. |
+| `fiuIsI2cBusReadBlocked(I2CDevice bus)` | Returns `true` if reads on the given I2C bus should be blocked. Called by `bus.c`. |
+| `fiuIsSpiBusReadBlocked(SPIDevice bus)` | Returns `true` if reads on the given SPI bus should be blocked. Called by `bus.c`. |
 
 ## Enabling FIU
 
