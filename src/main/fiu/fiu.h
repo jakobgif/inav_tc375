@@ -63,7 +63,7 @@ void fiuUpdateFromGlobalVars(void);
 bool fiuIsMotorDisabled(uint8_t motorIndex);
 
 // Check if specific I2C bus read should be blocked (called by bus.c)
-bool fiuIsBusReadBlocked(I2CDevice bus);
+bool fiuIsI2cBusReadBlocked(I2CDevice bus);
 
 // Check if specific SPI bus read should be blocked (called by bus.c)
-bool fiuIsSpiReadBlocked(SPIDevice bus);
+bool fiuIsSpiBusReadBlocked(SPIDevice bus);

@@ -56,13 +56,13 @@ bool fiuIsMotorDisabled(uint8_t motorIndex)
     return motorDisabled[motorIndex];
 }
 
-bool fiuIsBusReadBlocked(I2CDevice bus)
+bool fiuIsI2cBusReadBlocked(I2CDevice bus)
 {
     if (bus < 0) return false;
     return (i2cBusMask & BIT(bus)) != 0;
 }
 
-bool fiuIsSpiReadBlocked(SPIDevice bus)
+bool fiuIsSpiBusReadBlocked(SPIDevice bus)
 {
     if (bus < 0) return false;
     return (spiBusMask & BIT(bus)) != 0;
