@@ -20,7 +20,11 @@
 #ifdef TC375 
 const char * const targetName = TARGET_BOARD_IDENTIFIER "_" __TARGET__;
 const char * const compilerVersion = __VERSION__;
+#ifdef USE_AURIX_MULTICORE
+const char * const shortGitRevision = GIT_TAG_INAV "_multicore";
+#else
 const char * const shortGitRevision = GIT_TAG_INAV;
+#endif
 #ifdef BUILD_CONFIG_RELEASE
 const char * const buildType = STR_HELPER(BUILD_CONFIG_RELEASE);
 #elif BUILD_CONFIG_DEBUG
