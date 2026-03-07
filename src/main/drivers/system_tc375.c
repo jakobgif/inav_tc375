@@ -68,6 +68,9 @@ bool isMPUSoftReset(void){
 }
 
 void systemReset(void){
+    extern IfxCpu_syncEvent g_cpuSyncEvent;
+    g_cpuSyncEvent = 0;
+    
     IfxCpu_disableInterrupts();
 
     //from example code
