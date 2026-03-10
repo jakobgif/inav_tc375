@@ -53,9 +53,6 @@
 #define FIU_GV_I2C     1    // GV1: Bitmask of I2C buses to block (Bit 0=I2C1, Bit 1=I2C2, ...)
 #define FIU_GV_SPI     2    // GV2: Bitmask of SPI buses to block (Bit 0=SPI1, Bit 1=SPI2, ...)
 
-// GV1: I2C bus block bitmask (Bit N = I2CDEV_(N+1))
-// GV2: SPI bus block bitmask (Bit N = SPIDEV_(N+1))
-
 // Update FIU state from Global Variables (call from taskUpdateAux at 100Hz)
 void fiuUpdateFromGlobalVars(void);
 
