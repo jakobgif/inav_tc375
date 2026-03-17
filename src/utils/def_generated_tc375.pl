@@ -38,7 +38,7 @@ chomp(my $disclaimer_generated = <<"END");
 // do not modify this file directly, your changes will be lost
 END
 
-my $io_def_file="$drivers_dir/io_def_generated.h";
+my $io_def_file="$drivers_dir/io_def_generated_tc375.h";
 my $fh;
 open $fh, '>', $io_def_file or die "Cannot open $io_def_file: $!";
 print { $fh} <<"END" or die  "Cannot write into $io_def_file: $!"; close $fh;

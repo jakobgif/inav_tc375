@@ -51,6 +51,9 @@ void enableGPIOPowerUsageAndNoiseReductions(void);
 
 #ifdef TC375
 void checkAndHandleResetReason(void);
+//acquire mutex, wait for `timeout` microseconds
+bool waitAndAcquireMutex(mutex_t *mutex, uint32_t timeout);
+void releaseMutex(mutex_t *mutex);
 #endif
 
 extern uint32_t hse_value;
