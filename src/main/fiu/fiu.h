@@ -45,13 +45,24 @@
  *     Example: GV2 = 4 (0b0100) -> block only SPI3
  *     Example: GV2 = 3 (0b0011) -> block SPI1 + SPI2
  *
- * Configure via INAV Configurator Logic Conditions to set GV0/GV1/GV2.
+ *   GV3 (FIU_GV_I2C_RATE): I2C error rate in percent (0-100)
+ *     0   = no errors (bus fully operational, even if GV1 selects it)
+ *     50  = 50% of reads are blocked (data filled with 0)
+ *     100 = all reads blocked (same as old binary block)
+ *     RC knob: map channel 1000-2000us -> (value - 1000) / 10 -> 0..100
+ *
+ *   GV4 (FIU_GV_SPI_RATE): SPI error rate in percent (0-100)
+ *     Same semantics as GV3 but for SPI buses selected by GV2.
+ *
+ * Configure via INAV Configurator Logic Conditions to set GV0..GV4.
  */
 
 // GV indices
-#define FIU_GV_MOTOR   0    // GV0: Bitmask of motors to disable
-#define FIU_GV_I2C     1    // GV1: Bitmask of I2C buses to block (Bit 0=I2C1, Bit 1=I2C2, ...)
-#define FIU_GV_SPI     2    // GV2: Bitmask of SPI buses to block (Bit 0=SPI1, Bit 1=SPI2, ...)
+#define FIU_GV_MOTOR     0  // GV0: Bitmask of motors to disable
+#define FIU_GV_I2C       1  // GV1: Bitmask of I2C buses affected (Bit 0=I2C1, Bit 1=I2C2, ...)
+#define FIU_GV_SPI       2  // GV2: Bitmask of SPI buses affected  (Bit 0=SPI1, Bit 1=SPI2, ...)
+#define FIU_GV_I2C_RATE  3  // GV3: I2C error rate 0-100% (RC knob)
+#define FIU_GV_SPI_RATE  4  // GV4: SPI error rate 0-100% (RC knob)
 
 // Update FIU state from Global Variables (call from taskUpdateAux at 100Hz)
 void fiuUpdateFromGlobalVars(void);

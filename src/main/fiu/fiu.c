@@ -27,9 +27,13 @@
 // Motor disable flags, updated at 100Hz from taskUpdateAux
 static bool motorDisabled[MAX_MOTORS] = {false};
 
-// I2C/SPI blocked state per bus, updated at 100Hz from taskUpdateAux (for blackbox logging)
+// I2C/SPI blocked state per bus, updated at 100Hz from taskUpdateAux 
 bool i2cBusBlocked[I2CDEV_COUNT] = {false};
 bool spiBusBlocked[SPIDEV_COUNT] = {false};
+
+// Per-bus call counters for deterministic rate-based blocking (incremented at 100Hz)
+static uint8_t i2cCallCount[I2CDEV_COUNT] = {0};
+static uint8_t spiCallCount[SPIDEV_COUNT] = {0};
 
 void fiuUpdateFromGlobalVars(void)
 {
@@ -39,16 +43,38 @@ void fiuUpdateFromGlobalVars(void)
         motorDisabled[i] = (motorMask & BIT(i)) != 0;
     }
 
-    // GV1: I2C bus block bitmask (Bit N = I2CDEV_(N+1))
+    // GV1: I2C bus affected bitmask
+    // GV3: I2C error rate as RC knob value (1000..2000) -> converted to 0..100%
     int32_t i2cMask = gvGet(FIU_GV_I2C);
+    int32_t i2cRaw  = gvGet(FIU_GV_I2C_RATE);
+    int32_t i2cClamped = i2cRaw < 1000 ? 1000 : i2cRaw > 2000 ? 2000 : i2cRaw;
+    uint8_t i2cErrorRate = (uint8_t)((i2cClamped - 1000) / 10);
     for (int i = 0; i < I2CDEV_COUNT; i++) {
-        i2cBusBlocked[i] = (i2cMask & BIT(i)) != 0;
+        if ((i2cMask & BIT(i)) == 0 || i2cErrorRate == 0) {
+            i2cBusBlocked[i] = false;
+        } else if (i2cErrorRate >= 100) {
+            i2cBusBlocked[i] = true;
+        } else {
+            i2cBusBlocked[i] = (i2cCallCount[i] % 100) < i2cErrorRate;
+        }
+        i2cCallCount[i]++;
     }
 
-    // GV2: SPI bus block bitmask (Bit N = SPIDEV_(N+1))
+    // GV2: SPI bus affected bitmask
+    // GV4: SPI error rate as RC knob value (1000..2000) -> converted to 0..100%
     int32_t spiMask = gvGet(FIU_GV_SPI);
+    int32_t spiRaw  = gvGet(FIU_GV_SPI_RATE);
+    int32_t spiClamped = spiRaw < 1000 ? 1000 : spiRaw > 2000 ? 2000 : spiRaw;
+    uint8_t spiErrorRate = (uint8_t)((spiClamped - 1000) / 10);
     for (int i = 0; i < SPIDEV_COUNT; i++) {
-        spiBusBlocked[i] = (spiMask & BIT(i)) != 0;
+        if (!(spiMask & BIT(i)) || spiErrorRate == 0) {
+            spiBusBlocked[i] = false;
+        } else if (spiErrorRate >= 100) {
+            spiBusBlocked[i] = true;
+        } else {
+            spiBusBlocked[i] = (spiCallCount[i] % 100) < spiErrorRate;
+        }
+        spiCallCount[i]++;
     }
 }
 
