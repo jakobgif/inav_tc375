@@ -712,7 +712,12 @@ static void cliAssert(char *cmdline)
 #endif
 
 #ifdef __TRICORE__
+extern bool g_cpuIsUsed[];
 static void cliAurix(char *cmdline){
+    bool isMulticore = false;
+#ifdef USE_AURIX_MULTICORE
+    isMulticore = true;
+#endif
     cliPrintLinef("\t\t\t\tFirmware: %s", FC_FIRMWARE_NAME);
 #ifdef IS_STANDALONE_PROJECT
     cliPrintf("     _   _   _ ____  _____  __");                cliPrintLinef("\tRelease: %s", INAV_VERSION);   
@@ -721,11 +726,14 @@ static void cliAurix(char *cmdline){
     cliPrintf("     _   _   _ ____  _____  __");                cliPrintLinef("\tRelease: %s: %s, Aurix: %s", FC_FIRMWARE_NAME, INAV_VERSION, AURIX_VERSION);   
     cliPrintf("    / \\ | | | |  _ \\|_ _\\ \\/ /");            cliPrintLinef("\tGit Hash: %s: %s, Aurix: %s", FC_FIRMWARE_NAME, GIT_TAG_INAV, GIT_TAG);
 #endif
-    cliPrintf("   / _ \\| | | | |_) || | \\  /");               cliPrintLinef("\tCompiled: %s %s as %s", buildDate, buildTime, buildType);
+    cliPrintf("   / _ \\| | | | |_) || | \\  /");               cliPrintLinef("\tCompiled: %s %s as %s for %s", buildDate, buildTime, buildType, isMulticore?"multicore":"singlecore");
     cliPrintf("  / ___ \\ |_| |  _ < | | /  \\");               cliPrintLinef("\tCompiler: GCC-%s", compilerVersion);
     cliPrintf(" /_/   \\_\\___/|_| \\_\\___/_/\\_\\");          cliPrintLinef("\tTarget: %s", targetName);
     cliPrintLinef("\t\t\t\tSystem Uptime: %d seconds", millis() / 1000);
-    cliPrintLinef("\t\t\t\tCore: CPU%d", (int)IfxCpu_getCoreIndex());
+    cliPrintf("\t\t\t\t");
+    for(int i = 0; i < sizeof(IfxCpu_ResourceCpu)-1; i++){
+        cliPrintf("CPU%d:%s ", i, g_cpuIsUsed[i]?"running":"idle");
+    }
 }
 #endif
 

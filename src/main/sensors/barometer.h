@@ -45,6 +45,15 @@ typedef struct baro_s {
     int32_t baroPressure;               // Use pressure for telemetry
 } baro_t;
 
+#ifdef USE_AURIX_MULTICORE
+typedef struct baro_buffered_s {
+    baro_t buffers[2];
+    volatile uint8_t writeIndex;
+    volatile uint8_t readIndex;
+    mutex_t mutex;
+} baro_buffered_t;
+#endif
+
 extern baro_t baro;
 
 #ifdef USE_BARO
@@ -65,6 +74,9 @@ int32_t baroCalculateAltitude(void);
 int32_t baroGetLatestAltitude(void);
 int16_t baroGetTemperature(void);
 bool baroIsHealthy(void);
+#ifdef USE_AURIX_MULTICORE
+bool baroGetUpdatedData(void);
+#endif
 
 #if defined(SITL_BUILD)
 float altitudeToPressure(const float altCm);

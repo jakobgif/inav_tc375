@@ -78,9 +78,17 @@ FASTRAM gyro_t gyro; // gyro sensor object
 
 #define MAX_GYRO_COUNT 1
 
+#ifndef USE_AURIX_MULTICORE
 STATIC_UNIT_TESTED gyroDev_t gyroDev[MAX_GYRO_COUNT];  // Not in FASTRAM since it may hold DMA buffers
 STATIC_FASTRAM int16_t gyroTemperature[MAX_GYRO_COUNT];
 STATIC_FASTRAM_UNIT_TESTED zeroCalibrationVector_t gyroCalibration[MAX_GYRO_COUNT];
+#else
+#include "drivers/system.h"
+FASTRAM_CPU1 gyroDev_t gyroDev[MAX_GYRO_COUNT];  // Not in FASTRAM since it may hold DMA buffers
+FASTRAM_CPU1 zeroCalibrationVector_t gyroCalibration[MAX_GYRO_COUNT]; //must be placed in cpu1 memory
+FASTRAM_CPU1 gyro_buffered_t gyroBuffered;
+STATIC_FASTRAM int16_t gyroTemperature[MAX_GYRO_COUNT];
+#endif
 
 STATIC_FASTRAM filterApplyFnPtr gyroLpfApplyFn;
 STATIC_FASTRAM filter_t gyroLpfState[XYZ_AXIS_COUNT];
@@ -393,7 +401,12 @@ STATIC_UNIT_TESTED void performGyroCalibration(gyroDev_t *dev, zeroCalibrationVe
 #endif
 
         LOG_DEBUG(GYRO, "Gyro calibration complete (%d, %d, %d)", (int16_t) dev->gyroZero[X], (int16_t) dev->gyroZero[Y], (int16_t) dev->gyroZero[Z]);
+#ifdef USE_AURIX_MULTICORE
+        //schedulerResetTaskStatistics can cause cpu access exception. Therefore we only use a flag and run the function in a seperate location
+        gyroBuffered.buffers[gyroBuffered.writeIndex].schedulerResetTaskStatistics = true;
+#else
         schedulerResetTaskStatistics(TASK_SELF); // so calibration cycles do not pollute tasks statistics
+#endif
     } else {
         dev->gyroZero[X] = 0;
         dev->gyroZero[Y] = 0;
@@ -535,19 +548,32 @@ void FAST_CODE NOINLINE gyroFilter(void)
 
 }
 
+#ifdef USE_AURIX_MULTICORE
+bool FAST_CODE NOINLINE gyroUpdate(void)
+#else
 void FAST_CODE NOINLINE gyroUpdate(void)
+#endif
 {
 #ifdef USE_SIMULATOR
     if (ARMING_FLAG(SIMULATOR_MODE_HITL)) {
         //output: gyro.gyroADCf[axis]
         //unused: dev->gyroADCRaw[], dev->gyroZero[];
+#ifdef USE_AURIX_MULTICORE
+        return false;
+#else
         return;
+#endif
     }
 #endif
     if (!gyro.initialized) {
+#ifdef USE_AURIX_MULTICORE
+        return false;
+#else
         return;
+#endif
     }
 
+#ifndef USE_AURIX_MULTICORE
     if (!gyroUpdateAndCalibrate(&gyroDev[0], &gyroCalibration[0], gyro.gyroADCf)) {
         return;
     }
@@ -566,6 +592,39 @@ void FAST_CODE NOINLINE gyroUpdate(void)
 
         gyro.gyroADCf[axis] = gyroADCf;
     }
+#else
+    if (!gyroUpdateAndCalibrate(&gyroDev[0], &gyroCalibration[0], gyroBuffered.buffers[gyroBuffered.writeIndex].gyroADCf)) {
+        return false;
+    }
+
+    for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+        // At this point gyro.gyroADCf contains unfiltered gyro value [deg/s]
+        float gyroADCf = gyroBuffered.buffers[gyroBuffered.writeIndex].gyroADCf[axis];
+
+        // Set raw gyro for blackbox purposes
+        gyroBuffered.buffers[gyroBuffered.writeIndex].gyroRaw[axis] = gyroADCf;
+
+        /*
+         * First gyro LPF is the only filter applied with the full gyro sampling speed
+         */
+        gyroADCf = gyroLpfApplyFn((filter_t *) &gyroLpfState[axis], gyroADCf);
+
+        gyroBuffered.buffers[gyroBuffered.writeIndex].gyroADCf[axis] = gyroADCf;
+    }
+
+    //swap buffer index
+    if (!waitAndAcquireMutex(&gyroBuffered.mutex, TASK_GYRO_LOOPTIME)) {
+        return false; //failed to acquire
+    }
+
+    uint8_t oldWrite = gyroBuffered.writeIndex;
+    gyroBuffered.writeIndex ^= 1;
+    gyroBuffered.readIndex = oldWrite;
+
+    releaseMutex(&gyroBuffered.mutex);
+
+    return true;
+#endif
 }
 
 bool gyroReadTemperature(void)
@@ -574,10 +633,12 @@ bool gyroReadTemperature(void)
         return false;
     }
 
+#ifndef USE_AURIX_MULTICORE //temperature not really needed, it makes it complex because temperature is called by CPU0
     // Read gyro sensor temperature. temperatureFn returns temperature in [degC * 10]
     if (gyroDev[0].temperatureFn) {
         return gyroDev[0].temperatureFn(&gyroDev[0], &gyroTemperature[0]);
     }
+#endif
 
     return false;
 }
@@ -610,3 +671,25 @@ float averageAbsGyroRates(void)
 {
     return (fabsf(gyro.gyroADCf[ROLL]) + fabsf(gyro.gyroADCf[PITCH]) + fabsf(gyro.gyroADCf[YAW])) / 3.0f;
 }
+
+#ifdef USE_AURIX_MULTICORE
+bool FAST_CODE NOINLINE gyroGetUpdatedData(void){
+    if (!waitAndAcquireMutex(&gyroBuffered.mutex, TASK_GYRO_LOOPTIME)) {
+        LOG_ERROR(GYRO, "Failed to get mutex! (Read)");
+        return false; //failed to acquire
+    }
+
+    //copy data from buffer
+    memcpy(&gyro.gyroADCf, &gyroBuffered.buffers[gyroBuffered.readIndex].gyroADCf, sizeof(gyro.gyroADCf));
+    memcpy(&gyro.gyroRaw, &gyroBuffered.buffers[gyroBuffered.readIndex].gyroRaw, sizeof(gyro.gyroRaw));
+
+    if(gyroBuffered.buffers[gyroBuffered.readIndex].schedulerResetTaskStatistics){
+        schedulerResetTaskStatistics(TASK_SELF); // so calibration cycles do not pollute tasks statistics
+        gyroBuffered.buffers[gyroBuffered.readIndex].schedulerResetTaskStatistics = false;
+    }
+
+    releaseMutex(&gyroBuffered.mutex);
+
+    return true;
+}
+#endif

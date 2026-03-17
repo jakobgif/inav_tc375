@@ -35,11 +35,12 @@
 #include "drivers/io_impl.h"
 #include "build/build_config.h"
 
-//for interrupt vector
-#define AURIX_CORE_ID 0
-
 //for code optimisation
+#ifdef USE_AURIX_MULTICORE
+#define PSPR_FUNCTION CPU1_PSPR_FUNCTION
+#else
 #define PSPR_FUNCTION CPU0_PSPR_FUNCTION
+#endif
 
 static IfxQspi_Sclk_Out * getSclkPinmapFromIoTag(ioTag_t tag, Ifx_QSPI * module){
     IfxQspi_Sclk_Out * pinmap = NULL_PTR;
@@ -182,57 +183,6 @@ SpiBus_t SPI4 = {
     .rxPriority = INTPRIO_QSPI3_RX,
     .txPriority = INTPRIO_QSPI3_TX,
 };
-#endif
-
-/**
- * ISRs
- */
-#ifdef USE_SPI_DEVICE_1
-IFX_INTERRUPT(qspi0TxISR, AURIX_CORE_ID, INTPRIO_QSPI0_TX);
-void PSPR_FUNCTION qspi0TxISR(void){
-    IfxQspi_SpiMaster_isrTransmit(&(SPI1.spiMaster));
-}
-
-IFX_INTERRUPT(qspi0RxISR, AURIX_CORE_ID, INTPRIO_QSPI0_RX);
-void PSPR_FUNCTION qspi0RxISR(void){
-    IfxQspi_SpiMaster_isrReceive(&(SPI1.spiMaster));
-}
-#endif
-
-#ifdef USE_SPI_DEVICE_2
-IFX_INTERRUPT(qspi1TxISR, AURIX_CORE_ID, INTPRIO_QSPI1_TX);
-void PSPR_FUNCTION qspi1TxISR(void){
-    IfxQspi_SpiMaster_isrTransmit(&(SPI2.spiMaster));
-}
-
-IFX_INTERRUPT(qspi1RxISR, AURIX_CORE_ID, INTPRIO_QSPI1_RX);
-void PSPR_FUNCTION qspi1RxISR(void){
-    IfxQspi_SpiMaster_isrReceive(&(SPI2.spiMaster));
-}
-#endif
-
-#ifdef USE_SPI_DEVICE_3
-IFX_INTERRUPT(qspi2TxISR, AURIX_CORE_ID, INTPRIO_QSPI2_TX);
-void PSPR_FUNCTION qspi2TxISR(void){
-    IfxQspi_SpiMaster_isrTransmit(&(SPI3.spiMaster));
-}
-
-IFX_INTERRUPT(qspi2RxISR, AURIX_CORE_ID, INTPRIO_QSPI2_RX);
-void PSPR_FUNCTION qspi2RxISR(void){
-    IfxQspi_SpiMaster_isrReceive(&(SPI3.spiMaster));
-}
-#endif
-
-#ifdef USE_SPI_DEVICE_4
-IFX_INTERRUPT(qspi3TxISR, AURIX_CORE_ID, INTPRIO_QSPI3_TX);
-void PSPR_FUNCTION qspi3TxISR(void){
-    IfxQspi_SpiMaster_isrTransmit(&(SPI4.spiMaster));
-}
-
-IFX_INTERRUPT(qspi3RxISR, AURIX_CORE_ID, INTPRIO_QSPI3_RX);
-void PSPR_FUNCTION qspi3RxISR(void){
-    IfxQspi_SpiMaster_isrReceive(&(SPI4.spiMaster));
-}
 #endif
 
 /**
@@ -440,5 +390,14 @@ void spiResetErrorCounter(IfxQspi_SpiMaster_Channel *instance){
         spiHardwareMap[device].errorCount = 0;
     }
 }
+
+#ifdef USE_AURIX_MULTICORE
+void spiSetHandlingCpu(SPIDevice spiBus, IfxCpu_ResourceCpu cpu){
+    SpiBus_t *bus = spiHardwareMap[spiBus].dev;
+    IfxQspi_SpiMaster_Config *spiMasterConfig = &bus->spiConfig;
+    spiMasterConfig->base.isrProvider = IfxCpu_Irq_getTos(cpu);
+    IfxQspi_SpiMaster_initModule(&bus->spiMaster, spiMasterConfig);
+}
+#endif
 
 #endif // USE_SPI

@@ -204,10 +204,14 @@ void taskUpdateBaro(timeUs_t currentTimeUs)
         return;
     }
 
+#ifdef USE_AURIX_MULTICORE
+    baroGetUpdatedData();
+#else
     const uint32_t newDeadline = baroUpdate();
     if (newDeadline != 0) {
         rescheduleTask(TASK_SELF, newDeadline);
     }
+#endif
 
     updatePositionEstimator_BaroTopic(currentTimeUs);
 }

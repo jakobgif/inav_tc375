@@ -55,6 +55,11 @@
 #define BMI088_GYRO_CS_PIN  MODULE_P02_8
 #define BMI088_ACC_CS_PIN   MODULE_P14_7
 
+#ifdef USE_AURIX_MULTICORE
+//move SPI1 bus to CPU 1 if using multicore build
+#define CPU1_SPI_BUS        BMI088_SPI_BUS
+#endif
+
 // *************** UART *****************************
 //to uart - usb brigde
 #define USE_UART1
