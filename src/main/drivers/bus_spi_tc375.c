@@ -36,7 +36,11 @@
 #include "build/build_config.h"
 
 //for code optimisation
+#ifdef USE_AURIX_MULTICORE
+#define PSPR_FUNCTION CPU1_PSPR_FUNCTION
+#else
 #define PSPR_FUNCTION CPU0_PSPR_FUNCTION
+#endif
 
 static IfxQspi_Sclk_Out * getSclkPinmapFromIoTag(ioTag_t tag, Ifx_QSPI * module){
     IfxQspi_Sclk_Out * pinmap = NULL_PTR;
@@ -386,5 +390,14 @@ void spiResetErrorCounter(IfxQspi_SpiMaster_Channel *instance){
         spiHardwareMap[device].errorCount = 0;
     }
 }
+
+#ifdef USE_AURIX_MULTICORE
+void spiSetHandlingCpu(SPIDevice spiBus, IfxCpu_ResourceCpu cpu){
+    SpiBus_t *bus = spiHardwareMap[spiBus].dev;
+    IfxQspi_SpiMaster_Config *spiMasterConfig = &bus->spiConfig;
+    spiMasterConfig->base.isrProvider = IfxCpu_Irq_getTos(cpu);
+    IfxQspi_SpiMaster_initModule(&bus->spiMaster, spiMasterConfig);
+}
+#endif
 
 #endif // USE_SPI

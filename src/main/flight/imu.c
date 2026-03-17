@@ -834,7 +834,12 @@ static void imuCalculateEstimatedAttitude(float dT)
 void imuUpdateAccelerometer(void)
 {
     if (sensors(SENSOR_ACC)) {
+#ifdef USE_AURIX_MULTICORE
+        //fetch data from other core
+        accGetUpdatedData();
+#else
         accUpdate();
+#endif
         isAccelUpdatedAtLeastOnce = true;
     }
 }

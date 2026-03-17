@@ -46,6 +46,10 @@
 #include "msp/msp_serial.h"
 #include "msp/msp_protocol.h"
 
+#ifdef USE_AURIX_MULTICORE
+#include "drivers/system.h"
+#endif
+
 #if defined(USE_LOG)
 
 #define LOG_PREFIX                  "[%6d.%03d] "
@@ -76,6 +80,10 @@ const char* colorCodes[] = {
     [LOG_LEVEL_VERBOSE] = ANSI_COLOR_WHITE,
     [LOG_LEVEL_DEBUG]   = ANSI_COLOR_WHITE,
 };
+
+#ifdef USE_AURIX_MULTICORE
+static mutex_t serialMutex;
+#endif
 
 void logInit(void)
 {
@@ -142,6 +150,9 @@ static void logPrint(const char *buf, size_t size)
         fputc(buf[ii], stdout);
     }
 #endif
+#ifdef USE_AURIX_MULTICORE
+    waitAndAcquireMutex(&serialMutex, UINT32_MAX);
+#endif
     SD(printf("%s\n", buf));
     if (logPort) {
         // Send data via UART (if configured & connected - a safeguard against zombie VCP)
@@ -151,6 +162,9 @@ static void logPrint(const char *buf, size_t size)
     } else if (mspLogPort) {
         mspSerialPushPort(MSP_DEBUGMSG, (uint8_t*)buf, size, mspLogPort, MSP_V2_NATIVE);
     }
+#ifdef USE_AURIX_MULTICORE
+    releaseMutex(&serialMutex);
+#endif
 }
 
 static size_t logFormatPrefix(char *buf, const timeMs_t timeMs)
@@ -198,6 +212,12 @@ void _logf(logTopic_e topic, unsigned level, const char *fmt, ...)
     charCount = logFormatPrefix(buf, millis());
 #endif  
     bufPtr = &buf[charCount];
+
+#ifdef USE_AURIX_MULTICORE
+    int n = tfp_snprintf(bufPtr, sizeof(buf) - (bufPtr - buf), "[CPU%d] ", IfxCpu_getCoreIndex());
+    bufPtr += n;
+    charCount += n;
+#endif
 
     // Write message
     va_list va;
