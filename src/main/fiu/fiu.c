@@ -56,7 +56,7 @@ void fiuUpdateFromGlobalVars(void)
         } else {
             i2cBusBlocked[i] = (i2cCallCount[i] % 100) < i2cErrorRate;
         }
-        i2cCallCount[i]++;
+        i2cCallCount[i] = (i2cCallCount[i] + 1) % 100;
     }
 
     //GV2: SPI bus select, GV4: error rate (RC knob 1000-2000 -> 0-100%)
@@ -72,7 +72,7 @@ void fiuUpdateFromGlobalVars(void)
         } else {
             spiBusBlocked[i] = (spiCallCount[i] % 100) < spiErrorRate;
         }
-        spiCallCount[i]++;
+        spiCallCount[i] = (spiCallCount[i] + 1) % 100;
     }
 
     //update blackbox state snapshot
