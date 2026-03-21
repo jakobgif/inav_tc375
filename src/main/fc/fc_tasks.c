@@ -341,8 +341,7 @@ void taskUpdateAux(timeUs_t currentTimeUs)
     updateFixedWingLevelTrim(currentTimeUs);
 #endif
 
-    // FIU: used to inject faults into the inav system
-    // via global variables. (Motor disable, sensor data manipulation, etc.)
+    //update FIU fault flags from global variables
 #ifdef USE_FIU
     fiuUpdateFromGlobalVars();
 #endif

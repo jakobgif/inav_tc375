@@ -24,30 +24,26 @@
 #include "fiu/fiu.h"
 #include "programming/global_variables.h"
 
-// Motor disable flags, updated at 100Hz from taskUpdateAux
 static bool motorDisabled[MAX_MOTORS] = {false};
-
-// FIU state snapshot for blackbox logging
 static fiuState_t fiuState = {0};
 
-// I2C/SPI blocked state per bus, updated at 100Hz from taskUpdateAux 
+//non-static: readable by bus.c at bus abstraction layer
 bool i2cBusBlocked[I2CDEV_COUNT] = {false};
 bool spiBusBlocked[SPIDEV_COUNT] = {false};
 
-// Per-bus call counters for deterministic rate-based blocking (incremented at 100Hz)
+//per-bus call counters for deterministic rate-based blocking
 static uint8_t i2cCallCount[I2CDEV_COUNT] = {0};
 static uint8_t spiCallCount[SPIDEV_COUNT] = {0};
 
 void fiuUpdateFromGlobalVars(void)
 {
-    // GV0: Motor disable bitmask
+    //GV0: motor disable bitmask
     int32_t motorMask = gvGet(FIU_GV_MOTOR);
     for (int i = 0; i < MAX_MOTORS; i++) {
         motorDisabled[i] = (motorMask & BIT(i)) != 0;
     }
 
-    // GV1: I2C bus affected bitmask
-    // GV3: I2C error rate as RC knob value (1000..2000) -> converted to 0..100%
+    //GV1: I2C bus select, GV3: error rate (RC knob 1000-2000 -> 0-100%)
     int32_t i2cMask = gvGet(FIU_GV_I2C);
     int32_t i2cRaw  = gvGet(FIU_GV_I2C_RATE);
     int32_t i2cClamped = i2cRaw < 1000 ? 1000 : i2cRaw > 2000 ? 2000 : i2cRaw;
@@ -63,8 +59,7 @@ void fiuUpdateFromGlobalVars(void)
         i2cCallCount[i]++;
     }
 
-    // GV2: SPI bus affected bitmask
-    // GV4: SPI error rate as RC knob value (1000..2000) -> converted to 0..100%
+    //GV2: SPI bus select, GV4: error rate (RC knob 1000-2000 -> 0-100%)
     int32_t spiMask = gvGet(FIU_GV_SPI);
     int32_t spiRaw  = gvGet(FIU_GV_SPI_RATE);
     int32_t spiClamped = spiRaw < 1000 ? 1000 : spiRaw > 2000 ? 2000 : spiRaw;
@@ -80,7 +75,7 @@ void fiuUpdateFromGlobalVars(void)
         spiCallCount[i]++;
     }
 
-    // Update state snapshot for blackbox logging
+    //update blackbox state snapshot
     fiuState.motorMask = (uint8_t)motorMask;
     fiuState.i2cMask   = (uint8_t)i2cMask;
     fiuState.spiMask   = (uint8_t)spiMask;

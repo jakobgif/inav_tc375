@@ -23,41 +23,7 @@
 #include "drivers/bus_spi.h"
 #include "drivers/bus_i2c.h"
 
-/*
- * Fault Insertion Unit (FIU) for AURIX TC375 Flight Controller
- *
- * Master Thesis Project: Embedded Fault Insertion Unit for UAS
- *
- * Uses INAV Global Variables for configuration:
- *   GV0 (FIU_GV_MOTOR): Bitmask of motors to disable
- *     Bit 0 = Motor 0, Bit 1 = Motor 1, ..., Bit 5 = Motor 5
- *     Example: GV0 = 7  (0b000111) -> disable motors 0, 1, 2
- *     Example: GV0 = 56 (0b111000) -> disable motors 3, 4, 5
- *     Example: GV0 = 63 (0b111111) -> disable all 6 motors
- *
- *   GV1 (FIU_GV_I2C): Bitmask of I2C buses to block
- *     Bit 0 = I2CDEV_1, Bit 1 = I2CDEV_2, Bit 2 = I2CDEV_3
- *     Example: GV1 = 1 (0b001) -> block only I2C1
- *     Example: GV1 = 3 (0b011) -> block I2C1 + I2C2
- *
- *   GV2 (FIU_GV_SPI): Bitmask of SPI buses to block
- *     Bit 0 = SPIDEV_1, Bit 1 = SPIDEV_2, Bit 2 = SPIDEV_3, Bit 3 = SPIDEV_4
- *     Example: GV2 = 4 (0b0100) -> block only SPI3
- *     Example: GV2 = 3 (0b0011) -> block SPI1 + SPI2
- *
- *   GV3 (FIU_GV_I2C_RATE): I2C error rate in percent (0-100)
- *     0   = no errors (bus fully operational, even if GV1 selects it)
- *     50  = 50% of reads are blocked (data filled with 0)
- *     100 = all reads blocked (same as old binary block)
- *     RC knob: map channel 1000-2000us -> (value - 1000) / 10 -> 0..100
- *
- *   GV4 (FIU_GV_SPI_RATE): SPI error rate in percent (0-100)
- *     Same semantics as GV3 but for SPI buses selected by GV2.
- *
- * Configure via INAV Configurator Logic Conditions to set GV0..GV4.
- */
-
-// GV indices
+//GV indices for fault configuration via INAV Logic Conditions
 #define FIU_GV_MOTOR     0  // GV0: Bitmask of motors to disable
 #define FIU_GV_I2C       1  // GV1: Bitmask of I2C buses affected (Bit 0=I2C1, Bit 1=I2C2, ...)
 #define FIU_GV_SPI       2  // GV2: Bitmask of SPI buses affected  (Bit 0=SPI1, Bit 1=SPI2, ...)
@@ -73,17 +39,8 @@ typedef struct {
     uint8_t spiRate;    // GV4: SPI error rate 0-100
 } fiuState_t;
 
-// Update FIU state from Global Variables (call from taskUpdateAux at 100Hz)
 void fiuUpdateFromGlobalVars(void);
-
-// Check if specific motor should be disabled (called by PWM driver)
 bool fiuIsMotorDisabled(uint8_t motorIndex);
-
-// Check if specific I2C bus read should be blocked (called by bus.c)
 bool fiuIsI2cBusReadBlocked(I2CDevice bus);
-
-// Check if specific SPI bus read should be blocked (called by bus.c)
 bool fiuIsSpiBusReadBlocked(SPIDevice bus);
-
-// Get current FIU state snapshot (for blackbox logging)
 const fiuState_t *fiuGetState(void);
