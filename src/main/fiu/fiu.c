@@ -27,6 +27,9 @@
 // Motor disable flags, updated at 100Hz from taskUpdateAux
 static bool motorDisabled[MAX_MOTORS] = {false};
 
+// FIU state snapshot for blackbox logging
+static fiuState_t fiuState = {0};
+
 // I2C/SPI blocked state per bus, updated at 100Hz from taskUpdateAux 
 bool i2cBusBlocked[I2CDEV_COUNT] = {false};
 bool spiBusBlocked[SPIDEV_COUNT] = {false};
@@ -76,6 +79,18 @@ void fiuUpdateFromGlobalVars(void)
         }
         spiCallCount[i]++;
     }
+
+    // Update state snapshot for blackbox logging
+    fiuState.motorMask = (uint8_t)motorMask;
+    fiuState.i2cMask   = (uint8_t)i2cMask;
+    fiuState.spiMask   = (uint8_t)spiMask;
+    fiuState.i2cRate   = i2cErrorRate;
+    fiuState.spiRate   = spiErrorRate;
+}
+
+const fiuState_t *fiuGetState(void)
+{
+    return &fiuState;
 }
 
 bool fiuIsMotorDisabled(uint8_t motorIndex)

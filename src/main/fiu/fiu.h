@@ -64,6 +64,15 @@
 #define FIU_GV_I2C_RATE  3  // GV3: I2C error rate 0-100% (RC knob)
 #define FIU_GV_SPI_RATE  4  // GV4: SPI error rate 0-100% (RC knob)
 
+// FIU state snapshot for blackbox logging
+typedef struct {
+    uint8_t motorMask;  // GV0: bitmask of disabled motors
+    uint8_t i2cMask;    // GV1: bitmask of affected I2C buses
+    uint8_t spiMask;    // GV2: bitmask of affected SPI buses
+    uint8_t i2cRate;    // GV3: I2C error rate 0-100
+    uint8_t spiRate;    // GV4: SPI error rate 0-100
+} fiuState_t;
+
 // Update FIU state from Global Variables (call from taskUpdateAux at 100Hz)
 void fiuUpdateFromGlobalVars(void);
 
@@ -75,3 +84,6 @@ bool fiuIsI2cBusReadBlocked(I2CDevice bus);
 
 // Check if specific SPI bus read should be blocked (called by bus.c)
 bool fiuIsSpiBusReadBlocked(SPIDevice bus);
+
+// Get current FIU state snapshot (for blackbox logging)
+const fiuState_t *fiuGetState(void);

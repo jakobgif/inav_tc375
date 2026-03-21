@@ -86,6 +86,10 @@
 
 #include "drivers/perf_counter.h"
 
+#ifdef USE_FIU
+#include "fiu/fiu.h"
+#endif
+
 #if defined(ENABLE_BLACKBOX_LOGGING_ON_SPIFLASH_BY_DEFAULT)
 #define DEFAULT_BLACKBOX_DEVICE     BLACKBOX_DEVICE_FLASH
 #elif defined(ENABLE_BLACKBOX_LOGGING_ON_SDCARD_BY_DEFAULT)
@@ -400,6 +404,13 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] = {
     {"perfInstructionCounter",  -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(UNSIGNED_VB), CONDITION(ALWAYS)},
     {"perfClockCounter",        -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(UNSIGNED_VB), CONDITION(ALWAYS)},
 #endif
+#ifdef USE_FIU
+    {"fiuMotorMask", -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
+    {"fiuI2cMask",   -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
+    {"fiuSpiMask",   -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
+    {"fiuI2cRate",   -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
+    {"fiuSpiRate",   -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
+#endif
 };
 
 #ifdef USE_GPS
@@ -548,6 +559,13 @@ typedef struct blackboxMainState_s {
 #ifdef USE_PERFCOUNTER
     uint32_t perfInstructionCounter;
     uint32_t perfClockCounter;
+#endif
+#ifdef USE_FIU
+    uint8_t fiuMotorMask;
+    uint8_t fiuI2cMask;
+    uint8_t fiuSpiMask;
+    uint8_t fiuI2cRate;
+    uint8_t fiuSpiRate;
 #endif
     uint16_t rssi;
     int16_t navState;
@@ -1070,6 +1088,13 @@ static void writeIntraframe(void)
     blackboxWriteUnsignedVB(blackboxCurrent->perfInstructionCounter);
     blackboxWriteUnsignedVB(blackboxCurrent->perfClockCounter);
 #endif
+#ifdef USE_FIU
+    blackboxWriteUnsignedVB(blackboxCurrent->fiuMotorMask);
+    blackboxWriteUnsignedVB(blackboxCurrent->fiuI2cMask);
+    blackboxWriteUnsignedVB(blackboxCurrent->fiuSpiMask);
+    blackboxWriteUnsignedVB(blackboxCurrent->fiuI2cRate);
+    blackboxWriteUnsignedVB(blackboxCurrent->fiuSpiRate);
+#endif
 
     //Rotate our history buffers:
 
@@ -1332,6 +1357,13 @@ static void writeInterframe(void)
 #ifdef USE_PERFCOUNTER
     blackboxWriteSignedVB(blackboxCurrent->perfInstructionCounter - blackboxLast->perfInstructionCounter);
     blackboxWriteSignedVB(blackboxCurrent->perfClockCounter - blackboxLast->perfClockCounter);
+#endif
+#ifdef USE_FIU
+    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuMotorMask - blackboxLast->fiuMotorMask);
+    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuI2cMask   - blackboxLast->fiuI2cMask);
+    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuSpiMask   - blackboxLast->fiuSpiMask);
+    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuI2cRate   - blackboxLast->fiuI2cRate);
+    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuSpiRate   - blackboxLast->fiuSpiRate);
 #endif
 
     //Rotate our history buffers
@@ -1762,6 +1794,16 @@ static void loadMainState(timeUs_t currentTimeUs)
 #ifdef USE_PERFCOUNTER
     blackboxCurrent->perfInstructionCounter = perfCounts.instructionCounter;
     blackboxCurrent->perfClockCounter = perfCounts.clockCounter;
+#endif
+#ifdef USE_FIU
+    {
+        const fiuState_t *fiu = fiuGetState();
+        blackboxCurrent->fiuMotorMask = fiu->motorMask;
+        blackboxCurrent->fiuI2cMask   = fiu->i2cMask;
+        blackboxCurrent->fiuSpiMask   = fiu->spiMask;
+        blackboxCurrent->fiuI2cRate   = fiu->i2cRate;
+        blackboxCurrent->fiuSpiRate   = fiu->spiRate;
+    }
 #endif
 
     blackboxCurrent->rssi = getRSSI();
