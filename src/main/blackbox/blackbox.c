@@ -1796,14 +1796,12 @@ static void loadMainState(timeUs_t currentTimeUs)
     blackboxCurrent->perfClockCounter = perfCounts.clockCounter;
 #endif
 #ifdef USE_FIU
-    {
-        const fiuState_t *fiu = fiuGetState();
-        blackboxCurrent->fiuMotorMask = fiu->motorMask;
-        blackboxCurrent->fiuI2cMask   = fiu->i2cMask;
-        blackboxCurrent->fiuSpiMask   = fiu->spiMask;
-        blackboxCurrent->fiuI2cRate   = fiu->i2cRate;
-        blackboxCurrent->fiuSpiRate   = fiu->spiRate;
-    }
+    const fiuState_t *fiu = fiuGetState();
+    blackboxCurrent->fiuMotorMask = fiu->motorMask;
+    blackboxCurrent->fiuI2cMask   = fiu->i2cMask;
+    blackboxCurrent->fiuSpiMask   = fiu->spiMask;
+    blackboxCurrent->fiuI2cRate   = fiu->i2cRate;
+    blackboxCurrent->fiuSpiRate   = fiu->spiRate;
 #endif
 
     blackboxCurrent->rssi = getRSSI();
