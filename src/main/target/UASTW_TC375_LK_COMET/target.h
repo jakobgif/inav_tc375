@@ -31,6 +31,10 @@
 //#define LED0    MODULE_P00_5
 //#define LED1    MODULE_P00_6
 
+// *************** LED Strip (WS2811/WS2812) **********************
+// Data pin for FIU fault LED strip (software bit-bang via GPIO, no DMA/timer).
+#define FIU_LED_PIN  MODULE_P02_0
+
 // *************** Motor outputs **********************
 //pins to ESC
 #define MOTOR_1_PIN     MODULE_P00_1
@@ -109,7 +113,7 @@
 #define USE_SERIAL_4WAY_BLHELI_INTERFACE
 
 #define TARGET_IO_PORTMODULE_P00    0b1011101010
-#define TARGET_IO_PORTMODULE_P02    0b100000000
+#define TARGET_IO_PORTMODULE_P02    0b100000001
 #define TARGET_IO_PORTMODULE_P13    0b110
 #define TARGET_IO_PORTMODULE_P14    0b10000011
 #define TARGET_IO_PORTMODULE_P15    0b111110000

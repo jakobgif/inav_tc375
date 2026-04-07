@@ -38,6 +38,7 @@
 #include "sensors/barometer.h"
 
 #include "fiu/fiu_detection.h"
+#include "fiu/fiu_led.h"
 
 static fiuDetectionState_t detState;
 
@@ -88,6 +89,10 @@ static void detectBaroStuck(void)
 void fiuDetectionUpdate(void)
 {
     detectBaroStuck();
+
+#ifdef USE_FIU
+    fiuLedUpdate();
+#endif
 }
 
 const fiuDetectionState_t *fiuDetectionGetState(void)
