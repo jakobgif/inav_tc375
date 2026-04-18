@@ -342,5 +342,33 @@ void targetConfiguration(void){
     logicConditionsMutable(11)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
     logicConditionsMutable(11)->operandB.value = 0;    // write value: 0 (no fault)
     logicConditionsMutable(11)->flags          = 0;
+
+    ////////////////////////////////////////////////////////////////////
+    // I2C ERROR RATE  |  GV3 = RC CH8 raw (1000-2000µs)  |  Knob CH8
+    ////////////////////////////////////////////////////////////////////
+
+    // LC12: Always pass RC channel 8 raw value into GV3 (I2C error rate)
+    logicConditionsMutable(12)->enabled        = 1;
+    logicConditionsMutable(12)->activatorId    = -1;   // always evaluated
+    logicConditionsMutable(12)->operation      = LOGIC_CONDITION_GVAR_SET;
+    logicConditionsMutable(12)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
+    logicConditionsMutable(12)->operandA.value = 3;    // target GVAR index: GV3
+    logicConditionsMutable(12)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
+    logicConditionsMutable(12)->operandB.value = 9;    // RC channel 9 (knob)
+    logicConditionsMutable(12)->flags          = 0;
+
+    ////////////////////////////////////////////////////////////////////
+    // SPI ERROR RATE  |  GV4 = RC CH9 raw (1000-2000µs)  |  Knob CH9
+    ////////////////////////////////////////////////////////////////////
+
+    // LC13: Always pass RC channel 9 raw value into GV4 (SPI error rate)
+    logicConditionsMutable(13)->enabled        = 1;
+    logicConditionsMutable(13)->activatorId    = -1;   // always evaluated
+    logicConditionsMutable(13)->operation      = LOGIC_CONDITION_GVAR_SET;
+    logicConditionsMutable(13)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
+    logicConditionsMutable(13)->operandA.value = 4;    // target GVAR index: GV4
+    logicConditionsMutable(13)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
+    logicConditionsMutable(13)->operandB.value = 9;    // RC channel 9 (knob)
+    logicConditionsMutable(13)->flags          = 0;
 #endif
 }
