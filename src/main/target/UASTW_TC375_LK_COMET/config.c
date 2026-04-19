@@ -252,17 +252,17 @@ void targetConfiguration(void){
     logicConditionsMutable(3)->flags          = 0;
 
     ////////////////////////////////////////////////////////////////////
-    // I2C BUS FAULT  |  GV1 = I2C bus number  |  RC CH6 (AUX5)
-    // CH6 > 1500 → GV1 = 1 (fault I2C bus 1)
-    // CH6 < 1500 → GV1 = 0 (no fault)
+    // I2C BUS FAULT  |  GV1 = I2C bus number  |  RC CH5 (AUX4)
+    // CH5 > 1500 → GV1 = 1 (fault I2C bus 1)
+    // CH5 < 1500 → GV1 = 0 (no fault)
     ////////////////////////////////////////////////////////////////////
 
-    // LC4: CH6 > 1500 → I2C bus fault trigger condition
+    // LC4: CH5 > 1500 → I2C bus fault trigger condition
     logicConditionsMutable(4)->enabled        = 1;
     logicConditionsMutable(4)->activatorId    = -1;   // always evaluated
     logicConditionsMutable(4)->operation      = LOGIC_CONDITION_GREATER_THAN;
     logicConditionsMutable(4)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
-    logicConditionsMutable(4)->operandA.value = 6;    // RC channel 6 (AUX5)
+    logicConditionsMutable(4)->operandA.value = 5;    // RC channel 5 (AUX4)
     logicConditionsMutable(4)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
     logicConditionsMutable(4)->operandB.value = 1500; // threshold: switch HIGH > 1500µs
     logicConditionsMutable(4)->flags          = 0;
@@ -277,12 +277,12 @@ void targetConfiguration(void){
     logicConditionsMutable(5)->operandB.value = 1;    // write value: 1 (I2C bus 1)
     logicConditionsMutable(5)->flags          = 0;
 
-    // LC6: CH6 < 1500 → I2C bus fault reset condition
+    // LC6: CH5 < 1500 → I2C bus fault reset condition
     logicConditionsMutable(6)->enabled        = 1;
     logicConditionsMutable(6)->activatorId    = -1;   // always evaluated
     logicConditionsMutable(6)->operation      = LOGIC_CONDITION_LOWER_THAN;
     logicConditionsMutable(6)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
-    logicConditionsMutable(6)->operandA.value = 6;    // RC channel 6 (AUX5)
+    logicConditionsMutable(6)->operandA.value = 5;    // RC channel 5 (AUX4)
     logicConditionsMutable(6)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
     logicConditionsMutable(6)->operandB.value = 1500; // threshold: switch LOW < 1500µs
     logicConditionsMutable(6)->flags          = 0;
@@ -298,17 +298,17 @@ void targetConfiguration(void){
     logicConditionsMutable(7)->flags          = 0;
 
     ////////////////////////////////////////////////////////////////////
-    // SPI BUS FAULT  |  GV2 = SPI bus number  |  RC CH5 (AUX4)
-    // CH5 > 1500 → GV2 = 4 (fault SPI bus 4)
-    // CH5 < 1500 → GV2 = 0 (no fault)
+    // SPI BUS FAULT  |  GV2 = SPI bus number  |  RC CH6 (AUX5)
+    // CH6 > 1500 → GV2 = 4 (fault SPI bus 4)
+    // CH6 < 1500 → GV2 = 0 (no fault)
     ////////////////////////////////////////////////////////////////////
 
-    // LC8: CH5 > 1500 → SPI bus fault trigger condition
+    // LC8: CH6 > 1500 → SPI bus fault trigger condition
     logicConditionsMutable(8)->enabled        = 1;
     logicConditionsMutable(8)->activatorId    = -1;   // always evaluated
     logicConditionsMutable(8)->operation      = LOGIC_CONDITION_GREATER_THAN;
     logicConditionsMutable(8)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
-    logicConditionsMutable(8)->operandA.value = 5;    // RC channel 5 (AUX4)
+    logicConditionsMutable(8)->operandA.value = 6;    // RC channel 6 (AUX5)
     logicConditionsMutable(8)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
     logicConditionsMutable(8)->operandB.value = 1500; // threshold: switch HIGH > 1500µs
     logicConditionsMutable(8)->flags          = 0;
@@ -323,12 +323,12 @@ void targetConfiguration(void){
     logicConditionsMutable(9)->operandB.value = 4;    // write value: 4 (SPI bus 4)
     logicConditionsMutable(9)->flags          = 0;
 
-    // LC10: CH5 < 1500 → SPI bus fault reset condition
+    // LC10: CH6 < 1500 → SPI bus fault reset condition
     logicConditionsMutable(10)->enabled        = 1;
     logicConditionsMutable(10)->activatorId    = -1;   // always evaluated
     logicConditionsMutable(10)->operation      = LOGIC_CONDITION_LOWER_THAN;
     logicConditionsMutable(10)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
-    logicConditionsMutable(10)->operandA.value = 5;    // RC channel 5 (AUX4)
+    logicConditionsMutable(10)->operandA.value = 6;    // RC channel 6 (AUX5)
     logicConditionsMutable(10)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
     logicConditionsMutable(10)->operandB.value = 1500; // threshold: switch LOW < 1500µs
     logicConditionsMutable(10)->flags          = 0;
@@ -344,10 +344,10 @@ void targetConfiguration(void){
     logicConditionsMutable(11)->flags          = 0;
 
     ////////////////////////////////////////////////////////////////////
-    // I2C ERROR RATE  |  GV3 = RC CH8 raw (1000-2000µs)  |  Knob CH8
+    // I2C ERROR RATE  |  GV3 = RC CH9 raw (1000-2000µs)  |  Knob CH9
     ////////////////////////////////////////////////////////////////////
 
-    // LC12: Always pass RC channel 8 raw value into GV3 (I2C error rate)
+    // LC12: Always pass RC channel 9 raw value into GV3 (I2C error rate)
     logicConditionsMutable(12)->enabled        = 1;
     logicConditionsMutable(12)->activatorId    = -1;   // always evaluated
     logicConditionsMutable(12)->operation      = LOGIC_CONDITION_GVAR_SET;
@@ -358,17 +358,17 @@ void targetConfiguration(void){
     logicConditionsMutable(12)->flags          = 0;
 
     ////////////////////////////////////////////////////////////////////
-    // SPI ERROR RATE  |  GV4 = RC CH9 raw (1000-2000µs)  |  Knob CH9
+    // SPI ERROR RATE  |  GV4 = RC CH10 raw (1000-2000µs)  |  Knob CH10
     ////////////////////////////////////////////////////////////////////
 
-    // LC13: Always pass RC channel 9 raw value into GV4 (SPI error rate)
+    // LC13: Always pass RC channel 10 raw value into GV4 (SPI error rate)
     logicConditionsMutable(13)->enabled        = 1;
     logicConditionsMutable(13)->activatorId    = -1;   // always evaluated
     logicConditionsMutable(13)->operation      = LOGIC_CONDITION_GVAR_SET;
     logicConditionsMutable(13)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
     logicConditionsMutable(13)->operandA.value = 4;    // target GVAR index: GV4
     logicConditionsMutable(13)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
-    logicConditionsMutable(13)->operandB.value = 9;    // RC channel 9 (knob)
+    logicConditionsMutable(13)->operandB.value = 10;   // RC channel 10 (knob)
     logicConditionsMutable(13)->flags          = 0;
 #endif
 }
