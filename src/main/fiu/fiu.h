@@ -29,6 +29,8 @@
 #define FIU_GV_SPI       2  // GV2: Bitmask of SPI buses affected  (Bit 0=SPI1, Bit 1=SPI2, ...)
 #define FIU_GV_I2C_RATE  3  // GV3: I2C error rate 0-100% (RC knob)
 #define FIU_GV_SPI_RATE  4  // GV4: SPI error rate 0-100% (RC knob)
+#define FIU_MAX_I2C_ERROR_RATE 50// percent
+#define FIU_MAX_SPI_ERROR_RATE 80// percent
 
 // FIU state snapshot for blackbox logging
 typedef struct {

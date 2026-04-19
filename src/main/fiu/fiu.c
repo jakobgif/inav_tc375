@@ -30,6 +30,8 @@ static fiuState_t fiuState = {0};
 //per-bus rate and mask: set by fiuUpdateFromGlobalVars(), consumed by read-path functions
 static uint8_t i2cErrorRate = 0;
 static uint8_t spiErrorRate = 0;
+static uint8_t i2cVariableRate = 0;
+static uint8_t spiVariableRate = 0;
 static uint8_t i2cActiveMask = 0;
 static uint8_t spiActiveMask = 0;
 
@@ -50,14 +52,16 @@ void fiuUpdateFromGlobalVars(void)
     int32_t i2cRaw  = gvGet(FIU_GV_I2C_RATE);
     int32_t i2cClamped = i2cRaw < 1000 ? 1000 : i2cRaw > 2000 ? 2000 : i2cRaw;
     i2cActiveMask  = (uint8_t)i2cMask;
-    i2cErrorRate   = (uint8_t)((i2cClamped - 1000) / 10);
+    i2cVariableRate   = (uint8_t)((i2cClamped - 1000) / 10);
+    i2cErrorRate   = (uint8_t)(i2cVariableRate * FIU_MAX_I2C_ERROR_RATE / 100);
 
     //GV2: SPI bus select, GV4: error rate (RC knob 1000-2000 -> 0-100%)
     int32_t spiMask = gvGet(FIU_GV_SPI);
     int32_t spiRaw  = gvGet(FIU_GV_SPI_RATE);
     int32_t spiClamped = spiRaw < 1000 ? 1000 : spiRaw > 2000 ? 2000 : spiRaw;
     spiActiveMask  = (uint8_t)spiMask;
-    spiErrorRate   = (uint8_t)((spiClamped - 1000) / 10);
+    spiVariableRate    = (uint8_t)((spiClamped - 1000) / 10);
+    spiErrorRate   = (uint8_t)(spiVariableRate * FIU_MAX_SPI_ERROR_RATE / 100);
 
     //update blackbox state snapshot
     fiuState.motorMask = (uint8_t)motorMask;
