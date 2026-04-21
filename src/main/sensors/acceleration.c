@@ -68,9 +68,16 @@
 
 FASTRAM acc_t acc;                       // acc access functions
 
+#ifndef USE_AURIX_MULTICORE
 STATIC_FASTRAM zeroCalibrationVector_t zeroCalibration;
 
 STATIC_FASTRAM float accADC[XYZ_AXIS_COUNT];
+#else
+#include "drivers/system.h"
+FASTRAM_CPU1 zeroCalibrationVector_t zeroCalibration;
+FASTRAM_CPU1 float accADC[XYZ_AXIS_COUNT];
+FASTRAM_CPU1 acc_buffered_t accBuffered;
+#endif
 
 STATIC_FASTRAM filter_t accFilter[XYZ_AXIS_COUNT];
 STATIC_FASTRAM filterApplyFnPtr accSoftLpfFilterApplyFn;
@@ -538,17 +545,29 @@ void resetGForceStats(void) {
     }
 }
 
+#ifdef USE_AURIX_MULTICORE
+bool accUpdate(void)
+#else
 void accUpdate(void)
+#endif
 {
 #ifdef USE_SIMULATOR
     if (ARMING_FLAG(SIMULATOR_MODE_HITL)) {
         //output: acc.accADCf
         //unused: acc.dev.ADCRaw[], acc.accClipCount, acc.accVibeSq[]
+#ifdef USE_AURIX_MULTICORE
+        return false;
+#else
         return;
+#endif
     }
 #endif
     if (!acc.dev.readFn(&acc.dev)) {
+#ifdef USE_AURIX_MULTICORE
+        return false;
+#else
         return;
+#endif
     }
     for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
         accADC[axis] = acc.dev.ADCRaw[axis];
@@ -563,6 +582,7 @@ void accUpdate(void)
     applySensorAlignment(accADC, accADC, acc.dev.accAlign);
     applyBoardAlignment(accADC);
 
+#ifndef USE_AURIX_MULTICORE
     // Calculate acceleration readings in G's
     for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
         acc.accADCf[axis] = (float)accADC[axis] / acc.dev.acc_1G;
@@ -599,6 +619,69 @@ void accUpdate(void)
         }
     }
 
+#else
+    acc_t *writeBuffer = &accBuffered.buffers[accBuffered.writeIndex];
+
+    // Calculate acceleration readings in G's
+    for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+        //acc.accADCf[axis] = (float)accADC[axis] / acc.dev.acc_1G;
+        writeBuffer->accADCf[axis] = (float)accADC[axis] / acc.dev.acc_1G; //this acc access might be a problem
+    }
+
+    // Before filtering check for clipping and vibration levels
+    //if (fabsf(acc.accADCf[X]) > ACC_CLIPPING_THRESHOLD_G || fabsf(acc.accADCf[Y]) > ACC_CLIPPING_THRESHOLD_G || fabsf(acc.accADCf[Z]) > ACC_CLIPPING_THRESHOLD_G) {
+    if (fabsf(writeBuffer->accADCf[X]) > ACC_CLIPPING_THRESHOLD_G || fabsf(writeBuffer->accADCf[Y]) > ACC_CLIPPING_THRESHOLD_G || fabsf(writeBuffer->accADCf[Z]) > ACC_CLIPPING_THRESHOLD_G) {
+        //acc.isClipped = true;
+        writeBuffer->isClipped = true;
+        //acc.accClipCount++;
+        writeBuffer->accClipCount++;
+    }
+    else {
+        //acc.isClipped = false;
+        writeBuffer->isClipped = false;
+    }
+
+    // Calculate vibration levels
+    for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+        // filter accel at 5hz
+        //const float accFloorFilt = pt1FilterApply(&accVibeFloorFilter[axis], acc.accADCf[axis]);
+        const float accFloorFilt = pt1FilterApply(&accVibeFloorFilter[axis], writeBuffer->accADCf[axis]);
+
+        // calc difference from this sample and 5hz filtered value, square and filter at 2hz
+        //const float accDiff = acc.accADCf[axis] - accFloorFilt;
+        const float accDiff = writeBuffer->accADCf[axis] - accFloorFilt;
+        //acc.accVibeSq[axis] = pt1FilterApply(&accVibeFilter[axis], accDiff * accDiff);
+        writeBuffer->accVibeSq[axis] = pt1FilterApply(&accVibeFilter[axis], accDiff * accDiff);
+        //acc.accVibe = fast_fsqrtf(acc.accVibeSq[X] + acc.accVibeSq[Y] + acc.accVibeSq[Z]);
+        writeBuffer->accVibe = fast_fsqrtf(writeBuffer->accVibeSq[X] + writeBuffer->accVibeSq[Y] + writeBuffer->accVibeSq[Z]);
+    }
+
+    // Filter acceleration
+    for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+        //acc.accADCf[axis] = accSoftLpfFilterApplyFn(accSoftLpfFilter[axis], acc.accADCf[axis]);
+        writeBuffer->accADCf[axis] = accSoftLpfFilterApplyFn(accSoftLpfFilter[axis], writeBuffer->accADCf[axis]);
+    }
+
+    if (accelerometerConfig()->acc_notch_hz) {
+        for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+            //acc.accADCf[axis] = accNotchFilterApplyFn(accNotchFilter[axis], acc.accADCf[axis]);
+            writeBuffer->accADCf[axis] = accNotchFilterApplyFn(accNotchFilter[axis], writeBuffer->accADCf[axis]);
+        }
+    }
+
+    //swap buffer index
+    if (!waitAndAcquireMutex(&accBuffered.mutex, TASK_GYRO_LOOPTIME)) {
+        return false; //failed to acquire
+    }
+
+    uint8_t oldWrite = accBuffered.writeIndex;
+    accBuffered.writeIndex ^= 1;
+    accBuffered.readIndex = oldWrite;
+
+    releaseMutex(&accBuffered.mutex);
+
+    return true;
+#endif
 }
 
 // Record extremes: min/max for each axis and acceleration vector modulus
@@ -696,3 +779,24 @@ bool accIsHealthy(void)
 {
     return true;
 }
+
+#ifdef USE_AURIX_MULTICORE
+bool FAST_CODE NOINLINE accGetUpdatedData(void){
+    if (!waitAndAcquireMutex(&accBuffered.mutex, TASK_GYRO_LOOPTIME)) {
+        return false; //failed to acquire
+    }
+
+    acc_t *readBuffer = &accBuffered.buffers[accBuffered.readIndex];
+
+    //copy data from buffer
+    memcpy(&acc.accADCf, &readBuffer->accADCf, sizeof(acc.accADCf));
+    memcpy(&acc.accVibeSq, &readBuffer->accVibeSq, sizeof(acc.accVibeSq));
+    acc.accVibe = readBuffer->accVibe;
+    acc.accClipCount = readBuffer->accClipCount;
+    acc.isClipped = readBuffer->isClipped;
+
+    releaseMutex(&accBuffered.mutex);
+
+    return true;
+}
+#endif

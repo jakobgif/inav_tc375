@@ -22,9 +22,16 @@
 //#warning Building for debug
 #endif
 #define SLOW_RAM
+#define AURIX_USE_FASTRAM
+#ifdef AURIX_USE_FASTRAM
 #define FASTRAM_CPU0 __attribute__((section(".bss_cpu0")))
 #define FASTRAM_CPU1 __attribute__((section(".bss_cpu1")))
 #define FASTRAM_CPU2 __attribute__((section(".bss_cpu2")))
+#else
+#define FASTRAM_CPU0
+#define FASTRAM_CPU1
+#define FASTRAM_CPU2
+#endif
 #define FASTRAM FASTRAM_CPU0
 #define EXTENDED_FASTRAM FASTRAM
 #define DMA_RAM FASTRAM
@@ -40,8 +47,12 @@
 #define AURIX_USE_PSPR_FUNCTIONS //to place functions in CPU specific program ram
 #ifdef AURIX_USE_PSPR_FUNCTIONS
 #define CPU0_PSPR_FUNCTION __attribute__((section(".cpu0_psram")))
+#define CPU1_PSPR_FUNCTION __attribute__((section(".cpu1_psram")))
+#define CPU2_PSPR_FUNCTION __attribute__((section(".cpu2_psram")))
 #else
 #define CPU0_PSPR_FUNCTION
+#define CPU1_PSPR_FUNCTION
+#define CPU2_PSPR_FUNCTION
 #endif
 
 #else

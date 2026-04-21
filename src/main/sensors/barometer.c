@@ -69,6 +69,12 @@ static zeroCalibrationScalar_t zeroCalibration;
 static float baroGroundAltitude = 0;
 static float baroGroundPressure = 101325.0f; // 101325 pascal, 1 standard atmosphere
 
+#ifdef USE_AURIX_MULTICORE
+#include "scheduler.h"
+#include "drivers/system.h"
+FASTRAM_CPU2 baro_buffered_t baroBuffered;
+#endif
+
 bool baroDetect(baroDev_t *dev, baroSensor_e baroHardwareToUse)
 {
     // Detect what pressure sensors are available. baro->update() is set to sensor-specific update function
@@ -281,12 +287,39 @@ uint32_t baroUpdate(void)
                 baro.dev.start_ut(&baro.dev);
             }
             //output: baro.baroPressure, baro.baroTemperature
+#ifdef USE_AURIX_MULTICORE
+            {
+                uint8_t writeIndex = baroBuffered.writeIndex;
+                baro.dev.calculate(&baro.dev,
+                    &baroBuffered.buffers[writeIndex].baroPressure,
+                    &baroBuffered.buffers[writeIndex].baroTemperature);
+                if (waitAndAcquireMutex(&baroBuffered.mutex, TASK_PERIOD_HZ(20))) {
+                    baroBuffered.writeIndex ^= 1;
+                    baroBuffered.readIndex = writeIndex;
+                    releaseMutex(&baroBuffered.mutex);
+                }
+            }
+#else
             baro.dev.calculate(&baro.dev, &baro.baroPressure, &baro.baroTemperature);
+#endif
             state = BAROMETER_NEEDS_SAMPLES;
             return baro.dev.ut_delay;
         break;
     }
 }
+
+#ifdef USE_AURIX_MULTICORE
+bool baroGetUpdatedData(void){
+    //TASK_PERIOD_HZ(20) from task definition
+    if (!waitAndAcquireMutex(&baroBuffered.mutex, TASK_PERIOD_HZ(20))) {
+        return false;
+    }
+    baro.baroPressure    = baroBuffered.buffers[baroBuffered.readIndex].baroPressure;
+    baro.baroTemperature = baroBuffered.buffers[baroBuffered.readIndex].baroTemperature;
+    releaseMutex(&baroBuffered.mutex);
+    return true;
+}
+#endif
 
 static float pressureToAltitude(const float pressure)
 {
