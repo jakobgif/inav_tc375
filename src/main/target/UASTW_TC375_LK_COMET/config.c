@@ -1,4 +1,4 @@
-/*
+﻿/*
  * This file is part of INAV.
  *
  * INAV is free software: you can redistribute it and/or modify
@@ -338,7 +338,7 @@ void targetConfiguration(void){
 
     ////////////////////////////////////////////////////////////////////
     // SPI BUS FAULT  |  GV2 = SPI bus number  |  RC CH6 (AUX5)
-    // CH6 > 1500 → GV2 = 4 (fault SPI bus 4)
+    // CH6 > 1500 → GV2 = 4 (bit 2 = SPIDEV_3, BMI088 on SPI3)
     // CH6 < 1500 → GV2 = 0 (no fault)
     ////////////////////////////////////////////////////////////////////
 
@@ -352,7 +352,7 @@ void targetConfiguration(void){
     logicConditionsMutable(11)->operandB.value = 1500;
     logicConditionsMutable(11)->flags          = 0;
 
-    // LC12: if LC11 → GV2 = 4 (fault SPI bus 4)
+    // LC12: if LC11 → GV2 = 4 (bit 2 = SPIDEV_3, BMI088 on SPI3)
     logicConditionsMutable(12)->enabled        = 1;
     logicConditionsMutable(12)->activatorId    = 11;
     logicConditionsMutable(12)->operation      = LOGIC_CONDITION_GVAR_SET;
