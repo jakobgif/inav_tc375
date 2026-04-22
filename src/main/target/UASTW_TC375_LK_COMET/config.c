@@ -206,50 +206,89 @@ void targetConfiguration(void){
     //                           operandB = value to write into that GVAR
 
     ////////////////////////////////////////////////////////////////////
-    // MOTOR FAULT  |  GV0 = motor bitmask  |  RC CH7 (AUX6)
-    // CH7 > 1500 → GV0 = 1 (fault ON)
-    // CH7 < 1500 → GV0 = 0 (fault OFF)
+    // MOTOR FAULT  |  GV0 = motor bitmask  |  RC CH7 (AUX6)  |  3-way switch
+    // CH7 ~1000 → GV0 = 0  (all motors on)
+    // CH7 ~1500 → GV0 = 1  (motor 1 off  = bit 0)
+    // CH7 ~2000 → GV0 = 48 (motors 5+6 off = bit4|bit5 = 16+32)
+    //
+    // LC order: grouped by switch position, sorted 0 → 1 → 48
     ////////////////////////////////////////////////////////////////////
 
-    // LC0: CH7 > 1500 → motor fault trigger condition
+    // --- Switch LOW (~1000): all motors on → GV0 = 0 ---
+
+    // LC0: CH7 < 1250 → LOW position trigger
     logicConditionsMutable(0)->enabled        = 1;
-    logicConditionsMutable(0)->activatorId    = -1;   // always evaluated
-    logicConditionsMutable(0)->operation      = LOGIC_CONDITION_GREATER_THAN;
+    logicConditionsMutable(0)->activatorId    = -1;
+    logicConditionsMutable(0)->operation      = LOGIC_CONDITION_LOWER_THAN;
     logicConditionsMutable(0)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
     logicConditionsMutable(0)->operandA.value = 7;    // RC channel 7 (AUX6)
     logicConditionsMutable(0)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
-    logicConditionsMutable(0)->operandB.value = 1500; // threshold: switch HIGH > 1500µs
+    logicConditionsMutable(0)->operandB.value = 1250;
     logicConditionsMutable(0)->flags          = 0;
 
-    // LC1: Set GV0=1 when LC0 is true (motor fault ON)
+    // LC1: if LC0 → GV0 = 0 (all motors on)
     logicConditionsMutable(1)->enabled        = 1;
-    logicConditionsMutable(1)->activatorId    = 0;    // only active when LC0 is true
+    logicConditionsMutable(1)->activatorId    = 0;
     logicConditionsMutable(1)->operation      = LOGIC_CONDITION_GVAR_SET;
     logicConditionsMutable(1)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
-    logicConditionsMutable(1)->operandA.value = 0;    // target GVAR index: GV0
+    logicConditionsMutable(1)->operandA.value = 0;    // GV0
     logicConditionsMutable(1)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
-    logicConditionsMutable(1)->operandB.value = 1;    // write value: 1 (fault active)
+    logicConditionsMutable(1)->operandB.value = 0;
     logicConditionsMutable(1)->flags          = 0;
 
-    // LC2: CH7 < 1500 → motor fault reset condition
+    // --- Switch MID (~1500): motor 1 off → GV0 = 1 ---
+
+    // LC2: CH7 < 1750 → MID upper bound
     logicConditionsMutable(2)->enabled        = 1;
-    logicConditionsMutable(2)->activatorId    = -1;   // always evaluated
+    logicConditionsMutable(2)->activatorId    = -1;
     logicConditionsMutable(2)->operation      = LOGIC_CONDITION_LOWER_THAN;
     logicConditionsMutable(2)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
     logicConditionsMutable(2)->operandA.value = 7;    // RC channel 7 (AUX6)
     logicConditionsMutable(2)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
-    logicConditionsMutable(2)->operandB.value = 1500; // threshold: switch LOW < 1500µs
+    logicConditionsMutable(2)->operandB.value = 1750;
     logicConditionsMutable(2)->flags          = 0;
 
-    // LC3: Set GV0=0 when LC2 is true (motor fault OFF)
+    // LC3: if LC2 AND CH7 > 1250 → MID confirmed (AND via chaining)
     logicConditionsMutable(3)->enabled        = 1;
-    logicConditionsMutable(3)->activatorId    = 2;    // only active when LC2 is true
-    logicConditionsMutable(3)->operation      = LOGIC_CONDITION_GVAR_SET;
-    logicConditionsMutable(3)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
-    logicConditionsMutable(3)->operandA.value = 0;    // target GVAR index: GV0
+    logicConditionsMutable(3)->activatorId    = 2;
+    logicConditionsMutable(3)->operation      = LOGIC_CONDITION_GREATER_THAN;
+    logicConditionsMutable(3)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
+    logicConditionsMutable(3)->operandA.value = 7;    // RC channel 7 (AUX6)
     logicConditionsMutable(3)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
-    logicConditionsMutable(3)->operandB.value = 0;    // write value: 0 (no fault)
+    logicConditionsMutable(3)->operandB.value = 1250;
     logicConditionsMutable(3)->flags          = 0;
+
+    // LC4: if LC3 → GV0 = 1 (motor 1 off)
+    logicConditionsMutable(4)->enabled        = 1;
+    logicConditionsMutable(4)->activatorId    = 3;
+    logicConditionsMutable(4)->operation      = LOGIC_CONDITION_GVAR_SET;
+    logicConditionsMutable(4)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
+    logicConditionsMutable(4)->operandA.value = 0;    // GV0
+    logicConditionsMutable(4)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
+    logicConditionsMutable(4)->operandB.value = 1;    // bit0 = motor 1
+    logicConditionsMutable(4)->flags          = 0;
+
+    // --- Switch HIGH (~2000): motors 5+6 off → GV0 = 48 ---
+
+    // LC5: CH7 > 1750 → HIGH position trigger
+    logicConditionsMutable(5)->enabled        = 1;
+    logicConditionsMutable(5)->activatorId    = -1;
+    logicConditionsMutable(5)->operation      = LOGIC_CONDITION_GREATER_THAN;
+    logicConditionsMutable(5)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
+    logicConditionsMutable(5)->operandA.value = 7;    // RC channel 7 (AUX6)
+    logicConditionsMutable(5)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
+    logicConditionsMutable(5)->operandB.value = 1750;
+    logicConditionsMutable(5)->flags          = 0;
+
+    // LC6: if LC5 → GV0 = 48 (motors 5+6 off)
+    logicConditionsMutable(6)->enabled        = 1;
+    logicConditionsMutable(6)->activatorId    = 5;
+    logicConditionsMutable(6)->operation      = LOGIC_CONDITION_GVAR_SET;
+    logicConditionsMutable(6)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
+    logicConditionsMutable(6)->operandA.value = 0;    // GV0
+    logicConditionsMutable(6)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
+    logicConditionsMutable(6)->operandB.value = 48;   // bit4|bit5
+    logicConditionsMutable(6)->flags          = 0;
 
     ////////////////////////////////////////////////////////////////////
     // I2C BUS FAULT  |  GV1 = I2C bus number  |  RC CH5 (AUX4)
@@ -257,45 +296,45 @@ void targetConfiguration(void){
     // CH5 < 1500 → GV1 = 0 (no fault)
     ////////////////////////////////////////////////////////////////////
 
-    // LC4: CH5 > 1500 → I2C bus fault trigger condition
-    logicConditionsMutable(4)->enabled        = 1;
-    logicConditionsMutable(4)->activatorId    = -1;   // always evaluated
-    logicConditionsMutable(4)->operation      = LOGIC_CONDITION_GREATER_THAN;
-    logicConditionsMutable(4)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
-    logicConditionsMutable(4)->operandA.value = 5;    // RC channel 5 (AUX4)
-    logicConditionsMutable(4)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
-    logicConditionsMutable(4)->operandB.value = 1500; // threshold: switch HIGH > 1500µs
-    logicConditionsMutable(4)->flags          = 0;
-
-    // LC5: Set GV1=1 when LC4 is true (fault I2C bus 1)
-    logicConditionsMutable(5)->enabled        = 1;
-    logicConditionsMutable(5)->activatorId    = 4;    // only active when LC4 is true
-    logicConditionsMutable(5)->operation      = LOGIC_CONDITION_GVAR_SET;
-    logicConditionsMutable(5)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
-    logicConditionsMutable(5)->operandA.value = 1;    // target GVAR index: GV1
-    logicConditionsMutable(5)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
-    logicConditionsMutable(5)->operandB.value = 1;    // write value: 1 (I2C bus 1)
-    logicConditionsMutable(5)->flags          = 0;
-
-    // LC6: CH5 < 1500 → I2C bus fault reset condition
-    logicConditionsMutable(6)->enabled        = 1;
-    logicConditionsMutable(6)->activatorId    = -1;   // always evaluated
-    logicConditionsMutable(6)->operation      = LOGIC_CONDITION_LOWER_THAN;
-    logicConditionsMutable(6)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
-    logicConditionsMutable(6)->operandA.value = 5;    // RC channel 5 (AUX4)
-    logicConditionsMutable(6)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
-    logicConditionsMutable(6)->operandB.value = 1500; // threshold: switch LOW < 1500µs
-    logicConditionsMutable(6)->flags          = 0;
-
-    // LC7: Set GV1=0 when LC6 is true (I2C bus fault OFF)
+    // LC7: CH5 > 1500 → I2C bus fault trigger condition
     logicConditionsMutable(7)->enabled        = 1;
-    logicConditionsMutable(7)->activatorId    = 6;    // only active when LC6 is true
-    logicConditionsMutable(7)->operation      = LOGIC_CONDITION_GVAR_SET;
-    logicConditionsMutable(7)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
-    logicConditionsMutable(7)->operandA.value = 1;    // target GVAR index: GV1
+    logicConditionsMutable(7)->activatorId    = -1;
+    logicConditionsMutable(7)->operation      = LOGIC_CONDITION_GREATER_THAN;
+    logicConditionsMutable(7)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
+    logicConditionsMutable(7)->operandA.value = 5;    // RC channel 5 (AUX4)
     logicConditionsMutable(7)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
-    logicConditionsMutable(7)->operandB.value = 0;    // write value: 0 (no fault)
+    logicConditionsMutable(7)->operandB.value = 1500;
     logicConditionsMutable(7)->flags          = 0;
+
+    // LC8: if LC7 → GV1 = 1 (fault I2C bus 1)
+    logicConditionsMutable(8)->enabled        = 1;
+    logicConditionsMutable(8)->activatorId    = 7;
+    logicConditionsMutable(8)->operation      = LOGIC_CONDITION_GVAR_SET;
+    logicConditionsMutable(8)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
+    logicConditionsMutable(8)->operandA.value = 1;    // GV1
+    logicConditionsMutable(8)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
+    logicConditionsMutable(8)->operandB.value = 1;
+    logicConditionsMutable(8)->flags          = 0;
+
+    // LC9: CH5 < 1500 → I2C bus fault reset condition
+    logicConditionsMutable(9)->enabled        = 1;
+    logicConditionsMutable(9)->activatorId    = -1;
+    logicConditionsMutable(9)->operation      = LOGIC_CONDITION_LOWER_THAN;
+    logicConditionsMutable(9)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
+    logicConditionsMutable(9)->operandA.value = 5;    // RC channel 5 (AUX4)
+    logicConditionsMutable(9)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
+    logicConditionsMutable(9)->operandB.value = 1500;
+    logicConditionsMutable(9)->flags          = 0;
+
+    // LC10: if LC9 → GV1 = 0 (I2C fault OFF)
+    logicConditionsMutable(10)->enabled        = 1;
+    logicConditionsMutable(10)->activatorId    = 9;
+    logicConditionsMutable(10)->operation      = LOGIC_CONDITION_GVAR_SET;
+    logicConditionsMutable(10)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
+    logicConditionsMutable(10)->operandA.value = 1;   // GV1
+    logicConditionsMutable(10)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
+    logicConditionsMutable(10)->operandB.value = 0;
+    logicConditionsMutable(10)->flags          = 0;
 
     ////////////////////////////////////////////////////////////////////
     // SPI BUS FAULT  |  GV2 = SPI bus number  |  RC CH6 (AUX5)
@@ -303,72 +342,72 @@ void targetConfiguration(void){
     // CH6 < 1500 → GV2 = 0 (no fault)
     ////////////////////////////////////////////////////////////////////
 
-    // LC8: CH6 > 1500 → SPI bus fault trigger condition
-    logicConditionsMutable(8)->enabled        = 1;
-    logicConditionsMutable(8)->activatorId    = -1;   // always evaluated
-    logicConditionsMutable(8)->operation      = LOGIC_CONDITION_GREATER_THAN;
-    logicConditionsMutable(8)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
-    logicConditionsMutable(8)->operandA.value = 6;    // RC channel 6 (AUX5)
-    logicConditionsMutable(8)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
-    logicConditionsMutable(8)->operandB.value = 1500; // threshold: switch HIGH > 1500µs
-    logicConditionsMutable(8)->flags          = 0;
-
-    // LC9: Set GV2=4 when LC8 is true (fault SPI bus 4)
-    logicConditionsMutable(9)->enabled        = 1;
-    logicConditionsMutable(9)->activatorId    = 8;    // only active when LC8 is true
-    logicConditionsMutable(9)->operation      = LOGIC_CONDITION_GVAR_SET;
-    logicConditionsMutable(9)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
-    logicConditionsMutable(9)->operandA.value = 2;    // target GVAR index: GV2
-    logicConditionsMutable(9)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
-    logicConditionsMutable(9)->operandB.value = 4;    // write value: 4 (SPI bus 4)
-    logicConditionsMutable(9)->flags          = 0;
-
-    // LC10: CH6 < 1500 → SPI bus fault reset condition
-    logicConditionsMutable(10)->enabled        = 1;
-    logicConditionsMutable(10)->activatorId    = -1;   // always evaluated
-    logicConditionsMutable(10)->operation      = LOGIC_CONDITION_LOWER_THAN;
-    logicConditionsMutable(10)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
-    logicConditionsMutable(10)->operandA.value = 6;    // RC channel 6 (AUX5)
-    logicConditionsMutable(10)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
-    logicConditionsMutable(10)->operandB.value = 1500; // threshold: switch LOW < 1500µs
-    logicConditionsMutable(10)->flags          = 0;
-
-    // LC11: Set GV2=0 when LC10 is true (SPI bus fault OFF)
+    // LC11: CH6 > 1500 → SPI bus fault trigger condition
     logicConditionsMutable(11)->enabled        = 1;
-    logicConditionsMutable(11)->activatorId    = 10;   // only active when LC10 is true
-    logicConditionsMutable(11)->operation      = LOGIC_CONDITION_GVAR_SET;
-    logicConditionsMutable(11)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
-    logicConditionsMutable(11)->operandA.value = 2;    // target GVAR index: GV2
+    logicConditionsMutable(11)->activatorId    = -1;
+    logicConditionsMutable(11)->operation      = LOGIC_CONDITION_GREATER_THAN;
+    logicConditionsMutable(11)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
+    logicConditionsMutable(11)->operandA.value = 6;   // RC channel 6 (AUX5)
     logicConditionsMutable(11)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
-    logicConditionsMutable(11)->operandB.value = 0;    // write value: 0 (no fault)
+    logicConditionsMutable(11)->operandB.value = 1500;
     logicConditionsMutable(11)->flags          = 0;
+
+    // LC12: if LC11 → GV2 = 4 (fault SPI bus 4)
+    logicConditionsMutable(12)->enabled        = 1;
+    logicConditionsMutable(12)->activatorId    = 11;
+    logicConditionsMutable(12)->operation      = LOGIC_CONDITION_GVAR_SET;
+    logicConditionsMutable(12)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
+    logicConditionsMutable(12)->operandA.value = 2;   // GV2
+    logicConditionsMutable(12)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
+    logicConditionsMutable(12)->operandB.value = 4;
+    logicConditionsMutable(12)->flags          = 0;
+
+    // LC13: CH6 < 1500 → SPI bus fault reset condition
+    logicConditionsMutable(13)->enabled        = 1;
+    logicConditionsMutable(13)->activatorId    = -1;
+    logicConditionsMutable(13)->operation      = LOGIC_CONDITION_LOWER_THAN;
+    logicConditionsMutable(13)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
+    logicConditionsMutable(13)->operandA.value = 6;   // RC channel 6 (AUX5)
+    logicConditionsMutable(13)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
+    logicConditionsMutable(13)->operandB.value = 1500;
+    logicConditionsMutable(13)->flags          = 0;
+
+    // LC14: if LC13 → GV2 = 0 (SPI fault OFF)
+    logicConditionsMutable(14)->enabled        = 1;
+    logicConditionsMutable(14)->activatorId    = 13;
+    logicConditionsMutable(14)->operation      = LOGIC_CONDITION_GVAR_SET;
+    logicConditionsMutable(14)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
+    logicConditionsMutable(14)->operandA.value = 2;   // GV2
+    logicConditionsMutable(14)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
+    logicConditionsMutable(14)->operandB.value = 0;
+    logicConditionsMutable(14)->flags          = 0;
 
     ////////////////////////////////////////////////////////////////////
     // I2C ERROR RATE  |  GV3 = RC CH9 raw (1000-2000µs)  |  Knob CH9
     ////////////////////////////////////////////////////////////////////
 
-    // LC12: Always pass RC channel 9 raw value into GV3 (I2C error rate)
-    logicConditionsMutable(12)->enabled        = 1;
-    logicConditionsMutable(12)->activatorId    = -1;   // always evaluated
-    logicConditionsMutable(12)->operation      = LOGIC_CONDITION_GVAR_SET;
-    logicConditionsMutable(12)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
-    logicConditionsMutable(12)->operandA.value = 3;    // target GVAR index: GV3
-    logicConditionsMutable(12)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
-    logicConditionsMutable(12)->operandB.value = 9;    // RC channel 9 (knob)
-    logicConditionsMutable(12)->flags          = 0;
+    // LC15: Always pass RC channel 9 raw value into GV3 (I2C error rate)
+    logicConditionsMutable(15)->enabled        = 1;
+    logicConditionsMutable(15)->activatorId    = -1;
+    logicConditionsMutable(15)->operation      = LOGIC_CONDITION_GVAR_SET;
+    logicConditionsMutable(15)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
+    logicConditionsMutable(15)->operandA.value = 3;   // GV3
+    logicConditionsMutable(15)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
+    logicConditionsMutable(15)->operandB.value = 9;   // RC channel 9 (knob)
+    logicConditionsMutable(15)->flags          = 0;
 
     ////////////////////////////////////////////////////////////////////
     // SPI ERROR RATE  |  GV4 = RC CH10 raw (1000-2000µs)  |  Knob CH10
     ////////////////////////////////////////////////////////////////////
 
-    // LC13: Always pass RC channel 10 raw value into GV4 (SPI error rate)
-    logicConditionsMutable(13)->enabled        = 1;
-    logicConditionsMutable(13)->activatorId    = -1;   // always evaluated
-    logicConditionsMutable(13)->operation      = LOGIC_CONDITION_GVAR_SET;
-    logicConditionsMutable(13)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
-    logicConditionsMutable(13)->operandA.value = 4;    // target GVAR index: GV4
-    logicConditionsMutable(13)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
-    logicConditionsMutable(13)->operandB.value = 10;   // RC channel 10 (knob)
-    logicConditionsMutable(13)->flags          = 0;
+    // LC16: Always pass RC channel 10 raw value into GV4 (SPI error rate)
+    logicConditionsMutable(16)->enabled        = 1;
+    logicConditionsMutable(16)->activatorId    = -1;
+    logicConditionsMutable(16)->operation      = LOGIC_CONDITION_GVAR_SET;
+    logicConditionsMutable(16)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
+    logicConditionsMutable(16)->operandA.value = 4;   // GV4
+    logicConditionsMutable(16)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
+    logicConditionsMutable(16)->operandB.value = 10;  // RC channel 10 (knob)
+    logicConditionsMutable(16)->flags          = 0;
 #endif
 }
