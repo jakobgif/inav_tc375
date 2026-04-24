@@ -1,34 +1,78 @@
-# How to upgrade the port to latest INAV version
+# How to upgrade the port to a new INAV version
 
-When a new version of INAV gets released the following prcedure shall be applied:
+This document describes the steps to port the Aurix TC375 firmware to a new INAV release.
 
-- Sync the "upstream" branch. This can be done via the GitHub website by pressing the "Sync" button while beeing in the "upstream" branch.
+## 1. Sync the upstream branch
 
-- Sync tags from the upstream repo. This can be done by running the commands 
+On GitHub, switch to the `upstream` branch and press the **Sync fork** button to pull in the latest commits from the original INAV repository. This branch is read-only — do not push custom commits to it.
+
+## 2. Fetch the new release tag
+
+After syncing, pull the new tags into the local clone and push them to the fork:
+
 ```bash
 git fetch --tags upstream
 git push --tags
 ```
-while being in the "upstream" branch. (https://stackoverflow.com/questions/70678073/how-do-i-sync-tags-to-a-forked-github-repo)
 
-- Create a new release branch. Create a new branch from the latest tag. This can be done with the command
+Verify that the new tag (e.g. `9.0.1`) is now visible:
+
 ```bash
-git checkout -b new-branch-name tag-name
+git tag | sort -V | tail -10
 ```
-example:
+
+## 3. Create the release branch
+
+Create a new local branch from the upstream release tag, then push it to the fork:
+
 ```bash
-git checkout -b 8.0.1 8.0.1
+git checkout -b 9.0.1 9.0.1
+git push origin 9.0.1
 ```
-(https://graphite.com/guides/git-create-branch-from-tag)
 
-- The new branch shall be protected with the rule set "release protection".
+The branch name matches the INAV version exactly.
 
-- Now the needed commits can be merged into the release branch via pull requests.
+## 4. Protect the release branch
 
-- After the firmware has been tested a new tag can be created with its name containing the original tag with the suffix "-aurix". 
-example:
+On GitHub, go to **Settings -> Rules -> Rulesets** and apply the existing **release protection** ruleset to the new branch. This prevents direct pushes and requires pull requests.
+
+## 5. Bring in the Aurix-specific changes
+
+Create a merge branch from the new release branch. This branch is used to bring all Aurix-specific changes from the previous release (tracked on `main`) into the new INAV version:
+
 ```bash
-git tag 8.0.1-aurix
-git push origin 8.0.1-aurix
+git checkout -b merge_9.0.1 9.0.1
+git merge origin/main
 ```
-Now the firmware can be build and released.
+
+Resolve any conflicts caused by INAV API changes, then commit and push:
+
+```bash
+git push origin merge_9.0.1
+```
+
+Open a pull request from `merge_9.0.1` into `9.0.1` on GitHub.
+
+## 6. Build and test
+
+After merging, build the firmware from the new release branch and run the standard flight tests. The CI pipeline builds automatically on every push.
+
+## 7. Tag the release
+
+Once the firmware is flight-proven, create and push the Aurix release tag:
+
+```bash
+git checkout 9.0.1
+git pull origin 9.0.1
+git tag 9.0.1-aurix
+git push origin 9.0.1-aurix
+```
+
+For a multicore-enabled build, use a separate tag:
+
+```bash
+git tag 9.0.1-aurix-multicore
+git push origin 9.0.1-aurix-multicore
+```
+
+Once the tag is pushed, create the GitHub release manually: go to **Releases -> Draft a new release**, select the tag, and publish it with the compiled firmware artifacts attached.
