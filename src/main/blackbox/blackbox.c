@@ -410,6 +410,7 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] = {
     {"fiuSpiMask",   -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
     {"fiuI2cRate",   -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
     {"fiuSpiRate",   -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
+    {"fiuRcLoss",    -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
 #endif
 };
 
@@ -566,6 +567,7 @@ typedef struct blackboxMainState_s {
     uint8_t fiuSpiMask;
     uint8_t fiuI2cRate;
     uint8_t fiuSpiRate;
+    uint8_t fiuRcLoss;
 #endif
     uint16_t rssi;
     int16_t navState;
@@ -1094,6 +1096,7 @@ static void writeIntraframe(void)
     blackboxWriteUnsignedVB(blackboxCurrent->fiuSpiMask);
     blackboxWriteUnsignedVB(blackboxCurrent->fiuI2cRate);
     blackboxWriteUnsignedVB(blackboxCurrent->fiuSpiRate);
+    blackboxWriteUnsignedVB(blackboxCurrent->fiuRcLoss);
 #endif
 
     //Rotate our history buffers:
@@ -1364,6 +1367,7 @@ static void writeInterframe(void)
     blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuSpiMask   - blackboxLast->fiuSpiMask);
     blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuI2cRate   - blackboxLast->fiuI2cRate);
     blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuSpiRate   - blackboxLast->fiuSpiRate);
+    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuRcLoss    - blackboxLast->fiuRcLoss);
 #endif
 
     //Rotate our history buffers
@@ -1802,6 +1806,7 @@ static void loadMainState(timeUs_t currentTimeUs)
     blackboxCurrent->fiuSpiMask   = fiu->spiMask;
     blackboxCurrent->fiuI2cRate   = fiu->i2cRate;
     blackboxCurrent->fiuSpiRate   = fiu->spiRate;
+    blackboxCurrent->fiuRcLoss    = fiu->rcLossFault;
 #endif
 
     blackboxCurrent->rssi = getRSSI();

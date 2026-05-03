@@ -26,6 +26,7 @@
 
 static bool motorDisabled[MAX_MOTORS] = {false};
 static fiuState_t fiuState = {0};
+static bool rcLossFaultActive = false;
 
 //per-bus rate and mask: set by fiuUpdateFromGlobalVars(), consumed by read-path functions
 static uint8_t i2cErrorRate = 0;
@@ -63,12 +64,21 @@ void fiuUpdateFromGlobalVars(void)
     spiVariableRate    = (uint8_t)((spiClamped - 1000) / 10);
     spiErrorRate   = (uint8_t)(spiVariableRate * FIU_MAX_SPI_ERROR_RATE / 100);
 
+    //GV5: RC link loss fault — state only, rx.c reads fiuIsRcLossActive()
+    rcLossFaultActive = (gvGet(FIU_GV_RC_LOSS) != 0);
+
     //update blackbox state snapshot
-    fiuState.motorMask = (uint8_t)motorMask;
-    fiuState.i2cMask   = (uint8_t)i2cMask;
-    fiuState.spiMask   = (uint8_t)spiMask;
-    fiuState.i2cRate   = i2cErrorRate;
-    fiuState.spiRate   = spiErrorRate;
+    fiuState.motorMask   = (uint8_t)motorMask;
+    fiuState.i2cMask     = (uint8_t)i2cMask;
+    fiuState.spiMask     = (uint8_t)spiMask;
+    fiuState.i2cRate     = i2cErrorRate;
+    fiuState.spiRate     = spiErrorRate;
+    fiuState.rcLossFault = rcLossFaultActive ? 1 : 0;
+}
+
+bool fiuIsRcLossActive(void)
+{
+    return rcLossFaultActive;
 }
 
 const fiuState_t *fiuGetState(void)
