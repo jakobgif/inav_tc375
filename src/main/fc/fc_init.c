@@ -598,12 +598,14 @@ void init(void)
     navigationInit();
 
 #ifdef USE_LED_STRIP
+#ifndef USE_FIU
     ledStripInit();
 
     if (feature(FEATURE_LED_STRIP)) {
         ledStripEnable();
     }
-#endif
+#endif // USE_FIU
+#endif // USE_LED_STRIP
 
 #ifdef USE_FIU
     fiuLedInit();

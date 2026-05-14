@@ -19,7 +19,7 @@
  * FIU LED Strip Module
  *
  * Visualises active FIU faults on an addressable LED strip (WS2811/WS2812).
- * Uses software bit-bang via GPIO -- no DMA or timer required.
+ * Uses DMA via GTM ATOM timer -- requires USE_LED_STRIP and USE_FIU.
  * Enabled when USE_FIU is defined.
  *
  * LED layout (indices):
