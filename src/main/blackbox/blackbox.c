@@ -88,6 +88,7 @@
 
 #ifdef USE_FIU
 #include "fiu/fiu.h"
+#include "fiu/fiu_detection.h"
 #endif
 
 #if defined(ENABLE_BLACKBOX_LOGGING_ON_SPIFLASH_BY_DEFAULT)
@@ -411,6 +412,8 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] = {
     {"fiuI2cRate",   -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
     {"fiuSpiRate",   -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
     {"fiuRcLoss",    -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
+    {"fiuDetectFlags",-1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
+    {"fiuDetectBaroMs",-1,UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
 #endif
 };
 
@@ -568,6 +571,8 @@ typedef struct blackboxMainState_s {
     uint8_t fiuI2cRate;
     uint8_t fiuSpiRate;
     uint8_t fiuRcLoss;
+    uint8_t  fiuDetectFlags;
+    uint32_t fiuDetectBaroMs;
 #endif
     uint16_t rssi;
     int16_t navState;
@@ -1097,6 +1102,8 @@ static void writeIntraframe(void)
     blackboxWriteUnsignedVB(blackboxCurrent->fiuI2cRate);
     blackboxWriteUnsignedVB(blackboxCurrent->fiuSpiRate);
     blackboxWriteUnsignedVB(blackboxCurrent->fiuRcLoss);
+    blackboxWriteUnsignedVB(blackboxCurrent->fiuDetectFlags);
+    blackboxWriteUnsignedVB(blackboxCurrent->fiuDetectBaroMs);
 #endif
 
     //Rotate our history buffers:
@@ -1368,6 +1375,8 @@ static void writeInterframe(void)
     blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuI2cRate   - blackboxLast->fiuI2cRate);
     blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuSpiRate   - blackboxLast->fiuSpiRate);
     blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuRcLoss    - blackboxLast->fiuRcLoss);
+    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuDetectFlags  - blackboxLast->fiuDetectFlags);
+    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuDetectBaroMs - blackboxLast->fiuDetectBaroMs);
 #endif
 
     //Rotate our history buffers
@@ -1807,6 +1816,9 @@ static void loadMainState(timeUs_t currentTimeUs)
     blackboxCurrent->fiuI2cRate   = fiu->i2cRate;
     blackboxCurrent->fiuSpiRate   = fiu->spiRate;
     blackboxCurrent->fiuRcLoss    = fiu->rcLossFault;
+    const fiuDetectionState_t *fiuDet = fiuDetectionGetState();
+    blackboxCurrent->fiuDetectFlags  = fiuDet->faultFlags;
+    blackboxCurrent->fiuDetectBaroMs = fiuDet->baroDetectedAtMs;
 #endif
 
     blackboxCurrent->rssi = getRSSI();
