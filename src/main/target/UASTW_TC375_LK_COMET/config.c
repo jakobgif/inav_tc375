@@ -409,5 +409,21 @@ void targetConfiguration(void){
     logicConditionsMutable(16)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
     logicConditionsMutable(16)->operandB.value = 10;  // RC channel 10 (knob)
     logicConditionsMutable(16)->flags          = 0;
+
+    ////////////////////////////////////////////////////////////////////
+    // BATTERY VOLTAGE FAULT  |  GV6 = RC CH8 raw (1000-2000µs)  |  Knob CH8
+    // fiu.c converts: <1250 → lvl 0 (off), 1250-1750 → lvl 1 (warning), >1750 → lvl 2 (critical)
+    // CH8 is a placeholder — update operandB.value when RC channel assignment is finalised
+    ////////////////////////////////////////////////////////////////////
+
+    // LC17: Always pass RC channel 8 raw value into GV6 (battery voltage fault level)
+    logicConditionsMutable(17)->enabled        = 1;
+    logicConditionsMutable(17)->activatorId    = -1;
+    logicConditionsMutable(17)->operation      = LOGIC_CONDITION_GVAR_SET;
+    logicConditionsMutable(17)->operandA.type  = LOGIC_CONDITION_OPERAND_TYPE_VALUE;
+    logicConditionsMutable(17)->operandA.value = 6;   // GV6
+    logicConditionsMutable(17)->operandB.type  = LOGIC_CONDITION_OPERAND_TYPE_RC_CHANNEL;
+    logicConditionsMutable(17)->operandB.value = 8;   // RC channel 8 (knob, placeholder)
+    logicConditionsMutable(17)->flags          = 0;
 #endif
 }

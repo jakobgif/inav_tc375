@@ -30,6 +30,7 @@
 #define FIU_GV_I2C_RATE  3  // GV3: I2C error rate 0-100% (RC knob)
 #define FIU_GV_SPI_RATE  4  // GV4: SPI error rate 0-100% (RC knob)
 #define FIU_GV_RC_LOSS   5  // GV5: 1 = simulate RC link loss (failsafe trigger)
+#define FIU_GV_BATT      6  // GV6: battery voltage fault (0=off, 1=warning-level, 2=critical-level)
 #define FIU_MAX_I2C_ERROR_RATE 50// percent
 #define FIU_MAX_SPI_ERROR_RATE 80// percent
 
@@ -41,6 +42,7 @@ typedef struct {
     uint8_t i2cRate;     // GV3: I2C error rate 0-100
     uint8_t spiRate;     // GV4: SPI error rate 0-100
     uint8_t rcLossFault; // GV5: 1 = RC link loss fault active
+    uint8_t battFault;   // GV6: 0=off, 1=warning-level, 2=critical-level
 } fiuState_t;
 
 void fiuUpdateFromGlobalVars(void);
@@ -48,4 +50,5 @@ bool fiuIsMotorDisabled(uint8_t motorIndex);
 bool fiuIsI2cBusReadBlocked(I2CDevice bus);
 bool fiuIsSpiBusReadBlocked(SPIDevice bus);
 bool fiuIsRcLossActive(void);
+uint8_t fiuGetBatteryFaultLevel(void);
 const fiuState_t *fiuGetState(void);

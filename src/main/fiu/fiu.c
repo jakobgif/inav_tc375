@@ -27,6 +27,7 @@
 static bool motorDisabled[MAX_MOTORS] = {false};
 static fiuState_t fiuState = {0};
 static bool rcLossFaultActive = false;
+static uint8_t battFaultLevel = 0;
 
 //per-bus rate and mask: set by fiuUpdateFromGlobalVars(), consumed by read-path functions
 static uint8_t i2cErrorRate = 0;
@@ -67,6 +68,16 @@ void fiuUpdateFromGlobalVars(void)
     //GV5: RC link loss fault — state only, rx.c reads fiuIsRcLossActive()
     rcLossFaultActive = (gvGet(FIU_GV_RC_LOSS) != 0);
 
+    //GV6: battery voltage fault — passthrough knob 1000-2000 → level 0/1/2
+    int32_t battRaw     = gvGet(FIU_GV_BATT);
+    int32_t battClamped = battRaw < 1000 ? 1000 : battRaw > 2000 ? 2000 : battRaw;
+    if (battClamped < 1250)
+        battFaultLevel = 0;
+    else if (battClamped <= 1750)
+        battFaultLevel = 1;
+    else
+        battFaultLevel = 2;
+
     //update blackbox state snapshot
     fiuState.motorMask   = (uint8_t)motorMask;
     fiuState.i2cMask     = (uint8_t)i2cMask;
@@ -74,11 +85,17 @@ void fiuUpdateFromGlobalVars(void)
     fiuState.i2cRate     = i2cErrorRate;
     fiuState.spiRate     = spiErrorRate;
     fiuState.rcLossFault = rcLossFaultActive ? 1 : 0;
+    fiuState.battFault   = battFaultLevel;
 }
 
 bool fiuIsRcLossActive(void)
 {
     return rcLossFaultActive;
+}
+
+uint8_t fiuGetBatteryFaultLevel(void)
+{
+    return battFaultLevel;
 }
 
 const fiuState_t *fiuGetState(void)
