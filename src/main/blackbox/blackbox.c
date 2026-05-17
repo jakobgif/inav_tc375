@@ -412,6 +412,7 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] = {
     {"fiuI2cRate",   -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
     {"fiuSpiRate",   -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
     {"fiuRcLoss",    -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
+    {"fiuBattFault", -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
     {"fiuDetectFlags",-1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
     {"fiuDetectBaroMs",-1,UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
 #endif
@@ -571,6 +572,7 @@ typedef struct blackboxMainState_s {
     uint8_t fiuI2cRate;
     uint8_t fiuSpiRate;
     uint8_t  fiuRcLoss;
+    uint8_t  fiuBattFault;
     uint8_t  fiuDetectFlags;
     uint32_t fiuDetectBaroMs;
 #endif
@@ -1102,6 +1104,7 @@ static void writeIntraframe(void)
     blackboxWriteUnsignedVB(blackboxCurrent->fiuI2cRate);
     blackboxWriteUnsignedVB(blackboxCurrent->fiuSpiRate);
     blackboxWriteUnsignedVB(blackboxCurrent->fiuRcLoss);
+    blackboxWriteUnsignedVB(blackboxCurrent->fiuBattFault);
     blackboxWriteUnsignedVB(blackboxCurrent->fiuDetectFlags);
     blackboxWriteUnsignedVB(blackboxCurrent->fiuDetectBaroMs);
 #endif
@@ -1375,6 +1378,7 @@ static void writeInterframe(void)
     blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuI2cRate   - blackboxLast->fiuI2cRate);
     blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuSpiRate   - blackboxLast->fiuSpiRate);
     blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuRcLoss       - blackboxLast->fiuRcLoss);
+    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuBattFault    - blackboxLast->fiuBattFault);
     blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuDetectFlags  - blackboxLast->fiuDetectFlags);
     blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuDetectBaroMs - blackboxLast->fiuDetectBaroMs);
 #endif
@@ -1816,6 +1820,7 @@ static void loadMainState(timeUs_t currentTimeUs)
     blackboxCurrent->fiuI2cRate   = fiu->i2cRate;
     blackboxCurrent->fiuSpiRate   = fiu->spiRate;
     blackboxCurrent->fiuRcLoss    = fiu->rcLossFault;
+    blackboxCurrent->fiuBattFault = fiu->battFault;
     const fiuDetectionState_t *fiuDet = fiuDetectionGetState();
     blackboxCurrent->fiuDetectFlags  = fiuDet->faultFlags;
     blackboxCurrent->fiuDetectBaroMs = fiuDet->baroDetectedAtMs;

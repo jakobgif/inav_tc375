@@ -42,7 +42,9 @@
 #include "fc/config.h"
 #include "fc/runtime_config.h"
 
+#ifdef USE_FIU
 #include "fiu/fiu.h"
+#endif
 
 #include "drivers/timer_impl.h"
 #include "drivers/timer.h"

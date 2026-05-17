@@ -55,8 +55,10 @@
 #include "flight/wind_estimator.h"
 #include "flight/adaptive_filter.h"
 
+#ifdef USE_FIU
 #include "fiu/fiu.h"
 #include "fiu/fiu_detection.h"
+#endif
 
 #include "navigation/navigation.h"
 
