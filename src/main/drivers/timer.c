@@ -332,16 +332,6 @@ void timerPWMStopDMA(TCH_t * tch)
 
 bool timerPWMDMAInProgress(TCH_t * tch)
 {
-    // TC375 has no DMA-completion ISR to clear dmaState automatically.
-    // Poll the hardware transfer-count register instead: when it reaches 0
-    // the channel is done and we can transition ACTIVE -> IDLE ourselves.
-#if defined(TC375)
-    if (tch->dmaState == TCH_DMA_ACTIVE) {
-        if (IfxDma_getChannelTransferCount((Ifx_DMA *)&(tch->dma), tch->dmaChannel.channelId) == 0) {
-            tch->dmaState = TCH_DMA_IDLE;
-        }
-    }
-#endif
     return tch->dmaState != TCH_DMA_IDLE;
 }
 

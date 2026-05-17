@@ -56,7 +56,6 @@
 #include "flight/adaptive_filter.h"
 
 #include "fiu/fiu.h"
-#include "fiu/fiu_detection.h"
 
 #include "navigation/navigation.h"
 
@@ -345,7 +344,6 @@ void taskUpdateAux(timeUs_t currentTimeUs)
     //update FIU fault flags from global variables
 #ifdef USE_FIU
     fiuUpdateFromGlobalVars();
-    fiuDetectionUpdate();
 #endif
 }
 
