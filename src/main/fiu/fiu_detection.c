@@ -26,16 +26,20 @@
  * Current detections:
  *   - Baro stuck: baroPressure identical for FIU_DETECT_BARO_STUCK_THRESHOLD
  *                 consecutive readings (triggered by I2C full-block fault).
+ *   - Gyro stuck: all three gyroRaw axes identical for FIU_DETECT_GYRO_STUCK_THRESHOLD
+ *                 consecutive readings (triggered by SPI full-block fault).
  */
 
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include <math.h>
 
 #include "platform.h"
 
 #include "drivers/time.h"
 #include "sensors/barometer.h"
+#include "sensors/gyro.h"
 
 #include "fiu/fiu_detection.h"
 #include "fiu/fiu_led.h"
@@ -45,6 +49,18 @@ static fiuDetectionState_t detState;
 // --- Baro stuck detection state ---
 static int32_t  baroLastPressure   = 0;
 static uint8_t  baroStuckCount     = 0;
+
+// --- Gyro stuck detection state ---
+static float    gyroLastRaw[XYZ_AXIS_COUNT] = {0.0f, 0.0f, 0.0f};
+static uint8_t  gyroStuckCount             = 0;
+
+// --- Gyro anomaly (delta) detection state ---
+static float    gyroAnomalyPrev[XYZ_AXIS_COUNT] = {0.0f, 0.0f, 0.0f};
+static uint8_t  gyroAnomalyCount               = 0;
+
+// --- Baro anomaly (delta) detection state ---
+static int32_t  baroAnomalyPrev  = 0;
+static uint8_t  baroAnomalyCount = 0;
 
 // ---------------------------------------------------------------------------
 // Baro stuck detection
@@ -84,11 +100,143 @@ static void detectBaroStuck(void)
 }
 
 // ---------------------------------------------------------------------------
+// Gyro stuck detection
+//
+// Logic: if all three gyroRaw axes are identical to the previous reading,
+// increment a counter. Once it reaches FIU_DETECT_GYRO_STUCK_THRESHOLD the
+// gyro is declared stuck and FIU_FAULT_GYRO_STUCK is set.
+// The flag and timestamp clear as soon as any axis changes again.
+//
+// gyro.gyroRaw[] is updated at ~1 kHz via gyroGetUpdatedData() in the PID
+// task and is safe to read from taskUpdateAux() without a lock (same pattern
+// as blackbox.c and baro detection above).
+// ---------------------------------------------------------------------------
+static void detectGyroStuck(void)
+{
+    bool allSame = (gyro.gyroRaw[X] == gyroLastRaw[X]) &&
+                   (gyro.gyroRaw[Y] == gyroLastRaw[Y]) &&
+                   (gyro.gyroRaw[Z] == gyroLastRaw[Z]);
+
+    if (allSame) {
+        if (gyroStuckCount < FIU_DETECT_GYRO_STUCK_THRESHOLD) {
+            gyroStuckCount++;
+        }
+    } else {
+        gyroStuckCount   = 0;
+        gyroLastRaw[X]   = gyro.gyroRaw[X];
+        gyroLastRaw[Y]   = gyro.gyroRaw[Y];
+        gyroLastRaw[Z]   = gyro.gyroRaw[Z];
+    }
+
+    if (gyroStuckCount >= FIU_DETECT_GYRO_STUCK_THRESHOLD) {
+        if (!(detState.faultFlags & FIU_FAULT_GYRO_STUCK)) {
+            detState.faultFlags      |= FIU_FAULT_GYRO_STUCK;
+            detState.gyroDetectedAtMs = millis();
+        }
+    } else {
+        detState.faultFlags      &= ~FIU_FAULT_GYRO_STUCK;
+        detState.gyroDetectedAtMs = 0;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Gyro anomaly (delta) detection
+//
+// Logic: compare each gyroRaw axis against the previous 100 Hz sample.
+// A jump larger than FIU_DETECT_GYRO_ANOMALY_DELTA_THRESHOLD °/s in 10 ms
+// is physically impossible for a multirotor and indicates a fault-induced
+// reading alternating between the real rotation rate and the injected ~0 °/s.
+//
+// Requires N consecutive large-delta readings to avoid single-sample noise.
+// NOTE: only triggers when the drone is actually rotating at fault time.
+//       Detection of the "extreme values" variant (memset 0x7F injection)
+//       is a separate future task -- see project notes.
+// ---------------------------------------------------------------------------
+static void detectGyroAnomaly(void)
+{
+    bool largeDelta = (fabsf(gyro.gyroRaw[X] - gyroAnomalyPrev[X]) > FIU_DETECT_GYRO_ANOMALY_DELTA_THRESHOLD) ||
+                      (fabsf(gyro.gyroRaw[Y] - gyroAnomalyPrev[Y]) > FIU_DETECT_GYRO_ANOMALY_DELTA_THRESHOLD) ||
+                      (fabsf(gyro.gyroRaw[Z] - gyroAnomalyPrev[Z]) > FIU_DETECT_GYRO_ANOMALY_DELTA_THRESHOLD);
+
+    gyroAnomalyPrev[X] = gyro.gyroRaw[X];
+    gyroAnomalyPrev[Y] = gyro.gyroRaw[Y];
+    gyroAnomalyPrev[Z] = gyro.gyroRaw[Z];
+
+    if (largeDelta) {
+        if (gyroAnomalyCount < FIU_DETECT_GYRO_ANOMALY_COUNT) {
+            gyroAnomalyCount++;
+        }
+    } else {
+        gyroAnomalyCount = 0;
+    }
+
+    if (gyroAnomalyCount >= FIU_DETECT_GYRO_ANOMALY_COUNT) {
+        if (!(detState.faultFlags & FIU_FAULT_GYRO_ANOMALY)) {
+            detState.faultFlags            |= FIU_FAULT_GYRO_ANOMALY;
+            detState.gyroAnomalyDetectedAtMs = millis();
+        }
+    } else {
+        detState.faultFlags            &= ~FIU_FAULT_GYRO_ANOMALY;
+        detState.gyroAnomalyDetectedAtMs = 0;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Baro anomaly (delta) detection
+//
+// Logic: only evaluate when baroPressure actually changes (baro runs at 20 Hz,
+// detection at 100 Hz -- 5 of 6 calls see the same value). When a new reading
+// arrives, check the delta against the previous reading.
+//
+// With I2C rate-fault: zero bytes -> Praw=0, Traw=0 -> pressure = c00
+// (chip-specific calibration offset, NOT a real pressure value). The jump
+// between real ~101325 Pa and c00 is expected to be >> 50 Pa.
+//
+// Count resets on any legitimate small-delta baro update, so the flag clears
+// automatically once the fault is deactivated.
+// ---------------------------------------------------------------------------
+static void detectBaroAnomaly(void)
+{
+#ifdef USE_BARO
+    int32_t current = baro.baroPressure;
+
+    if (current == baroAnomalyPrev) {
+        return;  // no new baro reading yet, nothing to evaluate
+    }
+
+    int32_t delta = current - baroAnomalyPrev;
+    if (delta < 0) delta = -delta;
+    baroAnomalyPrev = current;
+
+    if (delta > FIU_DETECT_BARO_ANOMALY_DELTA_THRESHOLD) {
+        if (baroAnomalyCount < FIU_DETECT_BARO_ANOMALY_COUNT) {
+            baroAnomalyCount++;
+        }
+    } else {
+        baroAnomalyCount = 0;
+    }
+
+    if (baroAnomalyCount >= FIU_DETECT_BARO_ANOMALY_COUNT) {
+        if (!(detState.faultFlags & FIU_FAULT_BARO_ANOMALY)) {
+            detState.faultFlags           |= FIU_FAULT_BARO_ANOMALY;
+            detState.baroAnomalyDetectedAtMs = millis();
+        }
+    } else {
+        detState.faultFlags           &= ~FIU_FAULT_BARO_ANOMALY;
+        detState.baroAnomalyDetectedAtMs = 0;
+    }
+#endif
+}
+
+// ---------------------------------------------------------------------------
 // Main update - called at 100 Hz from taskUpdateAux()
 // ---------------------------------------------------------------------------
 void fiuDetectionUpdate(void)
 {
     detectBaroStuck();
+    detectBaroAnomaly();
+    detectGyroStuck();
+    detectGyroAnomaly();
 
 #ifdef USE_FIU
     fiuLedUpdate();
