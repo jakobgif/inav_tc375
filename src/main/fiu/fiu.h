@@ -36,19 +36,22 @@
 
 // FIU state snapshot for blackbox logging
 typedef struct {
-    uint8_t motorMask;   // GV0: bitmask of disabled motors
-    uint8_t i2cMask;     // GV1: bitmask of affected I2C buses
-    uint8_t spiMask;     // GV2: bitmask of affected SPI buses
-    uint8_t i2cRate;     // GV3: I2C error rate 0-100
-    uint8_t spiRate;     // GV4: SPI error rate 0-100
-    uint8_t rcLossFault; // GV5: 1 = RC link loss fault active
-    uint8_t battFault;   // GV6: 0=off, 1=warning-level, 2=critical-level
+    uint8_t motorMask;    // GV0: bitmask of disabled motors
+    uint8_t i2cMask;      // GV1: bitmask of affected I2C buses
+    uint8_t spiMask;      // GV2: bitmask of affected SPI buses
+    uint8_t i2cRate;      // GV3: I2C error rate 0-100
+    uint8_t spiRate;      // GV4: knob value 0-100 (rate in error-rate mode, intensity in overrange mode)
+    uint8_t rcLossFault;  // GV5: 1 = RC link loss fault active
+    uint8_t battFault;    // GV6: 0=off, 1=warning-level, 2=critical-level
+    uint8_t spiOverrange; // 1 = SPI overrange mode active (toggled by knob=0 + switch ON→OFF)
 } fiuState_t;
 
 void fiuUpdateFromGlobalVars(void);
 bool fiuIsMotorDisabled(uint8_t motorIndex);
 bool fiuIsI2cBusReadBlocked(I2CDevice bus);
 bool fiuIsSpiBusReadBlocked(SPIDevice bus);
+bool fiuIsSpiOverrangeActive(SPIDevice bus);
+uint8_t fiuGetSpiOverrangeFillByte(void);
 bool fiuIsRcLossActive(void);
 uint8_t fiuGetBatteryFaultLevel(void);
 const fiuState_t *fiuGetState(void);

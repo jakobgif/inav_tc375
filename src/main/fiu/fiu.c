@@ -37,6 +37,27 @@ static uint8_t spiVariableRate = 0;
 static uint8_t i2cActiveMask = 0;
 static uint8_t spiActiveMask = 0;
 
+// SPI gyro fault mode (two exclusive modes, toggled via knob=0 + switch ON->OFF edge):
+//
+//  Error-rate mode (default): blocked reads -> memset(data, 0x00, length)
+//    Every byte in the SPI read buffer is set to 0x00.
+//    -> all three 16-bit axis values = 0x0000 = 0 dps
+//    -> "silent fault": INAV thinks the drone is perfectly still
+//
+//  Overrange mode: blocked reads -> memset(data, fill, length), fill = 0x40..0x7F (knob)
+//    Every byte in the SPI read buffer is set to the same fill value.
+//    -> all three 16-bit axis values = (fill<<8)|fill, e.g.:
+//         fill=0x40: 0x4040 = 16448 LSB -> ~1003 dps
+//         fill=0x7F: 0x7F7F = 32639 LSB -> ~1990 dps
+//       (ICM-42688 at +-2000 dps range, sensitivity 16.4 LSB/dps)
+//    -> "extreme fault": physically impossible for a multirotor (real max ~500-800 dps)
+//
+//  Known limitation: memset writes the same value to every byte, so all three axes
+//  always receive the same injected rate. A real hardware fault would produce
+//  axis-specific or random values. TODO: per-axis random fill for more realistic injection.
+static bool spiOverrangeMode = false;
+static bool spiSwitchPrev    = false;
+
 //per-bus call counters incremented on actual sensor reads, not on FIU tick
 static uint8_t i2cCallCount[I2CDEV_COUNT] = {0};
 static uint8_t spiCallCount[SPIDEV_COUNT] = {0};
@@ -78,14 +99,24 @@ void fiuUpdateFromGlobalVars(void)
     else
         battFaultLevel = 2;
 
+    // SPI overrange mode toggle: knob=0 + switch ON->OFF edge
+    // In overrange mode: switch ON/OFF controls fault, knob controls fill intensity (0x40-0x7F)
+    // In error-rate mode: switch ON/OFF controls fault, knob controls error rate %
+    bool spiSwitchNow = (spiActiveMask != 0);
+    if (spiSwitchPrev && !spiSwitchNow && (spiVariableRate == 0)) {
+        spiOverrangeMode = !spiOverrangeMode;
+    }
+    spiSwitchPrev = spiSwitchNow;
+
     //update blackbox state snapshot
-    fiuState.motorMask   = (uint8_t)motorMask;
-    fiuState.i2cMask     = (uint8_t)i2cMask;
-    fiuState.spiMask     = (uint8_t)spiMask;
-    fiuState.i2cRate     = i2cErrorRate;
-    fiuState.spiRate     = spiErrorRate;
-    fiuState.rcLossFault = rcLossFaultActive ? 1 : 0;
-    fiuState.battFault   = battFaultLevel;
+    fiuState.motorMask    = (uint8_t)motorMask;
+    fiuState.i2cMask      = (uint8_t)i2cMask;
+    fiuState.spiMask      = (uint8_t)spiMask;
+    fiuState.i2cRate      = i2cErrorRate;
+    fiuState.spiRate      = spiVariableRate;
+    fiuState.rcLossFault  = rcLossFaultActive ? 1 : 0;
+    fiuState.battFault    = battFaultLevel;
+    fiuState.spiOverrange = spiOverrangeMode ? 1 : 0;
 }
 
 bool fiuIsRcLossActive(void)
@@ -123,10 +154,27 @@ bool fiuIsI2cBusReadBlocked(I2CDevice bus)
 
 bool fiuIsSpiBusReadBlocked(SPIDevice bus)
 {
+    if (spiOverrangeMode) return false;  // overrange mode handled separately
     if (bus < 0 || bus >= SPIDEV_COUNT) return false;
     if (!(spiActiveMask & BIT(bus)) || spiErrorRate == 0) return false;
     if (spiErrorRate >= 100) return true;
     bool blocked = (spiCallCount[bus] % 100) < spiErrorRate;
     spiCallCount[bus] = (spiCallCount[bus] + 1) % 100;
     return blocked;
+}
+
+bool fiuIsSpiOverrangeActive(SPIDevice bus)
+{
+    if (!spiOverrangeMode) return false;
+    if (bus < 0 || bus >= SPIDEV_COUNT) return false;
+    return (spiActiveMask & BIT(bus)) != 0;
+}
+
+// Maps knob position (spiVariableRate 0-100) to a fill byte in range 0x40..0x7F.
+// The fill byte is written to every byte of the SPI read buffer via memset, so each
+// 16-bit axis value becomes (fill<<8)|fill. Lower bound 0x40 ensures the injected
+// rate (~1003 dps) is always well above the physical multirotor maximum (~800 dps).
+uint8_t fiuGetSpiOverrangeFillByte(void)
+{
+    return (uint8_t)(0x40 + (spiVariableRate * (0x7F - 0x40) / 100));
 }

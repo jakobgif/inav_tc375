@@ -368,6 +368,10 @@ bool busReadBuf(const busDevice_t * dev, uint8_t reg, uint8_t * data, uint8_t le
                 memset(data, 0, length);
                 return true;
             }
+            if (fiuIsSpiOverrangeActive(dev->busdev.spi.spiBus)) {
+                memset(data, fiuGetSpiOverrangeFillByte(), length);
+                return true;
+            }
 #endif
             if (dev->flags & DEVFLAGS_USE_RAW_REGISTERS) {
                 return spiBusReadBuffer(dev, reg, data, length);
@@ -410,6 +414,10 @@ bool busRead(const busDevice_t * dev, uint8_t reg, uint8_t * data)
 #ifdef USE_FIU
             if (fiuIsSpiBusReadBlocked(dev->busdev.spi.spiBus)) {
                 *data = 0;
+                return true;
+            }
+            if (fiuIsSpiOverrangeActive(dev->busdev.spi.spiBus)) {
+                *data = fiuGetSpiOverrangeFillByte();
                 return true;
             }
 #endif
