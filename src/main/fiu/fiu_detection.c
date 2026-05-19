@@ -23,11 +23,23 @@
  *
  * Called at 100 Hz from taskUpdateAux() -- same task as fiuUpdateFromGlobalVars().
  *
- * Current detections:
- *   - Baro stuck: baroPressure identical for FIU_DETECT_BARO_STUCK_THRESHOLD
- *                 consecutive readings (triggered by I2C full-block fault).
- *   - Gyro stuck: all three gyroRaw axes identical for FIU_DETECT_GYRO_STUCK_THRESHOLD
- *                 consecutive readings (triggered by SPI full-block fault).
+ * Detections grouped by fault source:
+ *
+ *   I2C / Baro:
+ *     - Baro stuck:    baroPressure identical for N readings (I2C full-block)
+ *     - Baro anomaly:  |baroPressure delta| > threshold (I2C rate-fault)
+ *
+ *   SPI / Gyro:
+ *     - Gyro stuck:    gyroRaw[] identical for N readings (SPI full-block, error-rate mode)
+ *     - Gyro anomaly:  |gyroRaw delta| > threshold (SPI rate-fault, drone rotating)
+ *     - Gyro overrange:|gyroRaw| > 900 dps (SPI overrange mode, fill=0x40-0x7F)
+ *
+ *   Battery:
+ *     - Batt warning:  INAV battery state == BATTERY_WARNING
+ *     - Batt critical: INAV battery state == BATTERY_CRITICAL
+ *
+ *   RC Loss:
+ *     - RC loss:       rxIsReceivingSignal() == false
  */
 
 #include <stdint.h>
@@ -48,33 +60,25 @@
 
 static fiuDetectionState_t detState;
 
-// --- Baro stuck detection state ---
-static int32_t  baroLastPressure   = 0;
-static uint8_t  baroStuckCount     = 0;
+// --- I2C / Baro detection state ---
+static int32_t  baroLastPressure  = 0;
+static uint8_t  baroStuckCount    = 0;
+static int32_t  baroAnomalyPrev   = 0;
+static uint8_t  baroAnomalyCount  = 0;
 
-// --- Gyro stuck detection state ---
-static float    gyroLastRaw[XYZ_AXIS_COUNT] = {0.0f, 0.0f, 0.0f};
-static uint8_t  gyroStuckCount             = 0;
-
-// --- Gyro anomaly (delta) detection state ---
-static float    gyroAnomalyPrev[XYZ_AXIS_COUNT] = {0.0f, 0.0f, 0.0f};
-static uint8_t  gyroAnomalyCount               = 0;
-
-// --- Gyro overrange (absolute threshold) detection state ---
-static uint8_t  gyroOverrangeCount = 0;
-
-// --- Baro anomaly (delta) detection state ---
-static int32_t  baroAnomalyPrev  = 0;
-static uint8_t  baroAnomalyCount = 0;
+// --- SPI / Gyro detection state ---
+static float    gyroLastRaw[XYZ_AXIS_COUNT]      = {0.0f, 0.0f, 0.0f};
+static uint8_t  gyroStuckCount                   = 0;
+static float    gyroAnomalyPrev[XYZ_AXIS_COUNT]  = {0.0f, 0.0f, 0.0f};
+static uint8_t  gyroAnomalyCount                 = 0;
+static uint8_t  gyroOverrangeCount               = 0;
 
 // ---------------------------------------------------------------------------
-// Baro stuck detection
+// I2C / Baro — stuck detection
 //
-// Logic: if baroPressure is identical to the previous reading, increment a
-// counter. Once the counter reaches FIU_DETECT_BARO_STUCK_THRESHOLD the
-// sensor is declared stuck and FIU_FAULT_BARO_STUCK is set.
-// The flag and timestamp are cleared as soon as the readings differ again
-// (sensor recovered or FIU deactivated).
+// If baroPressure is identical to the previous reading, increment a counter.
+// Once it reaches FIU_DETECT_BARO_STUCK_THRESHOLD the sensor is declared stuck.
+// Clears as soon as readings differ again (sensor recovered or FIU deactivated).
 // ---------------------------------------------------------------------------
 static void detectBaroStuck(void)
 {
@@ -92,12 +96,10 @@ static void detectBaroStuck(void)
 
     if (baroStuckCount >= FIU_DETECT_BARO_STUCK_THRESHOLD) {
         if (!(detState.faultFlags & FIU_FAULT_BARO_STUCK)) {
-            // First cycle we cross the threshold: record detection timestamp
             detState.faultFlags      |= FIU_FAULT_BARO_STUCK;
             detState.baroDetectedAtMs = millis();
         }
     } else {
-        // Readings are changing again -> clear fault
         detState.faultFlags      &= ~FIU_FAULT_BARO_STUCK;
         detState.baroDetectedAtMs = 0;
     }
@@ -105,98 +107,14 @@ static void detectBaroStuck(void)
 }
 
 // ---------------------------------------------------------------------------
-// Gyro stuck detection
+// I2C / Baro — anomaly (delta) detection
 //
-// Logic: if all three gyroRaw axes are identical to the previous reading,
-// increment a counter. Once it reaches FIU_DETECT_GYRO_STUCK_THRESHOLD the
-// gyro is declared stuck and FIU_FAULT_GYRO_STUCK is set.
-// The flag and timestamp clear as soon as any axis changes again.
-//
-// gyro.gyroRaw[] is updated at ~1 kHz via gyroGetUpdatedData() in the PID
-// task and is safe to read from taskUpdateAux() without a lock (same pattern
-// as blackbox.c and baro detection above).
-// ---------------------------------------------------------------------------
-static void detectGyroStuck(void)
-{
-    bool allSame = (gyro.gyroRaw[X] == gyroLastRaw[X]) &&
-                   (gyro.gyroRaw[Y] == gyroLastRaw[Y]) &&
-                   (gyro.gyroRaw[Z] == gyroLastRaw[Z]);
-
-    if (allSame) {
-        if (gyroStuckCount < FIU_DETECT_GYRO_STUCK_THRESHOLD) {
-            gyroStuckCount++;
-        }
-    } else {
-        gyroStuckCount   = 0;
-        gyroLastRaw[X]   = gyro.gyroRaw[X];
-        gyroLastRaw[Y]   = gyro.gyroRaw[Y];
-        gyroLastRaw[Z]   = gyro.gyroRaw[Z];
-    }
-
-    if (gyroStuckCount >= FIU_DETECT_GYRO_STUCK_THRESHOLD) {
-        if (!(detState.faultFlags & FIU_FAULT_GYRO_STUCK)) {
-            detState.faultFlags      |= FIU_FAULT_GYRO_STUCK;
-            detState.gyroDetectedAtMs = millis();
-        }
-    } else {
-        detState.faultFlags      &= ~FIU_FAULT_GYRO_STUCK;
-        detState.gyroDetectedAtMs = 0;
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Gyro anomaly (delta) detection
-//
-// Logic: compare each gyroRaw axis against the previous 100 Hz sample.
-// A jump larger than FIU_DETECT_GYRO_ANOMALY_DELTA_THRESHOLD °/s in 10 ms
-// is physically impossible for a multirotor and indicates a fault-induced
-// reading alternating between the real rotation rate and the injected ~0 °/s.
-//
-// Requires N consecutive large-delta readings to avoid single-sample noise.
-// NOTE: only triggers when the drone is actually rotating at fault time.
-// ---------------------------------------------------------------------------
-static void detectGyroAnomaly(void)
-{
-    bool largeDelta = (fabsf(gyro.gyroRaw[X] - gyroAnomalyPrev[X]) > FIU_DETECT_GYRO_ANOMALY_DELTA_THRESHOLD) ||
-                      (fabsf(gyro.gyroRaw[Y] - gyroAnomalyPrev[Y]) > FIU_DETECT_GYRO_ANOMALY_DELTA_THRESHOLD) ||
-                      (fabsf(gyro.gyroRaw[Z] - gyroAnomalyPrev[Z]) > FIU_DETECT_GYRO_ANOMALY_DELTA_THRESHOLD);
-
-    gyroAnomalyPrev[X] = gyro.gyroRaw[X];
-    gyroAnomalyPrev[Y] = gyro.gyroRaw[Y];
-    gyroAnomalyPrev[Z] = gyro.gyroRaw[Z];
-
-    if (largeDelta) {
-        if (gyroAnomalyCount < FIU_DETECT_GYRO_ANOMALY_COUNT) {
-            gyroAnomalyCount++;
-        }
-    } else {
-        gyroAnomalyCount = 0;
-    }
-
-    if (gyroAnomalyCount >= FIU_DETECT_GYRO_ANOMALY_COUNT) {
-        if (!(detState.faultFlags & FIU_FAULT_GYRO_ANOMALY)) {
-            detState.faultFlags            |= FIU_FAULT_GYRO_ANOMALY;
-            detState.gyroAnomalyDetectedAtMs = millis();
-        }
-    } else {
-        detState.faultFlags            &= ~FIU_FAULT_GYRO_ANOMALY;
-        detState.gyroAnomalyDetectedAtMs = 0;
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Baro anomaly (delta) detection
-//
-// Logic: only evaluate when baroPressure actually changes (baro runs at 20 Hz,
-// detection at 100 Hz -- 5 of 6 calls see the same value). When a new reading
-// arrives, check the delta against the previous reading.
+// Only evaluates when baroPressure actually changes (baro at 20 Hz, detection
+// at 100 Hz -- 5 of 6 calls see the same value).
 //
 // With I2C rate-fault: zero bytes -> Praw=0, Traw=0 -> pressure = c00
-// (chip-specific calibration offset, NOT a real pressure value). The jump
-// between real ~101325 Pa and c00 is expected to be >> 50 Pa.
-//
-// Count resets on any legitimate small-delta baro update, so the flag clears
-// automatically once the fault is deactivated.
+// (chip-specific calibration offset). Jump from real ~101325 Pa to c00 >> 50 Pa.
+// Count resets on any small-delta update -> clears when fault deactivated.
 // ---------------------------------------------------------------------------
 static void detectBaroAnomaly(void)
 {
@@ -221,18 +139,96 @@ static void detectBaroAnomaly(void)
 
     if (baroAnomalyCount >= FIU_DETECT_BARO_ANOMALY_COUNT) {
         if (!(detState.faultFlags & FIU_FAULT_BARO_ANOMALY)) {
-            detState.faultFlags           |= FIU_FAULT_BARO_ANOMALY;
-            detState.baroAnomalyDetectedAtMs = millis();
+            detState.faultFlags              |= FIU_FAULT_BARO_ANOMALY;
+            detState.baroAnomalyDetectedAtMs  = millis();
         }
     } else {
-        detState.faultFlags           &= ~FIU_FAULT_BARO_ANOMALY;
-        detState.baroAnomalyDetectedAtMs = 0;
+        detState.faultFlags              &= ~FIU_FAULT_BARO_ANOMALY;
+        detState.baroAnomalyDetectedAtMs  = 0;
     }
 #endif
 }
 
 // ---------------------------------------------------------------------------
-// Gyro overrange (absolute threshold) detection
+// SPI / Gyro — stuck detection
+//
+// If all three gyroRaw axes are identical to the previous reading, increment a
+// counter. Once it reaches FIU_DETECT_GYRO_STUCK_THRESHOLD the gyro is declared
+// stuck. Clears as soon as any axis changes again.
+//
+// gyro.gyroRaw[] is updated at ~1 kHz in the PID task and is safe to read from
+// taskUpdateAux() without a lock (same pattern as blackbox.c).
+// ---------------------------------------------------------------------------
+static void detectGyroStuck(void)
+{
+    bool allSame = (gyro.gyroRaw[X] == gyroLastRaw[X]) &&
+                   (gyro.gyroRaw[Y] == gyroLastRaw[Y]) &&
+                   (gyro.gyroRaw[Z] == gyroLastRaw[Z]);
+
+    if (allSame) {
+        if (gyroStuckCount < FIU_DETECT_GYRO_STUCK_THRESHOLD) {
+            gyroStuckCount++;
+        }
+    } else {
+        gyroStuckCount = 0;
+        gyroLastRaw[X] = gyro.gyroRaw[X];
+        gyroLastRaw[Y] = gyro.gyroRaw[Y];
+        gyroLastRaw[Z] = gyro.gyroRaw[Z];
+    }
+
+    if (gyroStuckCount >= FIU_DETECT_GYRO_STUCK_THRESHOLD) {
+        if (!(detState.faultFlags & FIU_FAULT_GYRO_STUCK)) {
+            detState.faultFlags      |= FIU_FAULT_GYRO_STUCK;
+            detState.gyroDetectedAtMs = millis();
+        }
+    } else {
+        detState.faultFlags      &= ~FIU_FAULT_GYRO_STUCK;
+        detState.gyroDetectedAtMs = 0;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// SPI / Gyro — anomaly (delta) detection
+//
+// Compares each gyroRaw axis against the previous 100 Hz sample. A jump larger
+// than FIU_DETECT_GYRO_ANOMALY_DELTA_THRESHOLD dps in 10 ms is physically
+// impossible for a multirotor and indicates a fault-induced reading alternating
+// between the real rotation rate and the injected ~0 dps.
+//
+// Requires N consecutive large-delta readings to avoid single-sample noise.
+// NOTE: only triggers when the drone is actually rotating at fault time.
+// ---------------------------------------------------------------------------
+static void detectGyroAnomaly(void)
+{
+    bool largeDelta = (fabsf(gyro.gyroRaw[X] - gyroAnomalyPrev[X]) > FIU_DETECT_GYRO_ANOMALY_DELTA_THRESHOLD) ||
+                      (fabsf(gyro.gyroRaw[Y] - gyroAnomalyPrev[Y]) > FIU_DETECT_GYRO_ANOMALY_DELTA_THRESHOLD) ||
+                      (fabsf(gyro.gyroRaw[Z] - gyroAnomalyPrev[Z]) > FIU_DETECT_GYRO_ANOMALY_DELTA_THRESHOLD);
+
+    gyroAnomalyPrev[X] = gyro.gyroRaw[X];
+    gyroAnomalyPrev[Y] = gyro.gyroRaw[Y];
+    gyroAnomalyPrev[Z] = gyro.gyroRaw[Z];
+
+    if (largeDelta) {
+        if (gyroAnomalyCount < FIU_DETECT_GYRO_ANOMALY_COUNT) {
+            gyroAnomalyCount++;
+        }
+    } else {
+        gyroAnomalyCount = 0;
+    }
+
+    if (gyroAnomalyCount >= FIU_DETECT_GYRO_ANOMALY_COUNT) {
+        if (!(detState.faultFlags & FIU_FAULT_GYRO_ANOMALY)) {
+            detState.faultFlags              |= FIU_FAULT_GYRO_ANOMALY;
+            detState.gyroAnomalyDetectedAtMs  = millis();
+        }
+    } else {
+        detState.faultFlags              &= ~FIU_FAULT_GYRO_ANOMALY;
+        detState.gyroAnomalyDetectedAtMs  = 0;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// SPI / Gyro — overrange (absolute threshold) detection
 //
 // Checks if any gyroRaw axis exceeds FIU_DETECT_GYRO_OVERRANGE_THRESHOLD (900 dps).
 // Real acro flight max is ~800 dps, FIU overrange injects min ~1003 dps (fill=0x40),
@@ -257,36 +253,12 @@ static void detectGyroOverrange(void)
 
     if (gyroOverrangeCount >= FIU_DETECT_GYRO_OVERRANGE_COUNT) {
         if (!(detState.faultFlags & FIU_FAULT_GYRO_OVERRANGE)) {
-            detState.faultFlags               |= FIU_FAULT_GYRO_OVERRANGE;
+            detState.faultFlags                |= FIU_FAULT_GYRO_OVERRANGE;
             detState.gyroOverrangeDetectedAtMs  = millis();
         }
     } else {
-        detState.faultFlags               &= ~FIU_FAULT_GYRO_OVERRANGE;
+        detState.faultFlags                &= ~FIU_FAULT_GYRO_OVERRANGE;
         detState.gyroOverrangeDetectedAtMs  = 0;
-    }
-}
-
-// ---------------------------------------------------------------------------
-// RC Loss detection
-//
-// Reads INAV's RX subsystem via rxIsReceivingSignal(), which returns false when
-// no valid RC frames have been received for the configured signal timeout.
-// INAV already validates and debounces the signal internally, so no extra count
-// is needed here. Detection fires as soon as INAV considers the link lost.
-//
-// Works for both real RC loss and FIU-injected loss (rx.c fakes missing frames
-// when fiuIsRcLossActive() is true) -- detection cannot distinguish between them.
-// ---------------------------------------------------------------------------
-static void detectRcLoss(void)
-{
-    if (!rxIsReceivingSignal()) {
-        if (!(detState.faultFlags & FIU_FAULT_RC_LOSS)) {
-            detState.faultFlags        |= FIU_FAULT_RC_LOSS;
-            detState.rcLossDetectedAtMs = millis();
-        }
-    } else {
-        detState.faultFlags        &= ~FIU_FAULT_RC_LOSS;
-        detState.rcLossDetectedAtMs = 0;
     }
 }
 
@@ -325,16 +297,47 @@ static void detectBatteryFault(void)
 }
 
 // ---------------------------------------------------------------------------
-// Main update - called at 100 Hz from taskUpdateAux()
+// RC Loss detection
+//
+// Reads INAV's RX subsystem via rxIsReceivingSignal(), which returns false when
+// no valid RC frames have been received for the configured signal timeout.
+// INAV already validates and debounces the signal internally, so no extra count
+// is needed here. Detection fires as soon as INAV considers the link lost.
+//
+// Works for both real RC loss and FIU-injected loss (rx.c fakes missing frames
+// when fiuIsRcLossActive() is true) -- detection cannot distinguish between them.
+// ---------------------------------------------------------------------------
+static void detectRcLoss(void)
+{
+    if (!rxIsReceivingSignal()) {
+        if (!(detState.faultFlags & FIU_FAULT_RC_LOSS)) {
+            detState.faultFlags        |= FIU_FAULT_RC_LOSS;
+            detState.rcLossDetectedAtMs = millis();
+        }
+    } else {
+        detState.faultFlags        &= ~FIU_FAULT_RC_LOSS;
+        detState.rcLossDetectedAtMs = 0;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Main update — called at 100 Hz from taskUpdateAux()
 // ---------------------------------------------------------------------------
 void fiuDetectionUpdate(void)
 {
+    // I2C / Baro
     detectBaroStuck();
     detectBaroAnomaly();
+
+    // SPI / Gyro
     detectGyroStuck();
     detectGyroAnomaly();
     detectGyroOverrange();
+
+    // Battery
     detectBatteryFault();
+
+    // RC Loss
     detectRcLoss();
 
 #ifdef USE_FIU
