@@ -41,24 +41,22 @@ static uint8_t spiVariableRate = 0;  // raw knob 0-100
 static uint8_t spiErrorRate    = 0;  // scaled to FIU_MAX_SPI_ERROR_RATE
 static uint8_t spiCallCount[SPIDEV_COUNT] = {0};
 
-// SPI gyro fault mode (two exclusive modes, toggled via knob=0 + switch ON->OFF edge):
+// SPI gyro fault — two exclusive modes, toggled by: knob=0 + switch ON->OFF edge
 //
-//  Error-rate mode (default): blocked reads -> memset(data, 0x00, length)
-//    Every byte in the SPI read buffer is set to 0x00.
-//    -> all three 16-bit axis values = 0x0000 = 0 dps
-//    -> "silent fault": INAV thinks the drone is perfectly still
+//  [1] Error-rate mode (default)
+//      Blocked reads -> all gyro axes = 0 dps ("silent fault")
+//      INAV thinks the drone is stationary -> PID reacts incorrectly
 //
-//  Overrange mode: blocked reads -> memset(data, fill, length), fill = 0x40..0x7F (knob)
-//    Every byte in the SPI read buffer is set to the same fill value.
-//    -> all three 16-bit axis values = (fill<<8)|fill, e.g.:
-//         fill=0x40: 0x4040 = 16448 LSB -> ~1003 dps
-//         fill=0x7F: 0x7F7F = 32639 LSB -> ~1990 dps
-//       (ICM-42688 at +-2000 dps range, sensitivity 16.4 LSB/dps)
-//    -> "extreme fault": physically impossible for a multirotor (real max ~500-800 dps)
+//  [2] Overrange mode
+//      Blocked reads -> all gyro axes = ~1000-1990 dps (knob controls intensity)
+//      Physically impossible for a multirotor (real max ~500-800 dps) -> clearly detectable
+//      memset writes the fill byte to every byte in the buffer — each axis occupies
+//      2 bytes (high + low), so both bytes get the same fill value:
+//        min: fill=0x40 -> high=0x40, low=0x40 -> 16-bit=0x4040=16448 LSB -> ~1003 dps
+//        max: fill=0x7F -> high=0x7F, low=0x7F -> 16-bit=0x7F7F=32639 LSB -> ~1990 dps
+//      (ICM-42688 +-2000 dps range, sensitivity 16.4 LSB/dps)
 //
-//  Known limitation: memset writes the same value to every byte, so all three axes
-//  always receive the same injected rate. A real hardware fault would produce
-//  axis-specific or random values. TODO: per-axis random fill for more realistic injection.
+//  Note: all three axes always receive the same injected value (memset limitation)
 static bool spiOverrangeMode = false;
 static bool spiSwitchPrev    = false;
 
