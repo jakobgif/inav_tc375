@@ -24,51 +24,85 @@
 #include "fiu/fiu.h"
 #include "programming/global_variables.h"
 
-static bool motorDisabled[MAX_MOTORS] = {false};
 static fiuState_t fiuState = {0};
-static bool rcLossFaultActive = false;
+
+// --- Motor fault (GV0) ---
+static bool motorDisabled[MAX_MOTORS] = {false};
+
+// --- I2C / Baro fault (GV1, GV3) ---
+static uint8_t i2cActiveMask   = 0;
+static uint8_t i2cVariableRate = 0;  // raw knob 0-100
+static uint8_t i2cErrorRate    = 0;  // scaled to FIU_MAX_I2C_ERROR_RATE
+static uint8_t i2cCallCount[I2CDEV_COUNT] = {0};
+
+// --- SPI / Gyro fault (GV2, GV4) ---
+static uint8_t spiActiveMask   = 0;
+static uint8_t spiVariableRate = 0;  // raw knob 0-100
+static uint8_t spiErrorRate    = 0;  // scaled to FIU_MAX_SPI_ERROR_RATE
+static uint8_t spiCallCount[SPIDEV_COUNT] = {0};
+
+// SPI gyro fault mode (two exclusive modes, toggled via knob=0 + switch ON->OFF edge):
+//
+//  Error-rate mode (default): blocked reads -> memset(data, 0x00, length)
+//    Every byte in the SPI read buffer is set to 0x00.
+//    -> all three 16-bit axis values = 0x0000 = 0 dps
+//    -> "silent fault": INAV thinks the drone is perfectly still
+//
+//  Overrange mode: blocked reads -> memset(data, fill, length), fill = 0x40..0x7F (knob)
+//    Every byte in the SPI read buffer is set to the same fill value.
+//    -> all three 16-bit axis values = (fill<<8)|fill, e.g.:
+//         fill=0x40: 0x4040 = 16448 LSB -> ~1003 dps
+//         fill=0x7F: 0x7F7F = 32639 LSB -> ~1990 dps
+//       (ICM-42688 at +-2000 dps range, sensitivity 16.4 LSB/dps)
+//    -> "extreme fault": physically impossible for a multirotor (real max ~500-800 dps)
+//
+//  Known limitation: memset writes the same value to every byte, so all three axes
+//  always receive the same injected rate. A real hardware fault would produce
+//  axis-specific or random values. TODO: per-axis random fill for more realistic injection.
+static bool spiOverrangeMode = false;
+static bool spiSwitchPrev    = false;
+
+// --- Battery fault (GV6) ---
 static uint8_t battFaultLevel = 0;
 
-//per-bus rate and mask: set by fiuUpdateFromGlobalVars(), consumed by read-path functions
-static uint8_t i2cErrorRate = 0;
-static uint8_t spiErrorRate = 0;
-static uint8_t i2cVariableRate = 0;
-static uint8_t spiVariableRate = 0;
-static uint8_t i2cActiveMask = 0;
-static uint8_t spiActiveMask = 0;
+// --- RC Loss fault (GV5) ---
+static bool rcLossFaultActive = false;
 
-//per-bus call counters incremented on actual sensor reads, not on FIU tick
-static uint8_t i2cCallCount[I2CDEV_COUNT] = {0};
-static uint8_t spiCallCount[SPIDEV_COUNT] = {0};
+// ---------------------------------------------------------------------------
 
 void fiuUpdateFromGlobalVars(void)
 {
-    //GV0: motor disable bitmask
+    // GV0: motor disable bitmask
     int32_t motorMask = gvGet(FIU_GV_MOTOR);
     for (int i = 0; i < MAX_MOTORS; i++) {
         motorDisabled[i] = (motorMask & BIT(i)) != 0;
     }
 
-    //GV1: I2C bus select, GV3: error rate (RC knob 1000-2000 -> 0-100%)
-    int32_t i2cMask = gvGet(FIU_GV_I2C);
-    int32_t i2cRaw  = gvGet(FIU_GV_I2C_RATE);
+    // GV1 + GV3: I2C bus select + error rate (RC knob 1000-2000 -> 0-100%)
+    int32_t i2cMask    = gvGet(FIU_GV_I2C);
+    int32_t i2cRaw     = gvGet(FIU_GV_I2C_RATE);
     int32_t i2cClamped = i2cRaw < 1000 ? 1000 : i2cRaw > 2000 ? 2000 : i2cRaw;
-    i2cActiveMask  = (uint8_t)i2cMask;
-    i2cVariableRate   = (uint8_t)((i2cClamped - 1000) / 10);
-    i2cErrorRate   = (uint8_t)(i2cVariableRate * FIU_MAX_I2C_ERROR_RATE / 100);
+    i2cActiveMask   = (uint8_t)i2cMask;
+    i2cVariableRate = (uint8_t)((i2cClamped - 1000) / 10);
+    i2cErrorRate    = (uint8_t)(i2cVariableRate * FIU_MAX_I2C_ERROR_RATE / 100);
 
-    //GV2: SPI bus select, GV4: error rate (RC knob 1000-2000 -> 0-100%)
-    int32_t spiMask = gvGet(FIU_GV_SPI);
-    int32_t spiRaw  = gvGet(FIU_GV_SPI_RATE);
+    // GV2 + GV4: SPI bus select + knob (error rate or overrange intensity)
+    int32_t spiMask    = gvGet(FIU_GV_SPI);
+    int32_t spiRaw     = gvGet(FIU_GV_SPI_RATE);
     int32_t spiClamped = spiRaw < 1000 ? 1000 : spiRaw > 2000 ? 2000 : spiRaw;
-    spiActiveMask  = (uint8_t)spiMask;
-    spiVariableRate    = (uint8_t)((spiClamped - 1000) / 10);
-    spiErrorRate   = (uint8_t)(spiVariableRate * FIU_MAX_SPI_ERROR_RATE / 100);
+    spiActiveMask   = (uint8_t)spiMask;
+    spiVariableRate = (uint8_t)((spiClamped - 1000) / 10);
+    spiErrorRate    = (uint8_t)(spiVariableRate * FIU_MAX_SPI_ERROR_RATE / 100);
 
-    //GV5: RC link loss fault — state only, rx.c reads fiuIsRcLossActive()
-    rcLossFaultActive = (gvGet(FIU_GV_RC_LOSS) != 0);
+    // SPI overrange mode toggle: knob=0 + switch ON->OFF edge switches between
+    // error-rate mode (zeros) and overrange mode (0x40-0x7F fill)
+    bool spiSwitchNow = (spiActiveMask != 0);
+    if (spiSwitchPrev && !spiSwitchNow && (spiVariableRate == 0)) {
+        spiOverrangeMode = !spiOverrangeMode;
+    }
+    spiSwitchPrev = spiSwitchNow;
 
-    //GV6: battery voltage fault — passthrough knob 1000-2000 → level 0/1/2
+    // GV6: battery voltage fault — knob 1000-2000 -> level 0/1/2
     int32_t battRaw     = gvGet(FIU_GV_BATT);
     int32_t battClamped = battRaw < 1000 ? 1000 : battRaw > 2000 ? 2000 : battRaw;
     if (battClamped < 1250)
@@ -78,30 +112,21 @@ void fiuUpdateFromGlobalVars(void)
     else
         battFaultLevel = 2;
 
-    //update blackbox state snapshot
-    fiuState.motorMask   = (uint8_t)motorMask;
-    fiuState.i2cMask     = (uint8_t)i2cMask;
-    fiuState.spiMask     = (uint8_t)spiMask;
-    fiuState.i2cRate     = i2cErrorRate;
-    fiuState.spiRate     = spiErrorRate;
-    fiuState.rcLossFault = rcLossFaultActive ? 1 : 0;
-    fiuState.battFault   = battFaultLevel;
+    // GV5: RC link loss fault — state only, rx.c reads fiuIsRcLossActive()
+    rcLossFaultActive = (gvGet(FIU_GV_RC_LOSS) != 0);
+
+    // Update blackbox state snapshot
+    fiuState.motorMask    = (uint8_t)motorMask;
+    fiuState.i2cMask      = (uint8_t)i2cMask;
+    fiuState.i2cRate      = i2cErrorRate;
+    fiuState.spiMask      = (uint8_t)spiMask;
+    fiuState.spiRate      = spiVariableRate;
+    fiuState.spiOverrange = spiOverrangeMode ? 1 : 0;
+    fiuState.battFault    = battFaultLevel;
+    fiuState.rcLossFault  = rcLossFaultActive ? 1 : 0;
 }
 
-bool fiuIsRcLossActive(void)
-{
-    return rcLossFaultActive;
-}
-
-uint8_t fiuGetBatteryFaultLevel(void)
-{
-    return battFaultLevel;
-}
-
-const fiuState_t *fiuGetState(void)
-{
-    return &fiuState;
-}
+// --- Motor fault ---
 
 bool fiuIsMotorDisabled(uint8_t motorIndex)
 {
@@ -110,6 +135,8 @@ bool fiuIsMotorDisabled(uint8_t motorIndex)
     }
     return motorDisabled[motorIndex];
 }
+
+// --- I2C / Baro fault ---
 
 bool fiuIsI2cBusReadBlocked(I2CDevice bus)
 {
@@ -121,12 +148,52 @@ bool fiuIsI2cBusReadBlocked(I2CDevice bus)
     return blocked;
 }
 
+// --- SPI / Gyro fault ---
+
 bool fiuIsSpiBusReadBlocked(SPIDevice bus)
 {
+    if (spiOverrangeMode) return false;  // overrange mode handled separately
     if (bus < 0 || bus >= SPIDEV_COUNT) return false;
     if (!(spiActiveMask & BIT(bus)) || spiErrorRate == 0) return false;
     if (spiErrorRate >= 100) return true;
     bool blocked = (spiCallCount[bus] % 100) < spiErrorRate;
     spiCallCount[bus] = (spiCallCount[bus] + 1) % 100;
     return blocked;
+}
+
+bool fiuIsSpiOverrangeActive(SPIDevice bus)
+{
+    if (!spiOverrangeMode) return false;
+    if (bus < 0 || bus >= SPIDEV_COUNT) return false;
+    return (spiActiveMask & BIT(bus)) != 0;
+}
+
+// Maps knob position (spiVariableRate 0-100) to a fill byte in range 0x40..0x7F.
+// The fill byte is written to every byte of the SPI read buffer via memset, so each
+// 16-bit axis value becomes (fill<<8)|fill. Lower bound 0x40 ensures the injected
+// rate (~1003 dps) is always well above the physical multirotor maximum (~800 dps).
+uint8_t fiuGetSpiOverrangeFillByte(void)
+{
+    return (uint8_t)(0x40 + (spiVariableRate * (0x7F - 0x40) / 100));
+}
+
+// --- Battery fault ---
+
+uint8_t fiuGetBatteryFaultLevel(void)
+{
+    return battFaultLevel;
+}
+
+// --- RC Loss fault ---
+
+bool fiuIsRcLossActive(void)
+{
+    return rcLossFaultActive;
+}
+
+// --- State ---
+
+const fiuState_t *fiuGetState(void)
+{
+    return &fiuState;
 }

@@ -23,32 +23,56 @@
 #include "drivers/bus_spi.h"
 #include "drivers/bus_i2c.h"
 
-//GV indices for fault configuration via INAV Logic Conditions
-#define FIU_GV_MOTOR     0  // GV0: Bitmask of motors to disable
-#define FIU_GV_I2C       1  // GV1: Bitmask of I2C buses affected (Bit 0=I2C1, Bit 1=I2C2, ...)
-#define FIU_GV_SPI       2  // GV2: Bitmask of SPI buses affected  (Bit 0=SPI1, Bit 1=SPI2, ...)
+// GV indices for fault configuration via INAV Logic Conditions
+#define FIU_GV_MOTOR     0  // GV0: bitmask of motors to disable
+#define FIU_GV_I2C       1  // GV1: bitmask of I2C buses affected (Bit 0=I2C1, Bit 1=I2C2, ...)
 #define FIU_GV_I2C_RATE  3  // GV3: I2C error rate 0-100% (RC knob)
-#define FIU_GV_SPI_RATE  4  // GV4: SPI error rate 0-100% (RC knob)
+#define FIU_GV_SPI       2  // GV2: bitmask of SPI buses affected  (Bit 0=SPI1, Bit 1=SPI2, ...)
+#define FIU_GV_SPI_RATE  4  // GV4: SPI knob 0-100% (error rate or overrange intensity)
+#define FIU_GV_BATT      6  // GV6: battery voltage fault level (knob: 0=off, 1=warning, 2=critical)
 #define FIU_GV_RC_LOSS   5  // GV5: 1 = simulate RC link loss (failsafe trigger)
-#define FIU_GV_BATT      6  // GV6: battery voltage fault (0=off, 1=warning-level, 2=critical-level)
-#define FIU_MAX_I2C_ERROR_RATE 50// percent
-#define FIU_MAX_SPI_ERROR_RATE 80// percent
 
-// FIU state snapshot for blackbox logging
+#define FIU_MAX_I2C_ERROR_RATE 50  // percent
+#define FIU_MAX_SPI_ERROR_RATE 80  // percent
+
+// FIU state snapshot for blackbox logging — grouped by fault type
 typedef struct {
-    uint8_t motorMask;   // GV0: bitmask of disabled motors
-    uint8_t i2cMask;     // GV1: bitmask of affected I2C buses
-    uint8_t spiMask;     // GV2: bitmask of affected SPI buses
-    uint8_t i2cRate;     // GV3: I2C error rate 0-100
-    uint8_t spiRate;     // GV4: SPI error rate 0-100
-    uint8_t rcLossFault; // GV5: 1 = RC link loss fault active
-    uint8_t battFault;   // GV6: 0=off, 1=warning-level, 2=critical-level
+    // Motor fault (GV0)
+    uint8_t motorMask;    // bitmask of disabled motors
+
+    // I2C / Baro fault (GV1, GV3)
+    uint8_t i2cMask;      // bitmask of affected I2C buses
+    uint8_t i2cRate;      // I2C error rate 0-100
+
+    // SPI / Gyro fault (GV2, GV4)
+    uint8_t spiMask;      // bitmask of affected SPI buses
+    uint8_t spiRate;      // knob value 0-100 (rate in error-rate mode, intensity in overrange mode)
+    uint8_t spiOverrange; // 1 = overrange mode active (toggled by knob=0 + switch ON->OFF)
+
+    // Battery fault (GV6)
+    uint8_t battFault;    // 0=off, 1=warning-level, 2=critical-level
+
+    // RC Loss fault (GV5)
+    uint8_t rcLossFault;  // 1 = RC link loss fault active
 } fiuState_t;
 
 void fiuUpdateFromGlobalVars(void);
+
+// Motor fault
 bool fiuIsMotorDisabled(uint8_t motorIndex);
+
+// I2C / Baro fault
 bool fiuIsI2cBusReadBlocked(I2CDevice bus);
+
+// SPI / Gyro fault
 bool fiuIsSpiBusReadBlocked(SPIDevice bus);
-bool fiuIsRcLossActive(void);
+bool fiuIsSpiOverrangeActive(SPIDevice bus);
+uint8_t fiuGetSpiOverrangeFillByte(void);
+
+// Battery fault
 uint8_t fiuGetBatteryFaultLevel(void);
+
+// RC Loss fault
+bool fiuIsRcLossActive(void);
+
 const fiuState_t *fiuGetState(void);
