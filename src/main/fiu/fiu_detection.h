@@ -39,22 +39,27 @@
 #define FIU_DETECT_BARO_ANOMALY_DELTA_THRESHOLD  50
 #define FIU_DETECT_BARO_ANOMALY_COUNT             3
 
-// Fault detection flags - one bit per fault type (baro bits 0-1, gyro bits 2-3)
+// Fault detection flags - one bit per fault type
+// Baro: bits 0-1, Gyro: bits 2-3, Battery: bits 4-5, RC: bit 6, Gyro overrange: bit 7
+// Motor: bit 8 (requires uint16_t faultFlags — future extension)
 typedef enum {
-    FIU_FAULT_NONE         = 0,
-    FIU_FAULT_BARO_STUCK   = (1 << 0),  // baroPressure identical for N consecutive readings
-    FIU_FAULT_BARO_ANOMALY = (1 << 1),  // |baroPressure delta| > threshold for N consecutive baro updates
-    FIU_FAULT_GYRO_STUCK   = (1 << 2),  // gyroRaw[] identical for N consecutive readings
-    FIU_FAULT_GYRO_ANOMALY = (1 << 3),  // |gyroRaw delta| > threshold for N consecutive readings
+    FIU_FAULT_NONE           = 0,
+    FIU_FAULT_BARO_STUCK     = (1 << 0),  // baroPressure identical for N consecutive readings
+    FIU_FAULT_BARO_ANOMALY   = (1 << 1),  // |baroPressure delta| > threshold for N consecutive baro updates
+    FIU_FAULT_GYRO_STUCK     = (1 << 2),  // gyroRaw[] identical for N consecutive readings
+    FIU_FAULT_GYRO_ANOMALY   = (1 << 3),  // |gyroRaw delta| > threshold for N consecutive readings
+    FIU_FAULT_BATT_WARNING   = (1 << 4),  // INAV battery state == BATTERY_WARNING
+    FIU_FAULT_BATT_CRITICAL  = (1 << 5),  // INAV battery state == BATTERY_CRITICAL
 } fiuFaultFlags_e;
 
 // Snapshot written to Blackbox each frame
 typedef struct {
-    uint8_t   faultFlags;           // bitmask of fiuFaultFlags_e
-    uint32_t  baroDetectedAtMs;     // millis() when baro fault was first detected (0 = not detected)
-    uint32_t  gyroDetectedAtMs;       // millis() when gyro stuck was first detected (0 = not detected)
-    uint32_t  gyroAnomalyDetectedAtMs; // millis() when gyro anomaly was first detected (0 = not detected)
-    uint32_t  baroAnomalyDetectedAtMs; // millis() when baro anomaly was first detected (0 = not detected)
+    uint8_t   faultFlags;                // bitmask of fiuFaultFlags_e
+    uint32_t  baroDetectedAtMs;          // millis() when baro stuck was first detected (0 = not detected)
+    uint32_t  gyroDetectedAtMs;          // millis() when gyro stuck was first detected (0 = not detected)
+    uint32_t  gyroAnomalyDetectedAtMs;   // millis() when gyro anomaly was first detected (0 = not detected)
+    uint32_t  baroAnomalyDetectedAtMs;   // millis() when baro anomaly was first detected (0 = not detected)
+    uint32_t  battDetectedAtMs;          // millis() when battery warning/critical was first detected (0 = not detected)
 } fiuDetectionState_t;
 
 void fiuDetectionUpdate(void);

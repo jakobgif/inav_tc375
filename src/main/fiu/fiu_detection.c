@@ -39,6 +39,7 @@
 
 #include "drivers/time.h"
 #include "sensors/barometer.h"
+#include "sensors/battery.h"
 #include "sensors/gyro.h"
 
 #include "fiu/fiu_detection.h"
@@ -229,6 +230,40 @@ static void detectBaroAnomaly(void)
 }
 
 // ---------------------------------------------------------------------------
+// Battery fault detection
+//
+// Reads INAV's own battery state machine (getBatteryState()), which already
+// processes the FIU-injected voltage through its LPF and hysteresis logic.
+// No additional debounce needed -- INAV's state machine is already stable.
+//
+// BATTERY_WARNING  -> FIU_FAULT_BATT_WARNING
+// BATTERY_CRITICAL -> FIU_FAULT_BATT_WARNING | FIU_FAULT_BATT_CRITICAL
+// ---------------------------------------------------------------------------
+static void detectBatteryFault(void)
+{
+    batteryState_e state = getBatteryState();
+
+    bool warning  = (state == BATTERY_WARNING || state == BATTERY_CRITICAL);
+    bool critical = (state == BATTERY_CRITICAL);
+
+    if (warning) {
+        if (!(detState.faultFlags & FIU_FAULT_BATT_WARNING)) {
+            detState.faultFlags      |= FIU_FAULT_BATT_WARNING;
+            detState.battDetectedAtMs = millis();
+        }
+    } else {
+        detState.faultFlags      &= ~FIU_FAULT_BATT_WARNING;
+        detState.battDetectedAtMs = 0;
+    }
+
+    if (critical) {
+        detState.faultFlags |= FIU_FAULT_BATT_CRITICAL;
+    } else {
+        detState.faultFlags &= ~FIU_FAULT_BATT_CRITICAL;
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Main update - called at 100 Hz from taskUpdateAux()
 // ---------------------------------------------------------------------------
 void fiuDetectionUpdate(void)
@@ -237,6 +272,7 @@ void fiuDetectionUpdate(void)
     detectBaroAnomaly();
     detectGyroStuck();
     detectGyroAnomaly();
+    detectBatteryFault();
 
 #ifdef USE_FIU
     fiuLedUpdate();
