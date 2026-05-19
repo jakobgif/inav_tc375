@@ -29,34 +29,36 @@ static fiuState_t fiuState = {0};
 // --- Motor fault (GV0) ---
 static bool motorDisabled[MAX_MOTORS] = {false};
 
-// --- I2C / Baro fault (GV1, GV3) ---
+// --- I2C / Baro fault (GV1, KNOB_A) ---
 static uint8_t i2cActiveMask   = 0;
-static uint8_t i2cVariableRate = 0;  // raw knob 0-100
+static uint8_t i2cVariableRate = 0;  // raw KNOB_A value 0-100
 static uint8_t i2cErrorRate    = 0;  // scaled to FIU_MAX_I2C_ERROR_RATE
 static uint8_t i2cCallCount[I2CDEV_COUNT] = {0};
 
-// --- SPI / Gyro fault (GV2, GV4) ---
+// --- SPI / Gyro fault (GV2, KNOB_A, KNOB_B) ---
 static uint8_t spiActiveMask   = 0;
-static uint8_t spiVariableRate = 0;  // raw knob 0-100
+static uint8_t spiVariableRate = 0;  // raw KNOB_B value 0-100
 static uint8_t spiErrorRate    = 0;  // scaled to FIU_MAX_SPI_ERROR_RATE
+static uint8_t spiAxisMask     = FIU_SPI_AXIS_XYZ;  // default: all axes
 static uint8_t spiCallCount[SPIDEV_COUNT] = {0};
 
-// SPI gyro fault — two exclusive modes, toggled by: knob=0 + switch ON->OFF edge
+// SPI gyro fault — two exclusive modes, toggled by: KNOB_A=0 AND KNOB_B=0 + switch ON->OFF edge
 //
 //  [1] Error-rate mode (default)
 //      Blocked reads -> all gyro axes = 0 dps ("silent fault")
 //      INAV thinks the drone is stationary -> PID reacts incorrectly
 //
 //  [2] Overrange mode
-//      Blocked reads -> all gyro axes = ~1000-1990 dps (knob controls intensity)
+//      Blocked reads -> selected gyro axes = ~1000-1990 dps (KNOB_B controls intensity)
 //      Physically impossible for a multirotor (real max ~500-800 dps) -> clearly detectable
 //      memset writes the fill byte to every byte in the buffer — each axis occupies
 //      2 bytes (high + low), so both bytes get the same fill value:
 //        min: fill=0x40 -> high=0x40, low=0x40 -> 16-bit=0x4040=16448 LSB -> ~1003 dps
 //        max: fill=0x7F -> high=0x7F, low=0x7F -> 16-bit=0x7F7F=32639 LSB -> ~1990 dps
 //      (ICM-42688 +-2000 dps range, sensitivity 16.4 LSB/dps)
+//      Axis selection via KNOB_A (only valid when SPI-only mode active, see fiu.h)
 //
-//  Note: all three axes always receive the same injected value (memset limitation)
+//  Note: unselected axes receive real sensor values (real SPI read happens first)
 static bool spiOverrangeMode = false;
 static bool spiSwitchPrev    = false;
 
@@ -76,26 +78,71 @@ void fiuUpdateFromGlobalVars(void)
         motorDisabled[i] = (motorMask & BIT(i)) != 0;
     }
 
-    // GV1 + GV3: I2C bus select + error rate (RC knob 1000-2000 -> 0-100%)
+    // Read switch states and both knob values
     int32_t i2cMask    = gvGet(FIU_GV_I2C);
-    int32_t i2cRaw     = gvGet(FIU_GV_I2C_RATE);
-    int32_t i2cClamped = i2cRaw < 1000 ? 1000 : i2cRaw > 2000 ? 2000 : i2cRaw;
-    i2cActiveMask   = (uint8_t)i2cMask;
-    i2cVariableRate = (uint8_t)((i2cClamped - 1000) / 10);
-    i2cErrorRate    = (uint8_t)(i2cVariableRate * FIU_MAX_I2C_ERROR_RATE / 100);
-
-    // GV2 + GV4: SPI bus select + knob (error rate or overrange intensity)
     int32_t spiMask    = gvGet(FIU_GV_SPI);
-    int32_t spiRaw     = gvGet(FIU_GV_SPI_RATE);
-    int32_t spiClamped = spiRaw < 1000 ? 1000 : spiRaw > 2000 ? 2000 : spiRaw;
-    spiActiveMask   = (uint8_t)spiMask;
-    spiVariableRate = (uint8_t)((spiClamped - 1000) / 10);
-    spiErrorRate    = (uint8_t)(spiVariableRate * FIU_MAX_SPI_ERROR_RATE / 100);
 
-    // SPI overrange mode toggle: knob=0 + switch ON->OFF edge switches between
-    // error-rate mode (zeros) and overrange mode (0x40-0x7F fill)
+    int32_t knobARaw     = gvGet(FIU_GV_KNOB_A);
+    int32_t knobAClamped = knobARaw < 1000 ? 1000 : knobARaw > 2000 ? 2000 : knobARaw;
+    uint8_t knobA        = (uint8_t)((knobAClamped - 1000) / 10);  // 0-100
+
+    int32_t knobBRaw     = gvGet(FIU_GV_KNOB_B);
+    int32_t knobBClamped = knobBRaw < 1000 ? 1000 : knobBRaw > 2000 ? 2000 : knobBRaw;
+    uint8_t knobB        = (uint8_t)((knobBClamped - 1000) / 10);  // 0-100
+
+    bool i2cOn = (i2cMask != 0);
+    bool spiOn = (spiMask != 0);
+
+    if (i2cOn && spiOn) {
+        // Mutual exclusion: both switches ON -> safety reset, deactivate everything
+        i2cActiveMask   = 0;
+        i2cVariableRate = 0;
+        i2cErrorRate    = 0;
+        spiActiveMask   = 0;
+        spiVariableRate = 0;
+        spiErrorRate    = 0;
+        spiAxisMask     = FIU_SPI_AXIS_XYZ;
+        i2cMask         = 0;
+        spiMask         = 0;
+    } else if (i2cOn) {
+        // I2C only: KNOB_A = I2C error rate, SPI inactive
+        i2cActiveMask   = (uint8_t)i2cMask;
+        i2cVariableRate = knobA;
+        i2cErrorRate    = (uint8_t)(knobA * FIU_MAX_I2C_ERROR_RATE / 100);
+        spiActiveMask   = 0;
+        spiVariableRate = 0;
+        spiErrorRate    = 0;
+    } else if (spiOn) {
+        // SPI only: KNOB_B = rate/intensity, KNOB_A repurposed for axis selection
+        // KNOB_A bands: 0-24 = X | 25-49 = Y | 50-74 = Z | 75-100 = XYZ
+        i2cActiveMask   = 0;
+        i2cVariableRate = knobA;
+        i2cErrorRate    = 0;
+        spiActiveMask   = (uint8_t)spiMask;
+        spiVariableRate = knobB;
+        spiErrorRate    = (uint8_t)(knobB * FIU_MAX_SPI_ERROR_RATE / 100);
+
+        if (knobA < 25)
+            spiAxisMask = FIU_SPI_AXIS_X;
+        else if (knobA < 50)
+            spiAxisMask = FIU_SPI_AXIS_Y;
+        else if (knobA < 75)
+            spiAxisMask = FIU_SPI_AXIS_Z;
+        else
+            spiAxisMask = FIU_SPI_AXIS_XYZ;
+    } else {
+        // Neither active
+        i2cActiveMask   = 0;
+        i2cVariableRate = 0;
+        i2cErrorRate    = 0;
+        spiActiveMask   = 0;
+        spiVariableRate = 0;
+        spiErrorRate    = 0;
+    }
+
+    // SPI overrange mode toggle: KNOB_A=0 AND KNOB_B=0 + switch ON->OFF edge
     bool spiSwitchNow = (spiActiveMask != 0);
-    if (spiSwitchPrev && !spiSwitchNow && (spiVariableRate == 0)) {
+    if (spiSwitchPrev && !spiSwitchNow && (spiVariableRate == 0) && (i2cVariableRate == 0)) {
         spiOverrangeMode = !spiOverrangeMode;
     }
     spiSwitchPrev = spiSwitchNow;
@@ -120,6 +167,7 @@ void fiuUpdateFromGlobalVars(void)
     fiuState.spiMask      = (uint8_t)spiMask;
     fiuState.spiRate      = spiVariableRate;
     fiuState.spiOverrange = spiOverrangeMode ? 1 : 0;
+    fiuState.spiAxisMask  = spiAxisMask;
     fiuState.battFault    = battFaultLevel;
     fiuState.rcLossFault  = rcLossFaultActive ? 1 : 0;
 }
@@ -166,13 +214,18 @@ bool fiuIsSpiOverrangeActive(SPIDevice bus)
     return (spiActiveMask & BIT(bus)) != 0;
 }
 
-// Maps knob position (spiVariableRate 0-100) to a fill byte in range 0x40..0x7F.
+// Maps KNOB_B (spiVariableRate 0-100) to a fill byte in range 0x40..0x7F.
 // The fill byte is written to every byte of the SPI read buffer via memset, so each
 // 16-bit axis value becomes (fill<<8)|fill. Lower bound 0x40 ensures the injected
 // rate (~1003 dps) is always well above the physical multirotor maximum (~800 dps).
 uint8_t fiuGetSpiOverrangeFillByte(void)
 {
     return (uint8_t)(0x40 + (spiVariableRate * (0x7F - 0x40) / 100));
+}
+
+uint8_t fiuGetSpiAxisMask(void)
+{
+    return spiAxisMask;
 }
 
 // --- Battery fault ---

@@ -369,8 +369,18 @@ bool busReadBuf(const busDevice_t * dev, uint8_t reg, uint8_t * data, uint8_t le
                 return true;
             }
             if (fiuIsSpiOverrangeActive(dev->busdev.spi.spiBus)) {
-                memset(data, fiuGetSpiOverrangeFillByte(), length);
-                return true;
+                // Real read first so unselected axes keep actual sensor values.
+                // Then overwrite only the selected axis bytes.
+                // Gyro buffer layout: X=bytes[0-1], Y=bytes[2-3], Z=bytes[4-5]
+                bool result = (dev->flags & DEVFLAGS_USE_RAW_REGISTERS) ?
+                    spiBusReadBuffer(dev, reg, data, length) :
+                    spiBusReadBuffer(dev, reg | 0x80, data, length);
+                uint8_t fill     = fiuGetSpiOverrangeFillByte();
+                uint8_t axisMask = fiuGetSpiAxisMask();
+                if ((axisMask & FIU_SPI_AXIS_X) && length > 1) { data[0] = fill; data[1] = fill; }
+                if ((axisMask & FIU_SPI_AXIS_Y) && length > 3) { data[2] = fill; data[3] = fill; }
+                if ((axisMask & FIU_SPI_AXIS_Z) && length > 5) { data[4] = fill; data[5] = fill; }
+                return result;
             }
 #endif
             if (dev->flags & DEVFLAGS_USE_RAW_REGISTERS) {
