@@ -60,6 +60,9 @@ static uint8_t  gyroStuckCount             = 0;
 static float    gyroAnomalyPrev[XYZ_AXIS_COUNT] = {0.0f, 0.0f, 0.0f};
 static uint8_t  gyroAnomalyCount               = 0;
 
+// --- Gyro overrange (absolute threshold) detection state ---
+static uint8_t  gyroOverrangeCount = 0;
+
 // --- Baro anomaly (delta) detection state ---
 static int32_t  baroAnomalyPrev  = 0;
 static uint8_t  baroAnomalyCount = 0;
@@ -151,8 +154,6 @@ static void detectGyroStuck(void)
 //
 // Requires N consecutive large-delta readings to avoid single-sample noise.
 // NOTE: only triggers when the drone is actually rotating at fault time.
-//       Detection of the "extreme values" variant (memset 0x7F injection)
-//       is a separate future task -- see project notes.
 // ---------------------------------------------------------------------------
 static void detectGyroAnomaly(void)
 {
@@ -231,6 +232,41 @@ static void detectBaroAnomaly(void)
 }
 
 // ---------------------------------------------------------------------------
+// Gyro overrange (absolute threshold) detection
+//
+// Checks if any gyroRaw axis exceeds FIU_DETECT_GYRO_OVERRANGE_THRESHOLD (900 dps).
+// Real acro flight max is ~800 dps, FIU overrange injects min ~1003 dps (fill=0x40),
+// so the threshold sits clearly between normal operation and injected fault values.
+//
+// Requires N consecutive readings (30 ms) to suppress single-sample noise.
+// Clears automatically when all axes drop back below the threshold.
+// ---------------------------------------------------------------------------
+static void detectGyroOverrange(void)
+{
+    bool overrange = (fabsf(gyro.gyroRaw[X]) > FIU_DETECT_GYRO_OVERRANGE_THRESHOLD) ||
+                     (fabsf(gyro.gyroRaw[Y]) > FIU_DETECT_GYRO_OVERRANGE_THRESHOLD) ||
+                     (fabsf(gyro.gyroRaw[Z]) > FIU_DETECT_GYRO_OVERRANGE_THRESHOLD);
+
+    if (overrange) {
+        if (gyroOverrangeCount < FIU_DETECT_GYRO_OVERRANGE_COUNT) {
+            gyroOverrangeCount++;
+        }
+    } else {
+        gyroOverrangeCount = 0;
+    }
+
+    if (gyroOverrangeCount >= FIU_DETECT_GYRO_OVERRANGE_COUNT) {
+        if (!(detState.faultFlags & FIU_FAULT_GYRO_OVERRANGE)) {
+            detState.faultFlags               |= FIU_FAULT_GYRO_OVERRANGE;
+            detState.gyroOverrangeDetectedAtMs  = millis();
+        }
+    } else {
+        detState.faultFlags               &= ~FIU_FAULT_GYRO_OVERRANGE;
+        detState.gyroOverrangeDetectedAtMs  = 0;
+    }
+}
+
+// ---------------------------------------------------------------------------
 // RC Loss detection
 //
 // Reads INAV's RX subsystem via rxIsReceivingSignal(), which returns false when
@@ -297,6 +333,7 @@ void fiuDetectionUpdate(void)
     detectBaroAnomaly();
     detectGyroStuck();
     detectGyroAnomaly();
+    detectGyroOverrange();
     detectBatteryFault();
     detectRcLoss();
 
