@@ -38,6 +38,7 @@
 #include "platform.h"
 
 #include "drivers/time.h"
+#include "rx/rx.h"
 #include "sensors/barometer.h"
 #include "sensors/battery.h"
 #include "sensors/gyro.h"
@@ -230,6 +231,30 @@ static void detectBaroAnomaly(void)
 }
 
 // ---------------------------------------------------------------------------
+// RC Loss detection
+//
+// Reads INAV's RX subsystem via rxIsReceivingSignal(), which returns false when
+// no valid RC frames have been received for the configured signal timeout.
+// INAV already validates and debounces the signal internally, so no extra count
+// is needed here. Detection fires as soon as INAV considers the link lost.
+//
+// Works for both real RC loss and FIU-injected loss (rx.c fakes missing frames
+// when fiuIsRcLossActive() is true) -- detection cannot distinguish between them.
+// ---------------------------------------------------------------------------
+static void detectRcLoss(void)
+{
+    if (!rxIsReceivingSignal()) {
+        if (!(detState.faultFlags & FIU_FAULT_RC_LOSS)) {
+            detState.faultFlags        |= FIU_FAULT_RC_LOSS;
+            detState.rcLossDetectedAtMs = millis();
+        }
+    } else {
+        detState.faultFlags        &= ~FIU_FAULT_RC_LOSS;
+        detState.rcLossDetectedAtMs = 0;
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Battery fault detection
 //
 // Reads INAV's own battery state machine (getBatteryState()), which already
@@ -273,6 +298,7 @@ void fiuDetectionUpdate(void)
     detectGyroStuck();
     detectGyroAnomaly();
     detectBatteryFault();
+    detectRcLoss();
 
 #ifdef USE_FIU
     fiuLedUpdate();

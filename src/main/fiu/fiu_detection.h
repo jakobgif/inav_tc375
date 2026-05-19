@@ -50,6 +50,7 @@ typedef enum {
     FIU_FAULT_GYRO_ANOMALY   = (1 << 3),  // |gyroRaw delta| > threshold for N consecutive readings
     FIU_FAULT_BATT_WARNING   = (1 << 4),  // INAV battery state == BATTERY_WARNING
     FIU_FAULT_BATT_CRITICAL  = (1 << 5),  // INAV battery state == BATTERY_CRITICAL
+    FIU_FAULT_RC_LOSS        = (1 << 6),  // rxIsReceivingSignal() == false
 } fiuFaultFlags_e;
 
 // Snapshot written to Blackbox each frame
@@ -60,6 +61,7 @@ typedef struct {
     uint32_t  gyroAnomalyDetectedAtMs;   // millis() when gyro anomaly was first detected (0 = not detected)
     uint32_t  baroAnomalyDetectedAtMs;   // millis() when baro anomaly was first detected (0 = not detected)
     uint32_t  battDetectedAtMs;          // millis() when battery warning/critical was first detected (0 = not detected)
+    uint32_t  rcLossDetectedAtMs;        // millis() when RC loss was first detected (0 = not detected)
 } fiuDetectionState_t;
 
 void fiuDetectionUpdate(void);
