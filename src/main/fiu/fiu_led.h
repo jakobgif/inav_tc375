@@ -18,15 +18,21 @@
 /*
  * FIU LED Strip Module
  *
- * Visualises active FIU faults on an addressable LED strip (WS2811/WS2812).
+ * Visualises active FIU injection and detection state on a WS2811/WS2812 strip.
  * Uses DMA via GTM ATOM timer -- requires USE_LED_STRIP and USE_FIU.
  * Enabled when USE_FIU is defined.
  *
- * LED layout (indices):
- *   0-5 : Motor 0-5  -- RED when motor is disabled via FIU
- *   6   : I2C fault  -- ORANGE when any I2C bus is blocked
- *   7   : SPI fault  -- YELLOW when any SPI bus is blocked
- *   8   : Baro stuck -- PURPLE when barometer stuck fault detected
+ * LED layout (8 LEDs):
+ *   0    Y6 arm A (motor 0 upper / motor 3 lower)  GREEN=upper off / BLUE=lower off / RED=both
+ *   1    Y6 arm B (motor 1 upper / motor 4 lower)  same
+ *   2    Y6 arm C (motor 2 upper / motor 5 lower)  same
+ *   3    I2C injection rate    OFF | GREEN(0%) -> YELLOW -> RED(100%)
+ *   4    SPI injection:
+ *          error-rate mode     OFF | GREEN(0%) -> YELLOW -> RED(100%)
+ *          overrange mode      CYAN=X / BLUE=Y / PURPLE=Z / MAGENTA=XYZ, brightness=intensity
+ *   5    Batt + RC injection   OFF | YELLOW=warning | RED=critical | PURPLE=RC loss
+ *   6    Baro detection        OFF | YELLOW=anomaly | RED=stuck
+ *   7    Gyro detection        OFF | YELLOW=anomaly | RED=stuck | PURPLE=overrange
  */
 
 #pragma once

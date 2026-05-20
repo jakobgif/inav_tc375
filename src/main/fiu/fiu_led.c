@@ -23,10 +23,14 @@
  *   1    Y6 arm B (motor 1 upper / motor 4 lower)
  *   2    Y6 arm C (motor 2 upper / motor 5 lower)
  *        GREEN = upper motor disabled, BLUE = lower, RED = both
- *   3    I2C injection rate  GREEN(0%) -> YELLOW -> RED(100%), OFF if mask=0
- *   4    SPI injection rate  same gradient
- *   5    Baro stuck          PURPLE when detected, else OFF
- *   6-7  reserved            OFF
+ *   3    I2C injection rate    GREEN(0%) -> YELLOW -> RED(100%), OFF if mask=0
+ *   4    SPI injection:
+ *          Error-rate mode     GREEN(0%) -> YELLOW -> RED(100%)
+ *          Overrange mode      Hue = axis (CYAN=X, BLUE=Y, PURPLE=Z, MAGENTA=XYZ)
+ *                              Brightness = intensity (spiRate 0-100)
+ *   5    Batt + RC injection   OFF / YELLOW=warning / RED=critical / PURPLE=RC loss
+ *   6    Baro detection        OFF / YELLOW=anomaly / RED=stuck
+ *   7    Gyro detection        OFF / YELLOW=anomaly / RED=stuck / PURPLE=overrange
  */
 
 #include "platform.h"
@@ -75,6 +79,7 @@ static hsvColor_t makeColor(uint16_t hue, uint8_t baseV)
 
 static hsvColor_t COLOR_OFF;
 static hsvColor_t COLOR_RED;
+static hsvColor_t COLOR_YELLOW;
 static hsvColor_t COLOR_GREEN;
 static hsvColor_t COLOR_BLUE;
 static hsvColor_t COLOR_PURPLE;
@@ -93,6 +98,7 @@ void fiuLedInit(void)
 {
     COLOR_OFF    = (hsvColor_t){0,   0, 0};
     COLOR_RED    = makeColor(  0, FIU_LED_BRIGHTNESS);
+    COLOR_YELLOW = makeColor( 60, FIU_LED_BRIGHTNESS);
     COLOR_GREEN  = makeColor(120, FIU_LED_BRIGHTNESS);
     COLOR_BLUE   = makeColor(240, FIU_LED_BRIGHTNESS);
     COLOR_PURPLE = makeColor(270, FIU_LED_BRIGHTNESS / 2);
@@ -136,20 +142,60 @@ void fiuLedUpdate(void)
         setLedHsv(3, &c);
     }
 
-    // LED 4: SPI injection rate -- same gradient
+    // LED 4: SPI injection
+    //   Error-rate mode: GREEN->YELLOW->RED gradient (spiRate = error rate 0-100)
+    //   Overrange mode:  hue = axis (CYAN=X, BLUE=Y, PURPLE=Z, MAGENTA=XYZ)
+    //                    brightness = intensity (spiRate 0-100)
     if (state->spiMask == 0) {
         setLedHsv(4, &COLOR_OFF);
+    } else if (state->spiOverrange) {
+        uint16_t hue;
+        switch (state->spiAxisMask) {
+            case FIU_SPI_AXIS_X:  hue = 180; break;  // CYAN
+            case FIU_SPI_AXIS_Y:  hue = 240; break;  // BLUE
+            case FIU_SPI_AXIS_Z:  hue = 270; break;  // PURPLE
+            default:              hue = 300; break;  // MAGENTA (XYZ)
+        }
+        uint8_t v = (uint8_t)((uint32_t)FIU_LED_BRIGHTNESS * state->spiRate / 100);
+        if (v < 3) v = 3;  // minimum visible when overrange active at low intensity
+        hsvColor_t c = makeColor(hue, v);
+        setLedHsv(4, &c);
     } else {
         hsvColor_t c = rateToColor(state->spiRate);
         setLedHsv(4, &c);
     }
 
-    // LED 5: PURPLE when baro stuck fault detected
-    setLedHsv(5, fiuDetectionIsFaultActive(FIU_FAULT_BARO_STUCK) ? &COLOR_PURPLE : &COLOR_OFF);
+    // LED 5: Battery + RC injection
+    //   Priority: RC loss > batt critical > batt warning
+    if (state->rcLossFault) {
+        setLedHsv(5, &COLOR_PURPLE);
+    } else if (state->battFault == 2) {
+        setLedHsv(5, &COLOR_RED);
+    } else if (state->battFault == 1) {
+        setLedHsv(5, &COLOR_YELLOW);
+    } else {
+        setLedHsv(5, &COLOR_OFF);
+    }
 
-    // LEDs 6-7: reserved
-    setLedHsv(6, &COLOR_OFF);
-    setLedHsv(7, &COLOR_OFF);
+    // LED 6: Baro detection -- priority: stuck > anomaly
+    if (fiuDetectionIsFaultActive(FIU_FAULT_BARO_STUCK)) {
+        setLedHsv(6, &COLOR_RED);
+    } else if (fiuDetectionIsFaultActive(FIU_FAULT_BARO_ANOMALY)) {
+        setLedHsv(6, &COLOR_YELLOW);
+    } else {
+        setLedHsv(6, &COLOR_OFF);
+    }
+
+    // LED 7: Gyro detection -- priority: overrange > stuck > anomaly
+    if (fiuDetectionIsFaultActive(FIU_FAULT_GYRO_OVERRANGE)) {
+        setLedHsv(7, &COLOR_PURPLE);
+    } else if (fiuDetectionIsFaultActive(FIU_FAULT_GYRO_STUCK)) {
+        setLedHsv(7, &COLOR_RED);
+    } else if (fiuDetectionIsFaultActive(FIU_FAULT_GYRO_ANOMALY)) {
+        setLedHsv(7, &COLOR_YELLOW);
+    } else {
+        setLedHsv(7, &COLOR_OFF);
+    }
 
     ws2811UpdateStrip();
 }
