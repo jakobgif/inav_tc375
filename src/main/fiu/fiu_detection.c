@@ -50,10 +50,13 @@
 #include "platform.h"
 
 #include "drivers/time.h"
+#include "drivers/pwm_output.h"
 #include "rx/rx.h"
 #include "sensors/barometer.h"
 #include "sensors/battery.h"
 #include "sensors/gyro.h"
+#include "fc/runtime_config.h"
+#include "flight/mixer.h"
 
 #include "fiu/fiu_detection.h"
 #include "fiu/fiu_led.h"
@@ -72,6 +75,11 @@ static uint8_t  gyroStuckCount                   = 0;
 static float    gyroAnomalyPrev[XYZ_AXIS_COUNT]  = {0.0f, 0.0f, 0.0f};
 static uint8_t  gyroAnomalyCount                 = 0;
 static uint8_t  gyroOverrangeCount               = 0;
+
+// --- Motor detection state ---
+#ifdef USE_FIU
+static uint8_t  motorLossCount = 0;
+#endif
 
 // ---------------------------------------------------------------------------
 // I2C / Baro — stuck detection
@@ -321,6 +329,70 @@ static void detectRcLoss(void)
 }
 
 // ---------------------------------------------------------------------------
+// Motor — loss (commanded vs. written divergence) detection
+//
+// Compares the value pwmWriteMotor() was asked to write (motorCommandedValue)
+// with what it actually sent to the driver (motorWrittenValue). When FIU has
+// hard-disabled a motor the commanded value is non-zero but motorWrittenValue
+// is 0 — a divergence that is impossible in normal operation.
+//
+// Only evaluates while ARMED: disarmed DSHOT idle writes are legitimately 0,
+// so checking without the ARMED guard would fire on every disarmed cycle.
+//
+// Requires FIU_DETECT_MOTOR_LOSS_COUNT consecutive readings (30 ms) to fire.
+// Clears automatically once no motor shows commanded/written divergence.
+// ---------------------------------------------------------------------------
+#ifdef USE_FIU
+static void detectMotorFault(void)
+{
+    if (!ARMING_FLAG(ARMED)) {
+        detState.faultFlags    &= ~FIU_FAULT_MOTOR_LOSS;
+        detState.motorLossMask  = 0;
+        motorLossCount          = 0;
+        for (int i = 0; i < getMotorCount(); i++) {
+            detState.motorDetectedAtMs[i] = 0;
+        }
+        return;
+    }
+
+    uint8_t lossMask = 0;
+    for (int i = 0; i < getMotorCount(); i++) {
+        if (pwmGetMotorCommanded(i) > 0 && pwmGetMotorWritten(i) == 0) {
+            lossMask |= (1 << i);
+        }
+    }
+    detState.motorLossMask = lossMask;
+    bool anyLoss = (lossMask != 0);
+
+    if (anyLoss) {
+        if (motorLossCount < FIU_DETECT_MOTOR_LOSS_COUNT) {
+            motorLossCount++;
+        }
+    } else {
+        motorLossCount = 0;
+    }
+
+    if (motorLossCount >= FIU_DETECT_MOTOR_LOSS_COUNT) {
+        detState.faultFlags |= FIU_FAULT_MOTOR_LOSS;
+        for (int i = 0; i < getMotorCount(); i++) {
+            if (lossMask & (1 << i)) {
+                if (detState.motorDetectedAtMs[i] == 0) {
+                    detState.motorDetectedAtMs[i] = millis();  // first time this motor failed
+                }
+            } else {
+                detState.motorDetectedAtMs[i] = 0;  // motor recovered
+            }
+        }
+    } else {
+        detState.faultFlags &= ~FIU_FAULT_MOTOR_LOSS;
+        for (int i = 0; i < getMotorCount(); i++) {
+            detState.motorDetectedAtMs[i] = 0;
+        }
+    }
+}
+#endif // USE_FIU
+
+// ---------------------------------------------------------------------------
 // Main update — called at 100 Hz from taskUpdateAux()
 // ---------------------------------------------------------------------------
 void fiuDetectionUpdate(void)
@@ -341,6 +413,9 @@ void fiuDetectionUpdate(void)
     detectRcLoss();
 
 #ifdef USE_FIU
+    // Motor
+    detectMotorFault();
+
     fiuLedUpdate();
 #endif
 }

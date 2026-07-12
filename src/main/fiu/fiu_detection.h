@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "common/time.h"
+#include "flight/mixer.h"
 
 // --- I2C / Baro detection thresholds ---
 
@@ -52,12 +53,17 @@
 #define FIU_DETECT_GYRO_OVERRANGE_THRESHOLD      900.0f
 #define FIU_DETECT_GYRO_OVERRANGE_COUNT            3
 
-// Fault detection flags — one bit per fault type, grouped by fault source
-// Motor:   bit 8+  (requires uint16_t faultFlags — future extension)
-// I2C/Baro: bits 0-1
-// SPI/Gyro: bits 2-3, 7
-// Battery:  bits 4-5
-// RC Loss:  bit 6
+// --- Motor detection threshold ---
+
+// Motor loss: pwmWriteMotor() commanded a non-zero value but motorWritePtr received 0.
+// Requires ARMED to exclude legitimate disarmed-idle zero writes (DSHOT idle = 0).
+// 3 consecutive readings at 100 Hz = 30 ms debounce.
+#define FIU_DETECT_MOTOR_LOSS_COUNT  3
+
+// Fault detection flags — one bit per fault type, grouped by fault source.
+// faultFlags is uint16_t to accommodate motor fault at bit 8.
+// I2C/Baro: bits 0-1  |  SPI/Gyro: bits 2-3, 7  |  Battery: bits 4-5
+// RC Loss:  bit 6     |  Motor:     bit 8
 typedef enum {
     FIU_FAULT_NONE              = 0,
 
@@ -76,11 +82,14 @@ typedef enum {
 
     // RC Loss fault
     FIU_FAULT_RC_LOSS           = (1 << 6),  // rxIsReceivingSignal() == false
+
+    // Motor fault
+    FIU_FAULT_MOTOR_LOSS        = (1 << 8),  // commanded > 0 but motorWritePtr received 0
 } fiuFaultFlags_e;
 
 // Snapshot written to Blackbox each frame — grouped by fault source
 typedef struct {
-    uint8_t   faultFlags;                    // bitmask of fiuFaultFlags_e
+    uint16_t  faultFlags;                    // bitmask of fiuFaultFlags_e (uint16_t for motor bit 8)
 
     // I2C / Baro
     uint32_t  baroDetectedAtMs;              // millis() when baro stuck was first detected (0 = not detected)
@@ -96,6 +105,10 @@ typedef struct {
 
     // RC Loss
     uint32_t  rcLossDetectedAtMs;            // millis() when RC loss was first detected (0 = not detected)
+
+    // Motor
+    uint32_t  motorDetectedAtMs[MAX_SUPPORTED_MOTORS]; // millis() when each motor was first detected lost (0 = not detected)
+    uint8_t   motorLossMask;                            // bitmask of motors currently lost: bit i = motor i
 } fiuDetectionState_t;
 
 void fiuDetectionUpdate(void);
