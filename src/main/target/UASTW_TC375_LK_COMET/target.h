@@ -32,10 +32,11 @@
 //#define LED1    MODULE_P00_6
 
 // *************** LED Strip (WS2811/WS2812) **********************
-// Data pin for FIU fault LED strip via GTM ATOM3 Ch.3 DMA (P00.12, non-N, CLK_3 free).
+// FIU fault LED strip (8x WS2811) on P00.12 via GTM ATOM3 Ch.3 DMA (non-N, CLK_3 free).
+// Driven by the standalone FIU driver (fiu/fiu_ws2811.c) through the TIM_USE_LED timer
+// entry in target.c. INAV's USE_LED_STRIP subsystem is deliberately NOT enabled -- it
+// wedges the TC375 board before the scheduler/MSP come up.
 #define FIU_LED_PIN     MODULE_P00_12
-#define USE_LED_STRIP
-#define WS2811_PIN      MODULE_P00_12
 
 // *************** Motor outputs **********************
 //pins to ESC

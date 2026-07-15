@@ -44,7 +44,7 @@
 #include "fiu/fiu_led.h"
 #include "fiu/fiu_detection.h"
 #include "common/color.h"
-#include "drivers/light_ws2811strip.h"
+#include "fiu/fiu_ws2811.h"
 
 #define FIU_LED_COUNT   8
 
@@ -104,18 +104,18 @@ void fiuLedInit(void)
     COLOR_GREEN  = makeColor(120, FIU_LED_BRIGHTNESS);
     COLOR_BLUE   = makeColor(240, FIU_LED_BRIGHTNESS);
     COLOR_PURPLE = makeColor(270, FIU_LED_BRIGHTNESS / 2);
-    // ws2811LedStripInit() deferred to first fiuLedUpdate() — runs after scheduler start
+    // fiuWs2811Init() deferred to first fiuLedUpdate() — runs after scheduler start
 }
 
 // ---------------------------------------------------------------------------
 // fiuLedUpdate -- maps active FIU faults to LED colours.
 // Called at 100 Hz from fiuDetectionUpdate() after detection state is updated.
-// ws2811UpdateStrip() skips silently if DMA still busy -- no race condition.
+// fiuWs2811Update() skips silently if DMA still busy -- no race condition.
 // ---------------------------------------------------------------------------
 void fiuLedUpdate(void)
 {
     if (!ledHwInitDone) {
-        ws2811LedStripInit();
+        fiuWs2811Init();
         ledHwInitDone = true;
     }
 
@@ -137,15 +137,15 @@ void fiuLedUpdate(void)
         } else {
             color = &COLOR_OFF;
         }
-        setLedHsv(arm, color);
+        fiuWs2811SetHsv(arm, color);
     }
 
     // LED 3: I2C injection rate -- OFF if no bus selected, else GREEN->YELLOW->RED
     if (state->i2cMask == 0) {
-        setLedHsv(3, &COLOR_OFF);
+        fiuWs2811SetHsv(3, &COLOR_OFF);
     } else {
         hsvColor_t c = rateToColor(state->i2cRate);
-        setLedHsv(3, &c);
+        fiuWs2811SetHsv(3, &c);
     }
 
     // LED 4: SPI injection
@@ -153,7 +153,7 @@ void fiuLedUpdate(void)
     //   Overrange mode:  hue = axis (CYAN=X, BLUE=Y, PURPLE=Z, MAGENTA=XYZ)
     //                    brightness = intensity (spiRate 0-100)
     if (state->spiMask == 0) {
-        setLedHsv(4, &COLOR_OFF);
+        fiuWs2811SetHsv(4, &COLOR_OFF);
     } else if (state->spiOverrange) {
         uint16_t hue;
         switch (state->spiAxisMask) {
@@ -165,45 +165,45 @@ void fiuLedUpdate(void)
         uint8_t v = (uint8_t)((uint32_t)FIU_LED_BRIGHTNESS * state->spiRate / 100);
         if (v < 3) v = 3;  // minimum visible when overrange active at low intensity
         hsvColor_t c = makeColor(hue, v);
-        setLedHsv(4, &c);
+        fiuWs2811SetHsv(4, &c);
     } else {
         hsvColor_t c = rateToColor(state->spiRate);
-        setLedHsv(4, &c);
+        fiuWs2811SetHsv(4, &c);
     }
 
     // LED 5: Battery + RC injection
     //   Priority: RC loss > batt critical > batt warning
     if (state->rcLossFault) {
-        setLedHsv(5, &COLOR_PURPLE);
+        fiuWs2811SetHsv(5, &COLOR_PURPLE);
     } else if (state->battFault == 2) {
-        setLedHsv(5, &COLOR_RED);
+        fiuWs2811SetHsv(5, &COLOR_RED);
     } else if (state->battFault == 1) {
-        setLedHsv(5, &COLOR_YELLOW);
+        fiuWs2811SetHsv(5, &COLOR_YELLOW);
     } else {
-        setLedHsv(5, &COLOR_OFF);
+        fiuWs2811SetHsv(5, &COLOR_OFF);
     }
 
     // LED 6: Baro detection -- priority: stuck > anomaly
     if (fiuDetectionIsFaultActive(FIU_FAULT_BARO_STUCK)) {
-        setLedHsv(6, &COLOR_RED);
+        fiuWs2811SetHsv(6, &COLOR_RED);
     } else if (fiuDetectionIsFaultActive(FIU_FAULT_BARO_ANOMALY)) {
-        setLedHsv(6, &COLOR_YELLOW);
+        fiuWs2811SetHsv(6, &COLOR_YELLOW);
     } else {
-        setLedHsv(6, &COLOR_OFF);
+        fiuWs2811SetHsv(6, &COLOR_OFF);
     }
 
     // LED 7: Gyro detection -- priority: overrange > stuck > anomaly
     if (fiuDetectionIsFaultActive(FIU_FAULT_GYRO_OVERRANGE)) {
-        setLedHsv(7, &COLOR_PURPLE);
+        fiuWs2811SetHsv(7, &COLOR_PURPLE);
     } else if (fiuDetectionIsFaultActive(FIU_FAULT_GYRO_STUCK)) {
-        setLedHsv(7, &COLOR_RED);
+        fiuWs2811SetHsv(7, &COLOR_RED);
     } else if (fiuDetectionIsFaultActive(FIU_FAULT_GYRO_ANOMALY)) {
-        setLedHsv(7, &COLOR_YELLOW);
+        fiuWs2811SetHsv(7, &COLOR_YELLOW);
     } else {
-        setLedHsv(7, &COLOR_OFF);
+        fiuWs2811SetHsv(7, &COLOR_OFF);
     }
 
-    ws2811UpdateStrip();
+    fiuWs2811Update();
 }
 
 #endif // USE_FIU
