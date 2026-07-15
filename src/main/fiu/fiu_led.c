@@ -84,6 +84,8 @@ static hsvColor_t COLOR_GREEN;
 static hsvColor_t COLOR_BLUE;
 static hsvColor_t COLOR_PURPLE;
 
+static bool ledHwInitDone = false;
+
 // Rate 0-100 -> hue 120 (green) through 60 (yellow) to 0 (red)
 static hsvColor_t rateToColor(uint8_t rate)
 {
@@ -102,8 +104,7 @@ void fiuLedInit(void)
     COLOR_GREEN  = makeColor(120, FIU_LED_BRIGHTNESS);
     COLOR_BLUE   = makeColor(240, FIU_LED_BRIGHTNESS);
     COLOR_PURPLE = makeColor(270, FIU_LED_BRIGHTNESS / 2);
-
-    ws2811LedStripInit();
+    // ws2811LedStripInit() deferred to first fiuLedUpdate() — runs after scheduler start
 }
 
 // ---------------------------------------------------------------------------
@@ -113,6 +114,11 @@ void fiuLedInit(void)
 // ---------------------------------------------------------------------------
 void fiuLedUpdate(void)
 {
+    if (!ledHwInitDone) {
+        ws2811LedStripInit();
+        ledHwInitDone = true;
+    }
+
     const fiuState_t *state = fiuGetState();
 
     // LEDs 0-2: one per Y6 arm

@@ -20,7 +20,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "common/time.h"
-#include "flight/mixer.h"
+#include "drivers/pwm_mapping.h"
 
 // --- I2C / Baro detection thresholds ---
 
@@ -107,7 +107,7 @@ typedef struct {
     uint32_t  rcLossDetectedAtMs;            // millis() when RC loss was first detected (0 = not detected)
 
     // Motor
-    uint32_t  motorDetectedAtMs[MAX_SUPPORTED_MOTORS]; // millis() when each motor was first detected lost (0 = not detected)
+    uint32_t  motorDetectedAtMs[MAX_MOTORS]; // millis() when each motor was first detected lost (0 = not detected)
     uint8_t   motorLossMask;                            // bitmask of motors currently lost: bit i = motor i
 } fiuDetectionState_t;
 
