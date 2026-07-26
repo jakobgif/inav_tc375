@@ -62,7 +62,7 @@
 
 // Motor loss occupies the upper byte of faultFlags: bit (8 + i) = motor i lost.
 // Encoding which motor failed into faultFlags keeps the fault visible in the
-// existing fiuDetectFlags Blackbox field — no extra log field is needed.
+// existing fiuDetFlags Blackbox field — no extra log field is needed.
 #define FIU_FAULT_MOTOR_LOSS_SHIFT   8
 #define FIU_FAULT_MOTOR_LOSS_MAX     8       // bits 8..15 — limit of the uint16_t faultFlags
 #define FIU_FAULT_MOTOR_LOSS(i)      (1u << (FIU_FAULT_MOTOR_LOSS_SHIFT + (i)))
