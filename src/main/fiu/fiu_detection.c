@@ -345,18 +345,24 @@ static void detectRcLoss(void)
 #ifdef USE_FIU
 static void detectMotorFault(void)
 {
+    // Motor bits occupy the upper byte of faultFlags, so at most 8 motors are tracked.
+    int motorCount = getMotorCount();
+    if (motorCount > FIU_FAULT_MOTOR_LOSS_MAX) {
+        motorCount = FIU_FAULT_MOTOR_LOSS_MAX;
+    }
+
     if (!ARMING_FLAG(ARMED)) {
-        detState.faultFlags    &= ~FIU_FAULT_MOTOR_LOSS;
+        detState.faultFlags    &= ~FIU_FAULT_MOTOR_LOSS_ANY;
         detState.motorLossMask  = 0;
         motorLossCount          = 0;
-        for (int i = 0; i < getMotorCount(); i++) {
+        for (int i = 0; i < motorCount; i++) {
             detState.motorDetectedAtMs[i] = 0;
         }
         return;
     }
 
     uint8_t lossMask = 0;
-    for (int i = 0; i < getMotorCount(); i++) {
+    for (int i = 0; i < motorCount; i++) {
         if (pwmGetMotorCommanded(i) > 0 && pwmGetMotorWritten(i) == 0) {
             lossMask |= (1 << i);
         }
@@ -373,9 +379,11 @@ static void detectMotorFault(void)
     }
 
     if (motorLossCount >= FIU_DETECT_MOTOR_LOSS_COUNT) {
-        detState.faultFlags |= FIU_FAULT_MOTOR_LOSS;
-        for (int i = 0; i < getMotorCount(); i++) {
+        // Rebuild the motor bits from scratch so recovered motors clear themselves.
+        detState.faultFlags &= ~FIU_FAULT_MOTOR_LOSS_ANY;
+        for (int i = 0; i < motorCount; i++) {
             if (lossMask & (1 << i)) {
+                detState.faultFlags |= FIU_FAULT_MOTOR_LOSS(i);
                 if (detState.motorDetectedAtMs[i] == 0) {
                     detState.motorDetectedAtMs[i] = millis();  // first time this motor failed
                 }
@@ -384,8 +392,8 @@ static void detectMotorFault(void)
             }
         }
     } else {
-        detState.faultFlags &= ~FIU_FAULT_MOTOR_LOSS;
-        for (int i = 0; i < getMotorCount(); i++) {
+        detState.faultFlags &= ~FIU_FAULT_MOTOR_LOSS_ANY;
+        for (int i = 0; i < motorCount; i++) {
             detState.motorDetectedAtMs[i] = 0;
         }
     }

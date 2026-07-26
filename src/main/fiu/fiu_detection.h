@@ -60,10 +60,18 @@
 // 3 consecutive readings at 100 Hz = 30 ms debounce.
 #define FIU_DETECT_MOTOR_LOSS_COUNT  3
 
+// Motor loss occupies the upper byte of faultFlags: bit (8 + i) = motor i lost.
+// Encoding which motor failed into faultFlags keeps the fault visible in the
+// existing fiuDetectFlags Blackbox field — no extra log field is needed.
+#define FIU_FAULT_MOTOR_LOSS_SHIFT   8
+#define FIU_FAULT_MOTOR_LOSS_MAX     8       // bits 8..15 — limit of the uint16_t faultFlags
+#define FIU_FAULT_MOTOR_LOSS(i)      (1u << (FIU_FAULT_MOTOR_LOSS_SHIFT + (i)))
+#define FIU_FAULT_MOTOR_LOSS_ANY     0xFF00u // "any motor lost" — for mitigation checks
+
 // Fault detection flags — one bit per fault type, grouped by fault source.
-// faultFlags is uint16_t to accommodate motor fault at bit 8.
+// faultFlags is uint16_t to accommodate the motor bits in the upper byte.
 // I2C/Baro: bits 0-1  |  SPI/Gyro: bits 2-3, 7  |  Battery: bits 4-5
-// RC Loss:  bit 6     |  Motor:     bit 8
+// RC Loss:  bit 6     |  Motor:     bits 8-15 (one per motor, see FIU_FAULT_MOTOR_LOSS)
 typedef enum {
     FIU_FAULT_NONE              = 0,
 
@@ -83,8 +91,7 @@ typedef enum {
     // RC Loss fault
     FIU_FAULT_RC_LOSS           = (1 << 6),  // rxIsReceivingSignal() == false
 
-    // Motor fault
-    FIU_FAULT_MOTOR_LOSS        = (1 << 8),  // commanded > 0 but motorWritePtr received 0
+    // Motor faults live at bits 8-15 — see FIU_FAULT_MOTOR_LOSS(i) above
 } fiuFaultFlags_e;
 
 // Snapshot written to Blackbox each frame — grouped by fault source
