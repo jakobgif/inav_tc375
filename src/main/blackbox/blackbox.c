@@ -573,7 +573,7 @@ typedef struct blackboxMainState_s {
     uint8_t fiuSpiRate;
     uint8_t  fiuRcLoss;
     uint8_t  fiuBattFault;
-    uint8_t  fiuDetectFlags;
+    uint16_t fiuDetectFlags;   // uint16_t: motor-loss bits live at 8..15, uint8_t would truncate them
     uint32_t fiuDetectBaroMs;
 #endif
     uint16_t rssi;
