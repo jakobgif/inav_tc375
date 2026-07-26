@@ -406,15 +406,15 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] = {
     {"perfClockCounter",        -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(UNSIGNED_VB), CONDITION(ALWAYS)},
 #endif
 #ifdef USE_FIU
-    {"fiuMotorMask", -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
-    {"fiuI2cMask",   -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
-    {"fiuSpiMask",   -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
-    {"fiuI2cRate",   -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
-    {"fiuSpiRate",   -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
-    {"fiuRcLoss",    -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
-    {"fiuBattFault", -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
-    {"fiuDetectFlags",-1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
-    {"fiuDetectBaroMs",-1,UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
+    {"fiuInjMotor",  -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
+    {"fiuInjI2c",    -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
+    {"fiuInjSpi",    -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
+    {"fiuInjI2cRate",-1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
+    {"fiuInjSpiRate",-1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
+    {"fiuInjRcLoss", -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
+    {"fiuInjBatt",   -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
+    {"fiuDetFlags",  -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
+    {"fiuDetBaroMs", -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
 #endif
 };
 
@@ -566,15 +566,15 @@ typedef struct blackboxMainState_s {
     uint32_t perfClockCounter;
 #endif
 #ifdef USE_FIU
-    uint8_t fiuMotorMask;
-    uint8_t fiuI2cMask;
-    uint8_t fiuSpiMask;
-    uint8_t fiuI2cRate;
-    uint8_t fiuSpiRate;
-    uint8_t  fiuRcLoss;
-    uint8_t  fiuBattFault;
-    uint16_t fiuDetectFlags;   // uint16_t: motor-loss bits live at 8..15, uint8_t would truncate them
-    uint32_t fiuDetectBaroMs;
+    uint8_t fiuInjMotor;
+    uint8_t fiuInjI2c;
+    uint8_t fiuInjSpi;
+    uint8_t fiuInjI2cRate;
+    uint8_t fiuInjSpiRate;
+    uint8_t  fiuInjRcLoss;
+    uint8_t  fiuInjBatt;
+    uint16_t fiuDetFlags;   // uint16_t: motor-loss bits live at 8..15, uint8_t would truncate them
+    uint32_t fiuDetBaroMs;
 #endif
     uint16_t rssi;
     int16_t navState;
@@ -1098,15 +1098,15 @@ static void writeIntraframe(void)
     blackboxWriteUnsignedVB(blackboxCurrent->perfClockCounter);
 #endif
 #ifdef USE_FIU
-    blackboxWriteUnsignedVB(blackboxCurrent->fiuMotorMask);
-    blackboxWriteUnsignedVB(blackboxCurrent->fiuI2cMask);
-    blackboxWriteUnsignedVB(blackboxCurrent->fiuSpiMask);
-    blackboxWriteUnsignedVB(blackboxCurrent->fiuI2cRate);
-    blackboxWriteUnsignedVB(blackboxCurrent->fiuSpiRate);
-    blackboxWriteUnsignedVB(blackboxCurrent->fiuRcLoss);
-    blackboxWriteUnsignedVB(blackboxCurrent->fiuBattFault);
-    blackboxWriteUnsignedVB(blackboxCurrent->fiuDetectFlags);
-    blackboxWriteUnsignedVB(blackboxCurrent->fiuDetectBaroMs);
+    blackboxWriteUnsignedVB(blackboxCurrent->fiuInjMotor);
+    blackboxWriteUnsignedVB(blackboxCurrent->fiuInjI2c);
+    blackboxWriteUnsignedVB(blackboxCurrent->fiuInjSpi);
+    blackboxWriteUnsignedVB(blackboxCurrent->fiuInjI2cRate);
+    blackboxWriteUnsignedVB(blackboxCurrent->fiuInjSpiRate);
+    blackboxWriteUnsignedVB(blackboxCurrent->fiuInjRcLoss);
+    blackboxWriteUnsignedVB(blackboxCurrent->fiuInjBatt);
+    blackboxWriteUnsignedVB(blackboxCurrent->fiuDetFlags);
+    blackboxWriteUnsignedVB(blackboxCurrent->fiuDetBaroMs);
 #endif
 
     //Rotate our history buffers:
@@ -1372,15 +1372,15 @@ static void writeInterframe(void)
     blackboxWriteSignedVB(blackboxCurrent->perfClockCounter - blackboxLast->perfClockCounter);
 #endif
 #ifdef USE_FIU
-    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuMotorMask - blackboxLast->fiuMotorMask);
-    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuI2cMask   - blackboxLast->fiuI2cMask);
-    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuSpiMask   - blackboxLast->fiuSpiMask);
-    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuI2cRate   - blackboxLast->fiuI2cRate);
-    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuSpiRate   - blackboxLast->fiuSpiRate);
-    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuRcLoss       - blackboxLast->fiuRcLoss);
-    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuBattFault    - blackboxLast->fiuBattFault);
-    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuDetectFlags  - blackboxLast->fiuDetectFlags);
-    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuDetectBaroMs - blackboxLast->fiuDetectBaroMs);
+    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuInjMotor   - blackboxLast->fiuInjMotor);
+    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuInjI2c     - blackboxLast->fiuInjI2c);
+    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuInjSpi     - blackboxLast->fiuInjSpi);
+    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuInjI2cRate - blackboxLast->fiuInjI2cRate);
+    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuInjSpiRate - blackboxLast->fiuInjSpiRate);
+    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuInjRcLoss  - blackboxLast->fiuInjRcLoss);
+    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuInjBatt    - blackboxLast->fiuInjBatt);
+    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuDetFlags   - blackboxLast->fiuDetFlags);
+    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuDetBaroMs  - blackboxLast->fiuDetBaroMs);
 #endif
 
     //Rotate our history buffers
@@ -1814,16 +1814,16 @@ static void loadMainState(timeUs_t currentTimeUs)
 #endif
 #ifdef USE_FIU
     const fiuState_t *fiu = fiuGetState();
-    blackboxCurrent->fiuMotorMask = fiu->motorMask;
-    blackboxCurrent->fiuI2cMask   = fiu->i2cMask;
-    blackboxCurrent->fiuSpiMask   = fiu->spiMask;
-    blackboxCurrent->fiuI2cRate   = fiu->i2cRate;
-    blackboxCurrent->fiuSpiRate   = fiu->spiRate;
-    blackboxCurrent->fiuRcLoss    = fiu->rcLossFault;
-    blackboxCurrent->fiuBattFault = fiu->battFault;
+    blackboxCurrent->fiuInjMotor   = fiu->motorMask;
+    blackboxCurrent->fiuInjI2c     = fiu->i2cMask;
+    blackboxCurrent->fiuInjSpi     = fiu->spiMask;
+    blackboxCurrent->fiuInjI2cRate = fiu->i2cRate;
+    blackboxCurrent->fiuInjSpiRate = fiu->spiRate;
+    blackboxCurrent->fiuInjRcLoss  = fiu->rcLossFault;
+    blackboxCurrent->fiuInjBatt    = fiu->battFault;
     const fiuDetectionState_t *fiuDet = fiuDetectionGetState();
-    blackboxCurrent->fiuDetectFlags  = fiuDet->faultFlags;
-    blackboxCurrent->fiuDetectBaroMs = fiuDet->baroDetectedAtMs;
+    blackboxCurrent->fiuDetFlags  = fiuDet->faultFlags;
+    blackboxCurrent->fiuDetBaroMs = fiuDet->baroDetectedAtMs;
 #endif
 
     blackboxCurrent->rssi = getRSSI();

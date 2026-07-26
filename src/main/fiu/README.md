@@ -157,4 +157,4 @@ The FIU is conditionally compiled using the `USE_FIU` preprocessor macro. It is 
 | `drivers/pwm_output.c` | `fiuIsMotorDisabled()` check in `pwmWriteMotor()` |
 | `drivers/bus.c` | `fiuIsSpiBusReadBlocked()` and `fiuIsI2cBusReadBlocked()` in `busRead()` and `busReadBuf()` |
 | `fc/fc_tasks.c` | `fiuUpdateFromGlobalVars()` call in `taskUpdateAux()` |
-| `blackbox/blackbox.c` | `fiuGetState()` read + 5 log fields (`fiuMotorMask`, `fiuI2cMask`, `fiuSpiMask`, `fiuI2cRate`, `fiuSpiRate`) |
+| `blackbox/blackbox.c` | `fiuGetState()` read + 5 log fields (`fiuInjMotor`, `fiuInjI2c`, `fiuInjSpi`, `fiuInjI2cRate`, `fiuInjSpiRate`) |
