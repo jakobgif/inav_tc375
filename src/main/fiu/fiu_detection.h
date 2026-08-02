@@ -101,11 +101,13 @@ typedef struct {
     // I2C / Baro
     uint32_t  baroDetectedAtMs;              // millis() when baro stuck was first detected (0 = not detected)
     uint32_t  baroAnomalyDetectedAtMs;       // millis() when baro anomaly was first detected (0 = not detected)
+    uint32_t  i2cDetectedAtMs;               // combined: earlier of baroDetectedAtMs/baroAnomalyDetectedAtMs (0 = neither active) -- logged as fiuDetI2cMs, mirrors fiuInjI2c
 
     // SPI / Gyro
     uint32_t  gyroDetectedAtMs;              // millis() when gyro stuck was first detected (0 = not detected)
     uint32_t  gyroAnomalyDetectedAtMs;       // millis() when gyro anomaly was first detected (0 = not detected)
     uint32_t  gyroOverrangeDetectedAtMs;     // millis() when gyro overrange was first detected (0 = not detected)
+    uint32_t  spiDetectedAtMs;               // combined: earliest of the three gyro timestamps above (0 = none active) -- logged as fiuDetSpiMs, mirrors fiuInjSpi
 
     // Battery
     uint32_t  battDetectedAtMs;              // millis() when battery warning/critical was first detected (0 = not detected)
@@ -115,6 +117,7 @@ typedef struct {
 
     // Motor
     uint32_t  motorDetectedAtMs[MAX_MOTORS]; // millis() when each motor was first detected lost (0 = not detected)
+    uint32_t  motorAnyDetectedAtMs;          // combined: earliest motorDetectedAtMs[] entry (0 = no motor lost) -- logged as fiuDetMotorMs, mirrors fiuInjMotor
     uint8_t   motorLossMask;                            // bitmask of motors currently lost: bit i = motor i
 } fiuDetectionState_t;
 

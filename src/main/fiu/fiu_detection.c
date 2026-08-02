@@ -401,6 +401,19 @@ static void detectMotorFault(void)
 #endif // USE_FIU
 
 // ---------------------------------------------------------------------------
+// Returns whichever of two "first detected at" timestamps fired earlier.
+// A value of 0 means "not active", so a 0 argument is never preferred over
+// a nonzero one (used to collapse a category's sub-fault timestamps into a
+// single per-category value for Blackbox, e.g. baro stuck + anomaly -> I2C).
+// ---------------------------------------------------------------------------
+static uint32_t earliestNonZero(uint32_t a, uint32_t b)
+{
+    if (a == 0) return b;
+    if (b == 0) return a;
+    return (a < b) ? a : b;
+}
+
+// ---------------------------------------------------------------------------
 // Main update — called at 100 Hz from taskUpdateAux()
 // ---------------------------------------------------------------------------
 void fiuDetectionUpdate(void)
@@ -408,11 +421,15 @@ void fiuDetectionUpdate(void)
     // I2C / Baro
     detectBaroStuck();
     detectBaroAnomaly();
+    detState.i2cDetectedAtMs = earliestNonZero(detState.baroDetectedAtMs, detState.baroAnomalyDetectedAtMs);
 
     // SPI / Gyro
     detectGyroStuck();
     detectGyroAnomaly();
     detectGyroOverrange();
+    detState.spiDetectedAtMs = earliestNonZero(
+        earliestNonZero(detState.gyroDetectedAtMs, detState.gyroAnomalyDetectedAtMs),
+        detState.gyroOverrangeDetectedAtMs);
 
     // Battery
     detectBatteryFault();
@@ -423,6 +440,11 @@ void fiuDetectionUpdate(void)
 #ifdef USE_FIU
     // Motor
     detectMotorFault();
+    uint32_t motorMs = 0;
+    for (int i = 0; i < MAX_MOTORS; i++) {
+        motorMs = earliestNonZero(motorMs, detState.motorDetectedAtMs[i]);
+    }
+    detState.motorAnyDetectedAtMs = motorMs;
 
     fiuLedUpdate();
 #endif
