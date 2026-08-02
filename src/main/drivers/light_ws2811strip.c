@@ -225,7 +225,9 @@ void ledPinStartPWM(uint16_t value) {
 	if ( !pwmMode ) {
 	    timerPWMStopDMA(ws2811TCH);
         //FIXME: implement method to release DMA
+#if !defined(TC375)
         ws2811TCH->dma->owner = OWNER_FREE;
+#endif
 
         ledConfigurePWM();
     }

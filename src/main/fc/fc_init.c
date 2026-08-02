@@ -113,6 +113,7 @@
 #include "io/headtracker_msp.h"
 #include "io/gps.h"
 #include "io/ledstrip.h"
+#include "fiu/fiu_led.h"
 #include "io/osd.h"
 #include "io/osd_dji_hd.h"
 #include "io/rcdevice_cam.h"
@@ -597,11 +598,17 @@ void init(void)
     navigationInit();
 
 #ifdef USE_LED_STRIP
+#ifndef USE_FIU
     ledStripInit();
 
     if (feature(FEATURE_LED_STRIP)) {
         ledStripEnable();
     }
+#endif // USE_FIU
+#endif // USE_LED_STRIP
+
+#ifdef USE_FIU
+    fiuLedInit();
 #endif
 
 #ifdef USE_TELEMETRY
