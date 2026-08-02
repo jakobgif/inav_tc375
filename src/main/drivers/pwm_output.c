@@ -123,6 +123,11 @@ static uint8_t allocatedOutputPortCount = 0;
 
 static bool pwmMotorsEnabled = true;
 
+#ifdef USE_FIU
+static uint16_t motorCommandedValue[MAX_MOTORS];
+static uint16_t motorWrittenValue[MAX_MOTORS];
+#endif
+
 #ifdef USE_DSHOT
 static timeUs_t digitalMotorUpdateIntervalUs = 0;
 static timeUs_t digitalMotorLastUpdateUs;
@@ -211,14 +216,29 @@ void pwmWriteMotor(uint8_t index, uint16_t value)
 {
     if (motorWritePtr && index < MAX_MOTORS && pwmMotorsEnabled) {
 #ifdef USE_FIU
+        motorCommandedValue[index] = value;
         if (fiuIsMotorDisabled(index)) {
+            motorWrittenValue[index] = 0;
             motorWritePtr(index, 0);
             return;
         }
+        motorWrittenValue[index] = value;
 #endif
         motorWritePtr(index, value);
     }
 }
+
+#ifdef USE_FIU
+uint16_t pwmGetMotorCommanded(uint8_t index)
+{
+    return (index < MAX_MOTORS) ? motorCommandedValue[index] : 0;
+}
+
+uint16_t pwmGetMotorWritten(uint8_t index)
+{
+    return (index < MAX_MOTORS) ? motorWrittenValue[index] : 0;
+}
+#endif
 
 void pwmShutdownPulsesForAllMotors(uint8_t motorCount)
 {

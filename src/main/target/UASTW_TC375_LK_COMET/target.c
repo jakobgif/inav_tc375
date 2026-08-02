@@ -36,6 +36,7 @@ timerHardware_t timerHardware[] = {
     DEF_TIM(atomDriver[3], IfxGtm_ATOM2_0_TOUT18_P00_9_OUT,     MOTOR_4_PIN, IOCFG_OUT_PP, TIM_USE_MOTOR),
     DEF_TIM(atomDriver[4], IfxGtm_ATOM0_4_TOUT14_P00_5_OUT,     MOTOR_5_PIN, IOCFG_OUT_PP, TIM_USE_MOTOR),
     DEF_TIM(atomDriver[5], IfxGtm_ATOM1_6_TOUT16_P00_7_OUT,     MOTOR_6_PIN, IOCFG_OUT_PP, TIM_USE_MOTOR),
+    DEF_TIM(atomDriver[6], IfxGtm_ATOM3_3_TOUT21_P00_12_OUT,   FIU_LED_PIN, IOCFG_AF_PP_FAST, TIM_USE_LED),
 };
 
 const int timerHardwareCount = sizeof(timerHardware) / sizeof(timerHardware[0]);
