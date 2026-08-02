@@ -718,6 +718,10 @@ static void cliAurix(char *cmdline){
 #ifdef USE_AURIX_MULTICORE
     isMulticore = true;
 #endif
+    bool isFiu = false;
+#ifdef USE_FIU
+    isFiu = true;
+#endif
     cliPrintLinef("\t\t\t\tFirmware: %s", FC_FIRMWARE_NAME);
 #ifdef IS_STANDALONE_PROJECT
     cliPrintf("     _   _   _ ____  _____  __");                cliPrintLinef("\tRelease: %s", INAV_VERSION);   
@@ -729,6 +733,7 @@ static void cliAurix(char *cmdline){
     cliPrintf("   / _ \\| | | | |_) || | \\  /");               cliPrintLinef("\tCompiled: %s %s as %s for %s", buildDate, buildTime, buildType, isMulticore?"multicore":"singlecore");
     cliPrintf("  / ___ \\ |_| |  _ < | | /  \\");               cliPrintLinef("\tCompiler: GCC-%s", compilerVersion);
     cliPrintf(" /_/   \\_\\___/|_| \\_\\___/_/\\_\\");          cliPrintLinef("\tTarget: %s", targetName);
+    cliPrintLinef("\t\t\t\tFIU: %s", isFiu ? "enabled" : "disabled");
     cliPrintLinef("\t\t\t\tSystem Uptime: %d seconds", millis() / 1000);
     cliPrintf("\t\t\t\t");
     for(int i = 0; i < sizeof(IfxCpu_ResourceCpu)-1; i++){

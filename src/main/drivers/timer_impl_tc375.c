@@ -169,7 +169,6 @@ void PSPR_FUNCTION impl_timerPWMStart(TCH_t * tch){
 }
 
 bool PSPR_FUNCTION impl_timerPWMConfigChannelDMA(TCH_t * tch, void * dmaBuffer, uint8_t dmaBufferElementSize, uint32_t dmaBufferElementCount){
-    UNUSED(dmaBufferElementCount);
 
     if(dmaBuffer == NULL_PTR){
         return false;
@@ -212,7 +211,7 @@ bool PSPR_FUNCTION impl_timerPWMConfigChannelDMA(TCH_t * tch, void * dmaBuffer, 
     IfxDma_Dma_ChannelConfig * dmaChnCfg = &(tch->dmaChnCfg);
     IfxDma_Dma_initChannelConfig(dmaChnCfg, &(tch->dma));
 
-    dmaChnCfg->transferCount = 18; //equals DSHOT_DMA_BUFFER_SIZE
+    dmaChnCfg->transferCount = dmaBufferElementCount;
     dmaChnCfg->requestMode = IfxDma_ChannelRequestMode_oneTransferPerRequest; //a request initiates a single transfer = 32bit
     dmaChnCfg->moveSize = IfxDma_ChannelMoveSize_32bit; //equals timerDMASafeType_t
     dmaChnCfg->operationMode = IfxDma_ChannelOperationMode_single; //channel disabled after transaction

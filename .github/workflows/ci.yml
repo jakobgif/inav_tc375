@@ -66,6 +66,35 @@ jobs:
           path: ./build/*.hex
           retention-days: 1
 
+  build-MICOAIR743-FIU:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get -y install ninja-build
+      - name: Setup environment
+        env:
+          ACTIONS_ALLOW_UNSECURE_COMMANDS: true
+        run: |
+          COMMIT_ID=${{ github.event.pull_request.head.sha }}
+          COMMIT_ID=${COMMIT_ID:-${{ github.sha }}}
+          BUILD_SUFFIX=ci-$(date '+%Y%m%d')-$(git rev-parse --short ${COMMIT_ID})
+          VERSION=$(grep project CMakeLists.txt|awk -F VERSION '{ gsub(/[ \t)]/, "", $2); print $2 }')
+          echo "BUILD_SUFFIX=${BUILD_SUFFIX}" >> $GITHUB_ENV
+          echo "BUILD_NAME=inav-${VERSION}-${BUILD_SUFFIX}" >> $GITHUB_ENV
+          echo "NUM_CORES=$(grep processor /proc/cpuinfo  | wc -l)" >> $GITHUB_ENV
+      - uses: actions/cache@v4
+        with:
+          path: downloads
+          key: ${{ runner.os }}-downloads-${{ hashFiles('CMakeLists.txt') }}-${{ hashFiles('**/cmake/*')}}
+      - name: Build MICOAIR743 with USE_FIU
+        run: mkdir -p build && cd build && cmake -DWARNINGS_AS_ERRORS=ON -DBUILD_SUFFIX=${{ env.BUILD_SUFFIX }} -DCMAKE_C_FLAGS="-DUSE_FIU" -G Ninja .. && ninja -j${{ env.NUM_CORES }} MICOAIR743
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BUILD_NAME }}-MICOAIR743-FIU
+          path: ./build/*.hex
+
   upload-artifacts:
     runs-on: ubuntu-latest
     needs: [build]
