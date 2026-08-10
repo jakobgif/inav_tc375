@@ -58,6 +58,7 @@
 #ifdef USE_FIU
 #include "fiu/fiu.h"
 #include "fiu/fiu_detection.h"
+#include "fiu/fiu_led.h"
 #endif
 
 #include "navigation/navigation.h"
@@ -348,6 +349,7 @@ void taskUpdateAux(timeUs_t currentTimeUs)
 #ifdef USE_FIU
     fiuUpdateFromGlobalVars();
     fiuDetectionUpdate();
+    fiuLedUpdate();
 #endif
 }
 
