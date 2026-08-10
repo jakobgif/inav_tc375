@@ -64,8 +64,9 @@
 static fiuDetectionState_t detState;
 
 // --- I2C / Baro detection state ---
-static int32_t  baroLastPressure  = 0;
-static uint8_t  baroStuckCount    = 0;
+static int32_t  baroLastPressure     = 0;
+static int32_t  baroLastTemperature  = 0;
+static uint8_t  baroStuckCount       = 0;
 static int32_t  baroAnomalyPrev   = 0;
 static uint8_t  baroAnomalyCount  = 0;
 
@@ -84,22 +85,73 @@ static uint8_t  motorLossCount = 0;
 // ---------------------------------------------------------------------------
 // I2C / Baro — stuck detection
 //
-// If baroPressure is identical to the previous reading, increment a counter.
-// Once it reaches FIU_DETECT_BARO_STUCK_THRESHOLD the sensor is declared stuck.
-// Clears as soon as readings differ again (sensor recovered or FIU deactivated).
+// This function runs at 100 Hz (fiuDetectionUpdate() from TASK_AUX), but the
+// baro itself only completes a new sample at ~20 Hz (TASK_BARO). Unlike
+// detectBaroAnomaly() below, this function cannot use "pressure unchanged"
+// as its "no new sample yet" signal, because an unchanged pressure between
+// two real samples is exactly the condition it needs to count. Instead it
+// gates on baro.baroSampleSeq, a counter incremented once per completed baro
+// sample independent of the pressure value -- see barometer.c. Without this
+// guard, ~4 of every 5 100 Hz calls would re-observe the same not-yet-updated
+// buffered value, so FIU_DETECT_BARO_STUCK_THRESHOLD identical *reads* was
+// reached after ~100 ms of wall time instead of the intended ~500 ms of
+// identical *samples* -- a single real 20 Hz value repeating twice in a row
+// (near-guaranteed on the ground, plausible in stable hover) was enough to
+// false-trigger.
+//
+// Even with the sample-seq gate, a motionless sensor on a vibration-free bench
+// can still by chance repeat the exact same *pressure* value across several
+// real samples, purely from ADC quantization -- pressure alone is not a fully
+// reliable "frozen" signal. A genuine I2C block (Praw=0, Traw=0) freezes
+// pressure AND temperature simultaneously at their respective calibration
+// offsets (see barometer_dps310.c deviceCalculate(): pressure = c00,
+// temperature = c0*0.5f when raw counts are zero) -- two independent noise
+// sources going flat together is a much stronger signal than pressure alone.
+// So both must be unchanged for the sample to count as "stuck".
+//
+// Even the pressure+temperature freeze check above can still false-trigger: a
+// genuinely quiet sensor can settle on a plausible, unremarkable value and
+// just sit there for FIU_DETECT_BARO_STUCK_THRESHOLD samples -- nothing
+// physically wrong, it just isn't moving. A jump-from-baseline heuristic was
+// evaluated here and deliberately dropped again: it assumes a stuck sensor's
+// frozen value differs sharply from its last real reading (true for this
+// FIU's I2C-block injection, which jumps to a calibration-offset constant --
+// see detectBaroAnomaly() below), but a real-world stuck sensor (bad I2C
+// connector, wedged bus, driver bug) just as plausibly freezes *at* its last
+// valid reading, with no jump at all -- the heuristic would then miss exactly
+// that realistic failure mode. FIU_DETECT_BARO_STUCK_THRESHOLD is the
+// deliberately chosen lever instead: it makes no assumption about what the
+// frozen value looks like, only how long it has to persist, trading latency
+// for false-positive robustness in a way that stays valid for any real
+// stuck-sensor failure, not just this injection's specific signature.
+//
+// If baroPressure AND baroTemperature are identical to the previous *sample*,
+// increment a counter. Once it reaches FIU_DETECT_BARO_STUCK_THRESHOLD the
+// sensor is declared stuck. Clears as soon as either differs again (sensor
+// recovered or FIU deactivated).
 // ---------------------------------------------------------------------------
 static void detectBaroStuck(void)
 {
 #ifdef USE_BARO
-    int32_t currentPressure = baro.baroPressure;
+    static uint32_t baroLastSeq = 0;
 
-    if (currentPressure == baroLastPressure) {
+    uint32_t currentSeq = baro.baroSampleSeq;
+    if (currentSeq == baroLastSeq) {
+        return;  // no new baro sample since the last call, nothing to evaluate
+    }
+    baroLastSeq = currentSeq;
+
+    int32_t currentPressure    = baro.baroPressure;
+    int32_t currentTemperature = baro.baroTemperature;
+
+    if (currentPressure == baroLastPressure && currentTemperature == baroLastTemperature) {
         if (baroStuckCount < FIU_DETECT_BARO_STUCK_THRESHOLD) {
             baroStuckCount++;
         }
     } else {
-        baroStuckCount   = 0;
-        baroLastPressure = currentPressure;
+        baroStuckCount      = 0;
+        baroLastPressure    = currentPressure;
+        baroLastTemperature = currentTemperature;
     }
 
     if (baroStuckCount >= FIU_DETECT_BARO_STUCK_THRESHOLD) {

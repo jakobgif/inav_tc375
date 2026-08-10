@@ -43,6 +43,7 @@ typedef struct baro_s {
     int32_t BaroAlt;
     int32_t baroTemperature;            // Use temperature for telemetry
     int32_t baroPressure;               // Use pressure for telemetry
+    uint32_t baroSampleSeq;             // Incremented once per completed baro sample (~20 Hz); lets 100 Hz callers detect a fresh reading independent of the pressure value itself
 } baro_t;
 
 #ifdef USE_AURIX_MULTICORE
@@ -50,6 +51,7 @@ typedef struct baro_buffered_s {
     baro_t buffers[2];
     volatile uint8_t writeIndex;
     volatile uint8_t readIndex;
+    volatile uint32_t sampleSeq;        // Incremented under mutex whenever writeIndex/readIndex swap (one completed CPU2 baro sample)
     mutex_t mutex;
 } baro_buffered_t;
 #endif

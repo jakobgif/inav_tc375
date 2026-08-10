@@ -24,9 +24,18 @@
 
 // --- I2C / Baro detection thresholds ---
 
-// Baro stuck: baroPressure identical for N consecutive readings.
-// Baro runs at 20 Hz -> 10 readings = 500 ms
-#define FIU_DETECT_BARO_STUCK_THRESHOLD          10
+// Baro stuck: baroPressure AND baroTemperature identical for N consecutive
+// *samples* (gated on baro.baroSampleSeq, not on the 100 Hz detection call
+// rate -- see detectBaroStuck() in fiu_detection.c). Deliberately makes no
+// assumption about *what* the frozen value looks like (a jump-from-baseline
+// heuristic was tried and dropped -- it only covers this FIU's specific
+// injection signature, not a real-world stuck sensor freezing quietly at its
+// last valid reading) -- N is the only lever against false positives from a
+// motionless sensor coincidentally repeating a plausible value. Raised from
+// 10 to 20 on 2026-08-10 after HW testing still showed occasional false
+// positives at 10 (500 ms); 20 @ 20 Hz = 1 s. Revisit again after the next
+// HW test if still needed.
+#define FIU_DETECT_BARO_STUCK_THRESHOLD          20
 
 // Baro anomaly: impossible pressure jump between two consecutive baro updates (20 Hz).
 // Normal flight max delta: ~3 Pa per 50 ms (5 m/s climb). 50 Pa has 16x margin.
