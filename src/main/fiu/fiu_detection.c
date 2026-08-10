@@ -59,7 +59,6 @@
 #include "flight/mixer.h"
 
 #include "fiu/fiu_detection.h"
-#include "fiu/fiu_led.h"
 
 static fiuDetectionState_t detState;
 
@@ -497,8 +496,6 @@ void fiuDetectionUpdate(void)
         motorMs = earliestNonZero(motorMs, detState.motorDetectedAtMs[i]);
     }
     detState.motorAnyDetectedAtMs = motorMs;
-
-    fiuLedUpdate();
 #endif
 }
 
