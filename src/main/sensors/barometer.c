@@ -296,11 +296,13 @@ uint32_t baroUpdate(void)
                 if (waitAndAcquireMutex(&baroBuffered.mutex, TASK_PERIOD_HZ(20))) {
                     baroBuffered.writeIndex ^= 1;
                     baroBuffered.readIndex = writeIndex;
+                    baroBuffered.sampleSeq++;
                     releaseMutex(&baroBuffered.mutex);
                 }
             }
 #else
             baro.dev.calculate(&baro.dev, &baro.baroPressure, &baro.baroTemperature);
+            baro.baroSampleSeq++;
 #endif
             state = BAROMETER_NEEDS_SAMPLES;
             return baro.dev.ut_delay;
@@ -316,6 +318,7 @@ bool baroGetUpdatedData(void){
     }
     baro.baroPressure    = baroBuffered.buffers[baroBuffered.readIndex].baroPressure;
     baro.baroTemperature = baroBuffered.buffers[baroBuffered.readIndex].baroTemperature;
+    baro.baroSampleSeq   = baroBuffered.sampleSeq;
     releaseMutex(&baroBuffered.mutex);
     return true;
 }
