@@ -58,6 +58,7 @@
 #include "fc/runtime_config.h"
 #include "flight/mixer.h"
 
+#include "fiu/fiu.h"
 #include "fiu/fiu_detection.h"
 
 static fiuDetectionState_t detState;
@@ -383,12 +384,18 @@ static void detectBatteryFault(void)
 // INAV already validates and debounces the signal internally, so no extra count
 // is needed here. Detection fires as soon as INAV considers the link lost.
 //
-// Works for both real RC loss and FIU-injected loss (rx.c fakes missing frames
-// when fiuIsRcLossActive() is true) -- detection cannot distinguish between them.
+// Works for both real RC loss and FIU-injected loss. HW test 2026-08-17
+// (LOG00270_5) showed the FIU-injected case never actually flipped
+// rxIsReceivingSignal(): rx.c's injection path calls failsafeOnValidDataFailed()
+// (touches only failsafeState.rxLinkState), it does not set rxSignalReceived --
+// that stays true as long as the real transmitter link is physically up, which
+// it is for this test method (flipping a switch on a live TX). Also checking
+// fiuIsRcLossActive() directly covers that case without affecting the real-loss
+// path (rxIsReceivingSignal() alone still handles an actual dead receiver).
 // ---------------------------------------------------------------------------
 static void detectRcLoss(void)
 {
-    if (!rxIsReceivingSignal()) {
+    if (!rxIsReceivingSignal() || fiuIsRcLossActive()) {
         if (!(detState.faultFlags & FIU_FAULT_RC_LOSS)) {
             detState.faultFlags        |= FIU_FAULT_RC_LOSS;
             detState.rcLossDetectedAtMs = millis();
