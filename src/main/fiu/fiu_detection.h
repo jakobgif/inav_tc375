@@ -55,6 +55,18 @@
 #define FIU_DETECT_GYRO_ANOMALY_DELTA_THRESHOLD  150.0f
 #define FIU_DETECT_GYRO_ANOMALY_COUNT              3
 
+// Flight tests (2026-08-16, LOG00217/LOG00224) showed this delta threshold gets crossed
+// by real ground-bounce/vibration after landing, not just by the injected fault. Since the
+// flag clears the instant a single sample drops back under threshold, it could immediately
+// re-arm on the very next 30 ms burst -- causing a rapid activate/abort storm in
+// mitigateStage2() (repeated forced-emergency-landing engagement) that itself keeps the
+// airframe from settling, so it also blocked Stage 3's landing-stillness window. This
+// cooldown blocks re-arming for a fixed dead time after the flag actually clears; it does
+// not affect first-time detection latency (still ~30 ms) or any fault that stays
+// continuously active (delta never drops below threshold, so the flag never clears and the
+// cooldown path is never entered).
+#define FIU_DETECT_GYRO_ANOMALY_COOLDOWN_MS       800
+
 // Gyro overrange: absolute axis value exceeds physical multirotor maximum.
 // Real acro flight max: ~800 dps. FIU overrange injects min ~1003 dps (fill=0x40).
 // Threshold 900 dps sits between both -> no false positives in normal flight.
