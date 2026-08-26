@@ -35,6 +35,15 @@
 #define FIU_MAX_I2C_ERROR_RATE 50  // percent
 #define FIU_MAX_SPI_ERROR_RATE 80  // percent
 
+// Overrange fill-byte bounds (see fiuGetSpiOverrangeFillByte() in fiu.c).
+// 16-bit axis value becomes (fill<<8)|fill; dps = value / 16.4 (ICM-42688 +-2000dps range).
+// FIU_SPI_OVERRANGE_FILL_MAX reduced 2026-08-17 (was 0x7F/~1990dps): HW bench test at max
+// intensity caused a violently aggressive motor reaction in the ~30ms before Stage 2 could
+// engage -- 0x50/~1254dps stays well clear of the 900dps detection threshold while cutting
+// the injected rate error roughly in half.
+#define FIU_SPI_OVERRANGE_FILL_MIN 0x40  // ~1003 dps
+#define FIU_SPI_OVERRANGE_FILL_MAX 0x50  // ~1254 dps
+
 // Layer 2 mutual exclusion: only one of I2C or SPI fault can be active at a time.
 // Both switches ON simultaneously -> safety reset (both faults deactivated, knobs ignored).
 // When only SPI is active, KNOB_A (GV3) is repurposed for gyro axis selection.

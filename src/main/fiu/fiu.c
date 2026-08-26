@@ -49,12 +49,13 @@ static uint8_t spiCallCount[SPIDEV_COUNT] = {0};
 //      INAV thinks the drone is stationary -> PID reacts incorrectly
 //
 //  [2] Overrange mode
-//      Blocked reads -> selected gyro axes = ~1000-1990 dps (KNOB_B controls intensity)
+//      Blocked reads -> selected gyro axes = ~1003-1254 dps (KNOB_B controls intensity,
+//      see FIU_SPI_OVERRANGE_FILL_MIN/MAX in fiu.h)
 //      Physically impossible for a multirotor (real max ~500-800 dps) -> clearly detectable
 //      memset writes the fill byte to every byte in the buffer — each axis occupies
 //      2 bytes (high + low), so both bytes get the same fill value:
-//        min: fill=0x40 -> high=0x40, low=0x40 -> 16-bit=0x4040=16448 LSB -> ~1003 dps
-//        max: fill=0x7F -> high=0x7F, low=0x7F -> 16-bit=0x7F7F=32639 LSB -> ~1990 dps
+//        min: fill=FIU_SPI_OVERRANGE_FILL_MIN -> 16-bit=(fill<<8)|fill -> ~1003 dps
+//        max: fill=FIU_SPI_OVERRANGE_FILL_MAX -> 16-bit=(fill<<8)|fill -> ~1254 dps
 //      (ICM-42688 +-2000 dps range, sensitivity 16.4 LSB/dps)
 //      Axis selection via KNOB_A (only valid when SPI-only mode active, see fiu.h)
 //
@@ -214,13 +215,17 @@ bool fiuIsSpiOverrangeActive(SPIDevice bus)
     return (spiActiveMask & BIT(bus)) != 0;
 }
 
-// Maps KNOB_B (spiVariableRate 0-100) to a fill byte in range 0x40..0x7F.
+// Maps KNOB_B (spiVariableRate 0-100) to a fill byte in range
+// FIU_SPI_OVERRANGE_FILL_MIN..FIU_SPI_OVERRANGE_FILL_MAX.
 // The fill byte is written to every byte of the SPI read buffer via memset, so each
-// 16-bit axis value becomes (fill<<8)|fill. Lower bound 0x40 ensures the injected
-// rate (~1003 dps) is always well above the physical multirotor maximum (~800 dps).
+// 16-bit axis value becomes (fill<<8)|fill. Lower bound ensures the injected rate
+// (~1003 dps) is always well above the physical multirotor maximum (~800 dps); upper
+// bound capped well below the sensor's real range so even KNOB_B=100 stays controllable
+// on the bench (see FIU_SPI_OVERRANGE_FILL_MAX comment in fiu.h).
 uint8_t fiuGetSpiOverrangeFillByte(void)
 {
-    return (uint8_t)(0x40 + (spiVariableRate * (0x7F - 0x40) / 100));
+    return (uint8_t)(FIU_SPI_OVERRANGE_FILL_MIN +
+        (spiVariableRate * (FIU_SPI_OVERRANGE_FILL_MAX - FIU_SPI_OVERRANGE_FILL_MIN) / 100));
 }
 
 uint8_t fiuGetSpiAxisMask(void)
