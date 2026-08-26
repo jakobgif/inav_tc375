@@ -74,6 +74,7 @@ static float    gyroLastRaw[XYZ_AXIS_COUNT]      = {0.0f, 0.0f, 0.0f};
 static uint8_t  gyroStuckCount                   = 0;
 static float    gyroAnomalyPrev[XYZ_AXIS_COUNT]  = {0.0f, 0.0f, 0.0f};
 static uint8_t  gyroAnomalyCount                 = 0;
+static uint32_t gyroAnomalyClearedAtMs           = 0;
 static uint8_t  gyroOverrangeCount               = 0;
 
 // --- Motor detection state ---
@@ -256,6 +257,16 @@ static void detectGyroStuck(void)
 //
 // Requires N consecutive large-delta readings to avoid single-sample noise.
 // NOTE: only triggers when the drone is actually rotating at fault time.
+//
+// Flight-test finding (2026-08-16): real ground-bounce vibration after landing can also
+// cross the delta threshold, and because the flag clears the instant a single sample drops
+// back under it, it could immediately re-arm on the next 30 ms burst -- a rapid
+// activate/abort storm in mitigateStage2() that itself prevented the airframe from
+// settling. FIU_DETECT_GYRO_ANOMALY_COOLDOWN_MS blocks re-arming for a fixed dead time
+// after the flag actually clears (falling edge only, recorded once via gyroAnomalyClearedAtMs
+// -- NOT refreshed every inactive cycle, which would never let the cooldown elapse). A
+// fault that stays continuously active never enters this path at all, since the flag never
+// clears in the first place.
 // ---------------------------------------------------------------------------
 static void detectGyroAnomaly(void)
 {
@@ -275,12 +286,21 @@ static void detectGyroAnomaly(void)
         gyroAnomalyCount = 0;
     }
 
+    bool wasActive = (detState.faultFlags & FIU_FAULT_GYRO_ANOMALY) != 0;
+
     if (gyroAnomalyCount >= FIU_DETECT_GYRO_ANOMALY_COUNT) {
-        if (!(detState.faultFlags & FIU_FAULT_GYRO_ANOMALY)) {
-            detState.faultFlags              |= FIU_FAULT_GYRO_ANOMALY;
-            detState.gyroAnomalyDetectedAtMs  = millis();
+        if (!wasActive) {
+            bool cooldownElapsed = (gyroAnomalyClearedAtMs == 0) ||
+                (millis() - gyroAnomalyClearedAtMs >= FIU_DETECT_GYRO_ANOMALY_COOLDOWN_MS);
+            if (cooldownElapsed) {
+                detState.faultFlags              |= FIU_FAULT_GYRO_ANOMALY;
+                detState.gyroAnomalyDetectedAtMs  = millis();
+            }
         }
     } else {
+        if (wasActive) {
+            gyroAnomalyClearedAtMs = millis();
+        }
         detState.faultFlags              &= ~FIU_FAULT_GYRO_ANOMALY;
         detState.gyroAnomalyDetectedAtMs  = 0;
     }
