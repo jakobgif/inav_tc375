@@ -89,6 +89,7 @@
 #ifdef USE_FIU
 #include "fiu/fiu.h"
 #include "fiu/fiu_detection.h"
+#include "fiu/fiu_mitigation.h"
 #endif
 
 #if defined(ENABLE_BLACKBOX_LOGGING_ON_SPIFLASH_BY_DEFAULT)
@@ -419,6 +420,7 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] = {
     {"fiuDetRcLossMs",-1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
     {"fiuDetBattMs",  -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
     {"fiuDetMotorMs", -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
+    {"fiuMitStage",   -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
 #endif
 };
 
@@ -583,6 +585,7 @@ typedef struct blackboxMainState_s {
     uint32_t fiuDetRcLossMs;
     uint32_t fiuDetBattMs;
     uint32_t fiuDetMotorMs;
+    uint8_t fiuMitStage;   // 0=none, 1=Stage1(mode restriction), 2=Stage2(emergency landing), 3=Stage3(immediate disarm)
 #endif
     uint16_t rssi;
     int16_t navState;
@@ -1119,6 +1122,7 @@ static void writeIntraframe(void)
     blackboxWriteUnsignedVB(blackboxCurrent->fiuDetRcLossMs);
     blackboxWriteUnsignedVB(blackboxCurrent->fiuDetBattMs);
     blackboxWriteUnsignedVB(blackboxCurrent->fiuDetMotorMs);
+    blackboxWriteUnsignedVB(blackboxCurrent->fiuMitStage);
 #endif
 
     //Rotate our history buffers:
@@ -1397,6 +1401,7 @@ static void writeInterframe(void)
     blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuDetRcLossMs - blackboxLast->fiuDetRcLossMs);
     blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuDetBattMs   - blackboxLast->fiuDetBattMs);
     blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuDetMotorMs  - blackboxLast->fiuDetMotorMs);
+    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuMitStage    - blackboxLast->fiuMitStage);
 #endif
 
     //Rotate our history buffers
@@ -1844,6 +1849,7 @@ static void loadMainState(timeUs_t currentTimeUs)
     blackboxCurrent->fiuDetRcLossMs= fiuDet->rcLossDetectedAtMs;
     blackboxCurrent->fiuDetBattMs  = fiuDet->battDetectedAtMs;
     blackboxCurrent->fiuDetMotorMs = fiuDet->motorAnyDetectedAtMs;
+    blackboxCurrent->fiuMitStage   = fiuMitigationGetState()->activeStage;
 #endif
 
     blackboxCurrent->rssi = getRSSI();
