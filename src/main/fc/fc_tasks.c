@@ -58,6 +58,7 @@
 #ifdef USE_FIU
 #include "fiu/fiu.h"
 #include "fiu/fiu_detection.h"
+#include "fiu/fiu_mitigation.h"
 #include "fiu/fiu_led.h"
 #endif
 
@@ -349,6 +350,9 @@ void taskUpdateAux(timeUs_t currentTimeUs)
 #ifdef USE_FIU
     fiuUpdateFromGlobalVars();
     fiuDetectionUpdate();
+    fiuMitigationUpdate();
+    // Runs last: fiu_led.c LEDs 6-7 read mitigation state, so the LED refresh must
+    // happen after fiuMitigationUpdate(), not from inside fiuDetectionUpdate().
     fiuLedUpdate();
 #endif
 }
