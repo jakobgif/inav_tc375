@@ -44,7 +44,6 @@ static uint8_t i2cCallCount[I2CDEV_COUNT] = {0};
 // --- SPI / Gyro fault ---
 static uint8_t spiActiveMask     = 0;
 static uint8_t spiErrorRate      = 0;  // 100 for Stuck (fixed), knobA*fiuSlotConfig()->spiMaxRate/100 for Anomaly
-static uint8_t spiRawRate        = 0;  // raw knob value 0-100 (or forced rate for *_STUCK), only for the Blackbox spiRate field
 static uint8_t spiOverrangeRate  = 0;  // raw KNOB_B value 0-100, feeds fiuGetSpiOverrangeFillByte()
 static uint8_t spiAxisMask       = FIU_SPI_AXIS_XYZ;
 static uint8_t spiCallCount[SPIDEV_COUNT] = {0};
@@ -149,25 +148,27 @@ static void activateGyroStuck(void)
 {
     spiActiveMask    = BIT(FIU_GYRO_SPI_BUS);
     spiErrorRate     = 100;
-    spiRawRate       = spiErrorRate;
     spiOverrangeMode = false;
 
     fiuState.spiMask      = spiActiveMask;
-    fiuState.spiRate      = spiRawRate;
+    fiuState.spiRate      = spiErrorRate;
     fiuState.spiOverrange = 0;
 }
 
 // Knob-driven, scaled into the configurable ceiling -- structurally
 // distinct from FIU_SLOT_GYRO_STUCK, which is a fixed 100% with no ceiling.
+// fiuState.spiRate logs the scaled effective rate (spiErrorRate), not the raw
+// knob value -- mirrors activateBaroAnomaly()'s i2cRate handling so
+// fiuInjSpiRate and fiuInjI2cRate stay directly comparable (both "effective
+// fault rate in %", not "raw knob position").
 static void activateGyroAnomaly(uint8_t knobA)
 {
     spiActiveMask    = BIT(FIU_GYRO_SPI_BUS);
     spiErrorRate     = (uint8_t)(knobA * fiuSlotConfig()->spiMaxRate / 100);
-    spiRawRate       = knobA;
     spiOverrangeMode = false;
 
     fiuState.spiMask      = spiActiveMask;
-    fiuState.spiRate      = spiRawRate;
+    fiuState.spiRate      = spiErrorRate;
     fiuState.spiOverrange = 0;
 }
 
