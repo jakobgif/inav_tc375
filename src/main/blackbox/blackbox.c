@@ -579,7 +579,7 @@ typedef struct blackboxMainState_s {
     uint8_t fiuInjSpiRate;
     uint8_t  fiuInjRcLoss;
     uint8_t  fiuInjBatt;
-    uint16_t fiuDetFlags;   // uint16_t: motor-loss bits live at 8..15, uint8_t would truncate them
+    uint32_t fiuDetFlags;   // uint32_t: motor-loss bits live at 8..15, per-axis gyro-stuck bits at 16..18 -- uint16_t would truncate the latter
     uint32_t fiuDetI2cMs;
     uint32_t fiuDetSpiMs;
     uint32_t fiuDetRcLossMs;

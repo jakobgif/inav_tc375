@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "common/time.h"
+#include "common/axis.h"
 #include "drivers/pwm_mapping.h"
 
 // --- I2C / Baro detection thresholds ---
@@ -48,6 +49,22 @@
 // Gyro stuck: all three gyroRaw axes identical for N consecutive readings.
 // Gyro detection runs at 100 Hz -> 5 readings = 50 ms
 #define FIU_DETECT_GYRO_STUCK_THRESHOLD           5
+
+// Gyro stuck (single axis): the check above requires ALL THREE axes frozen
+// simultaneously (the full SPI-block injection signature) and clears the instant
+// any one axis moves -- a real single-axis fault (only one axis frozen, the
+// others move normally) never satisfies that condition and was structurally
+// undetectable (2026-08-22 incident, LOG00292_2: gyroADC[0] frozen at 0 for the
+// full 4.67s flight while Y/Z moved normally, no FIU injection active -> crash,
+// see guidelines_fiu.md "HW-Test Erkenntnisse" Punkt 23). This threshold drives
+// an independent, per-axis check (detectGyroStuckAxis() in fiu_detection.c).
+// Deliberately much higher than the 3-axis threshold above (50 vs. 5): a single
+// axis legitimately reads the same raw value for a while during genuine
+// near-zero rotation (e.g. yaw in a stable hover), far more likely than all
+// three axes doing so at once -- same false-positive-vs-latency trade-off
+// already used for FIU_DETECT_BARO_STUCK_THRESHOLD. Not HW-validated (hardware
+// testing ended with the incident above).
+#define FIU_DETECT_GYRO_STUCK_AXIS_THRESHOLD     50   // 50 @ 100Hz = 500ms
 
 // Gyro anomaly: impossible rate jump between consecutive 100 Hz samples (10 ms apart).
 // Physical limit of a multirotor: ~50 dps per 10 ms. 150 dps signals a fault-induced jump.
@@ -85,14 +102,25 @@
 // Encoding which motor failed into faultFlags keeps the fault visible in the
 // existing fiuDetFlags Blackbox field — no extra log field is needed.
 #define FIU_FAULT_MOTOR_LOSS_SHIFT   8
-#define FIU_FAULT_MOTOR_LOSS_MAX     8       // bits 8..15 — limit of the uint16_t faultFlags
+#define FIU_FAULT_MOTOR_LOSS_MAX     8       // bits 8..15
 #define FIU_FAULT_MOTOR_LOSS(i)      (1u << (FIU_FAULT_MOTOR_LOSS_SHIFT + (i)))
 #define FIU_FAULT_MOTOR_LOSS_ANY     0xFF00u // "any motor lost" — for mitigation checks
 
+// Gyro per-axis stuck: bit (16 + axis) = that axis individually stuck, axis is
+// X=0/Y=1/Z=2 (see common/axis.h). Independent of FIU_FAULT_GYRO_STUCK (bit 2,
+// unchanged, still requires all three axes frozen at once) — see
+// detectGyroStuckAxis() in fiu_detection.c and FIU_DETECT_GYRO_STUCK_AXIS_THRESHOLD
+// above for why this needed its own bits rather than reusing bit 2.
+#define FIU_FAULT_GYRO_STUCK_AXIS_SHIFT   16
+#define FIU_FAULT_GYRO_STUCK_AXIS(axis)   (1u << (FIU_FAULT_GYRO_STUCK_AXIS_SHIFT + (axis)))
+#define FIU_FAULT_GYRO_STUCK_AXIS_ANY     (7u << FIU_FAULT_GYRO_STUCK_AXIS_SHIFT) // any single axis stuck — for mitigation checks
+
 // Fault detection flags — one bit per fault type, grouped by fault source.
-// faultFlags is uint16_t to accommodate the motor bits in the upper byte.
-// I2C/Baro: bits 0-1  |  SPI/Gyro: bits 2-3, 7  |  Battery: bits 4-5
-// RC Loss:  bit 6     |  Motor:     bits 8-15 (one per motor, see FIU_FAULT_MOTOR_LOSS)
+// faultFlags is uint32_t: bits 0-15 were already fully allocated (8 motor bits
+// in the upper byte left no room for the 3 new per-axis gyro bits below), same
+// widening pattern as the earlier uint8_t->uint16_t motor-bit fix.
+// I2C/Baro: bits 0-1  |  SPI/Gyro: bits 2-3, 7, 16-18  |  Battery: bits 4-5
+// RC Loss:  bit 6     |  Motor: bits 8-15 (one per motor, see FIU_FAULT_MOTOR_LOSS)
 typedef enum {
     FIU_FAULT_NONE              = 0,
 
@@ -101,9 +129,17 @@ typedef enum {
     FIU_FAULT_BARO_ANOMALY      = (1 << 1),  // |baroPressure delta| > threshold for N consecutive baro updates
 
     // SPI / Gyro faults
-    FIU_FAULT_GYRO_STUCK        = (1 << 2),  // gyroRaw[] identical for N consecutive readings
+    FIU_FAULT_GYRO_STUCK        = (1 << 2),  // gyroRaw[] identical for N consecutive readings (all 3 axes at once)
     FIU_FAULT_GYRO_ANOMALY      = (1 << 3),  // |gyroRaw delta| > threshold for N consecutive readings
     FIU_FAULT_GYRO_OVERRANGE    = (1 << 7),  // |gyroRaw| > threshold on any axis for N consecutive readings
+
+    // Gyro per-axis stuck faults (new) -- one axis frozen while the other two move
+    // normally; independent of FIU_FAULT_GYRO_STUCK above, see detectGyroStuckAxis()
+    // in fiu_detection.c. Values equal FIU_FAULT_GYRO_STUCK_AXIS(0/1/2) -- named here
+    // so they show up directly in this enum instead of only existing as generated bits.
+    FIU_FAULT_GYRO_STUCK_X      = FIU_FAULT_GYRO_STUCK_AXIS(0),  // (1 << 16)
+    FIU_FAULT_GYRO_STUCK_Y      = FIU_FAULT_GYRO_STUCK_AXIS(1),  // (1 << 17)
+    FIU_FAULT_GYRO_STUCK_Z      = FIU_FAULT_GYRO_STUCK_AXIS(2),  // (1 << 18)
 
     // Battery faults
     FIU_FAULT_BATT_WARNING      = (1 << 4),  // INAV battery state == BATTERY_WARNING
@@ -117,7 +153,7 @@ typedef enum {
 
 // Snapshot written to Blackbox each frame — grouped by fault source
 typedef struct {
-    uint16_t  faultFlags;                    // bitmask of fiuFaultFlags_e (uint16_t for motor bit 8)
+    uint32_t  faultFlags;                    // bitmask of fiuFaultFlags_e (uint32_t: bits 0-15 were full, per-axis gyro bits need 16-18)
 
     // I2C / Baro
     uint32_t  baroDetectedAtMs;              // millis() when baro stuck was first detected (0 = not detected)
@@ -125,10 +161,11 @@ typedef struct {
     uint32_t  i2cDetectedAtMs;               // combined: earlier of baroDetectedAtMs/baroAnomalyDetectedAtMs (0 = neither active) -- logged as fiuDetI2cMs, mirrors fiuInjI2c
 
     // SPI / Gyro
-    uint32_t  gyroDetectedAtMs;              // millis() when gyro stuck was first detected (0 = not detected)
+    uint32_t  gyroDetectedAtMs;              // millis() when gyro stuck (all 3 axes) was first detected (0 = not detected)
+    uint32_t  gyroStuckAxisDetectedAtMs[XYZ_AXIS_COUNT]; // millis() when each axis was first detected individually stuck (0 = not detected) -- independent of gyroDetectedAtMs, see FIU_FAULT_GYRO_STUCK_AXIS(axis)
     uint32_t  gyroAnomalyDetectedAtMs;       // millis() when gyro anomaly was first detected (0 = not detected)
     uint32_t  gyroOverrangeDetectedAtMs;     // millis() when gyro overrange was first detected (0 = not detected)
-    uint32_t  spiDetectedAtMs;               // combined: earliest of the three gyro timestamps above (0 = none active) -- logged as fiuDetSpiMs, mirrors fiuInjSpi
+    uint32_t  spiDetectedAtMs;               // combined: earliest of the gyro timestamps above, incl. per-axis (0 = none active) -- logged as fiuDetSpiMs, mirrors fiuInjSpi
 
     // Battery
     uint32_t  battDetectedAtMs;              // millis() when battery warning/critical was first detected (0 = not detected)

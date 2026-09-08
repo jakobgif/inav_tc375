@@ -30,8 +30,11 @@
  *     - Baro anomaly:  |baroPressure delta| > threshold (I2C rate-fault)
  *
  *   SPI / Gyro:
- *     - Gyro stuck:    gyroRaw[] identical for N readings (SPI full-block, error-rate mode)
- *     - Gyro anomaly:  |gyroRaw delta| > threshold (SPI rate-fault, drone rotating)
+ *     - Gyro stuck:       gyroRaw[] identical for N readings, all 3 axes at once (SPI full-block)
+ *     - Gyro stuck (axis): a single gyroRaw[] axis identical for N readings (partial/single-axis fault,
+ *                          not produced by FIU injection -- added after a real, undetected single-axis
+ *                          failure, see fiu_detection.h FIU_DETECT_GYRO_STUCK_AXIS_THRESHOLD)
+ *     - Gyro anomaly:     |gyroRaw delta| > threshold (SPI rate-fault, drone rotating)
  *     - Gyro overrange:|gyroRaw| > 900 dps (SPI overrange mode, fill=0x40-0x7F)
  *
  *   Battery:
@@ -73,6 +76,8 @@ static uint8_t  baroAnomalyCount  = 0;
 // --- SPI / Gyro detection state ---
 static float    gyroLastRaw[XYZ_AXIS_COUNT]      = {0.0f, 0.0f, 0.0f};
 static uint8_t  gyroStuckCount                   = 0;
+static float    gyroStuckAxisLastRaw[XYZ_AXIS_COUNT] = {0.0f, 0.0f, 0.0f};
+static uint8_t  gyroStuckAxisCount[XYZ_AXIS_COUNT]    = {0, 0, 0};
 static float    gyroAnomalyPrev[XYZ_AXIS_COUNT]  = {0.0f, 0.0f, 0.0f};
 static uint8_t  gyroAnomalyCount                 = 0;
 static uint32_t gyroAnomalyClearedAtMs           = 0;
@@ -245,6 +250,58 @@ static void detectGyroStuck(void)
     } else {
         detState.faultFlags      &= ~FIU_FAULT_GYRO_STUCK;
         detState.gyroDetectedAtMs = 0;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// SPI / Gyro — per-axis stuck detection
+//
+// detectGyroStuck() above only fires when all three axes freeze simultaneously
+// (the full SPI-block injection signature) and clears the instant any single
+// axis moves again -- a real single-axis fault (only one axis frozen, the
+// other two moving normally) never satisfies that "allSame" condition and was
+// structurally undetectable (2026-08-22 incident, LOG00292_2: gyroADC[0]
+// frozen at exactly 0 for the entire 4.67 s flight while Y/Z moved normally
+// and no FIU injection was active -> unrecoverable roll-axis loss -> crash,
+// see guidelines_fiu.md "HW-Test Erkenntnisse" Punkt 23).
+//
+// Tracks each axis independently against its own previous reading, using its
+// own last-value/count state (separate from gyroLastRaw/gyroStuckCount above,
+// since the two checks reset on different conditions). Threshold
+// (FIU_DETECT_GYRO_STUCK_AXIS_THRESHOLD, fiu_detection.h) is deliberately much
+// higher than the 3-axis threshold: a single axis legitimately holds the same
+// raw value for a while during genuine near-zero rotation (e.g. yaw in a
+// stable hover), far more likely than all three axes doing so at once -- same
+// false-positive-vs-latency trade-off already used for baro stuck detection.
+//
+// Independent of, and in addition to, detectGyroStuck(): if all three axes
+// happen to be individually stuck at once, both the whole-sensor bit and all
+// three per-axis bits end up set. Redundant but harmless, and does not change
+// the existing (faster, 5-sample) whole-sensor detection latency.
+// ---------------------------------------------------------------------------
+static void detectGyroStuckAxis(void)
+{
+    for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+        if (gyro.gyroRaw[axis] == gyroStuckAxisLastRaw[axis]) {
+            if (gyroStuckAxisCount[axis] < FIU_DETECT_GYRO_STUCK_AXIS_THRESHOLD) {
+                gyroStuckAxisCount[axis]++;
+            }
+        } else {
+            gyroStuckAxisCount[axis]   = 0;
+            gyroStuckAxisLastRaw[axis] = gyro.gyroRaw[axis];
+        }
+
+        uint32_t axisFlag = FIU_FAULT_GYRO_STUCK_AXIS(axis);
+
+        if (gyroStuckAxisCount[axis] >= FIU_DETECT_GYRO_STUCK_AXIS_THRESHOLD) {
+            if (!(detState.faultFlags & axisFlag)) {
+                detState.faultFlags |= axisFlag;
+                detState.gyroStuckAxisDetectedAtMs[axis] = millis();
+            }
+        } else {
+            detState.faultFlags &= ~axisFlag;
+            detState.gyroStuckAxisDetectedAtMs[axis] = 0;
+        }
     }
 }
 
@@ -503,11 +560,18 @@ void fiuDetectionUpdate(void)
 
     // SPI / Gyro
     detectGyroStuck();
+    detectGyroStuckAxis();
     detectGyroAnomaly();
     detectGyroOverrange();
+    uint32_t gyroStuckAxisMs = 0;
+    for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
+        gyroStuckAxisMs = earliestNonZero(gyroStuckAxisMs, detState.gyroStuckAxisDetectedAtMs[axis]);
+    }
     detState.spiDetectedAtMs = earliestNonZero(
-        earliestNonZero(detState.gyroDetectedAtMs, detState.gyroAnomalyDetectedAtMs),
-        detState.gyroOverrangeDetectedAtMs);
+        earliestNonZero(
+            earliestNonZero(detState.gyroDetectedAtMs, detState.gyroAnomalyDetectedAtMs),
+            detState.gyroOverrangeDetectedAtMs),
+        gyroStuckAxisMs);
 
     // Battery
     detectBatteryFault();
