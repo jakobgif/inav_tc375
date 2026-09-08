@@ -66,6 +66,10 @@ tables:
   - name: osd_stats_energy_unit
     values: ["MAH", "WH"]
     enum: osd_stats_energy_unit_e
+  - name: fiu_slot_type
+    values: ["NONE", "MOTOR", "BARO_STUCK", "BARO_ANOMALY", "GYRO_STUCK", "GYRO_ANOMALY",
+             "GYRO_OVERRANGE", "RC_LOSS", "BATT_WARNING", "BATT_CRITICAL"]
+    enum: fiuSlotType_e
   - name: osd_video_system
     values: ["AUTO", "PAL", "NTSC", "HDZERO", "DJIWTF", "AVATAR", "BF43COMPAT", "BFHDCOMPAT", "DJI_NATIVE"]
     enum: videoSystem_e
@@ -3919,6 +3923,246 @@ groups:
         max: INT32_MAX
         condition: USE_ADC
         default_value: 0
+
+  - name: PG_FIU_SLOT_CONFIG
+    type: fiuSlotConfig_t
+    headers: ["fiu/fiu_config.h"]
+    members:
+      # Setting names use letters (a-f), never digits, for the slot/motor
+      # index: settings.rb's word encoder (settings.rb:513-537) compresses
+      # every setting-name word into 5 bits/char -- 26 codes for a-z + 1
+      # terminator leaves exactly 5 "extra symbol" slots, SHARED across every
+      # setting name in the entire firmware, for any other character
+      # (digits, etc.). Before this PG, only digits 1-4 were used anywhere
+      # (verified via `grep -oE 'name: [a-z0-9_]+' settings.yaml`), so only 1
+      # slot remained free -- digit-suffixed names here (fiu_slot1.., _m0..)
+      # needed 3 new ones (0, 5, 6) and blew the budget
+      # ("Cannot encode character 54 (54), no symbols remaining" from
+      # generate_settings.bat, 54 = ASCII '6'). Letters cost nothing extra.
+      # fiu_slot_a..f = slot 1..6 (Layer1-SW1 .. Layer3-SW2); fiu_slot_X_ma..mf
+      # = motor 0..5 for slot X. See guidelines_lc.md for the full mapping.
+      - name: fiu_slot_a
+        description: "Fault type injected on controller slot A = slot 1 (RC layer 1, switch 1)"
+        default_value: "NONE"
+        field: slot[0]
+        table: fiu_slot_type
+      - name: fiu_slot_a_ma
+        description: "Include motor 0 when fiu_slot_a = MOTOR (ignored otherwise); combine with other fiu_slot_a_mX for multiple motors"
+        default_value: OFF
+        field: motorM0[0]
+        type: bool
+      - name: fiu_slot_a_mb
+        description: "Include motor 1 when fiu_slot_a = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM1[0]
+        type: bool
+      - name: fiu_slot_a_mc
+        description: "Include motor 2 when fiu_slot_a = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM2[0]
+        type: bool
+      - name: fiu_slot_a_md
+        description: "Include motor 3 when fiu_slot_a = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM3[0]
+        type: bool
+      - name: fiu_slot_a_me
+        description: "Include motor 4 when fiu_slot_a = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM4[0]
+        type: bool
+      - name: fiu_slot_a_mf
+        description: "Include motor 5 when fiu_slot_a = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM5[0]
+        type: bool
+      - name: fiu_slot_b
+        description: "Fault type injected on controller slot B = slot 2 (RC layer 1, switch 2)"
+        default_value: "NONE"
+        field: slot[1]
+        table: fiu_slot_type
+      - name: fiu_slot_b_ma
+        description: "Include motor 0 when fiu_slot_b = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM0[1]
+        type: bool
+      - name: fiu_slot_b_mb
+        description: "Include motor 1 when fiu_slot_b = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM1[1]
+        type: bool
+      - name: fiu_slot_b_mc
+        description: "Include motor 2 when fiu_slot_b = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM2[1]
+        type: bool
+      - name: fiu_slot_b_md
+        description: "Include motor 3 when fiu_slot_b = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM3[1]
+        type: bool
+      - name: fiu_slot_b_me
+        description: "Include motor 4 when fiu_slot_b = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM4[1]
+        type: bool
+      - name: fiu_slot_b_mf
+        description: "Include motor 5 when fiu_slot_b = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM5[1]
+        type: bool
+      - name: fiu_slot_c
+        description: "Fault type injected on controller slot C = slot 3 (RC layer 2, switch 1)"
+        default_value: "NONE"
+        field: slot[2]
+        table: fiu_slot_type
+      - name: fiu_slot_c_ma
+        description: "Include motor 0 when fiu_slot_c = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM0[2]
+        type: bool
+      - name: fiu_slot_c_mb
+        description: "Include motor 1 when fiu_slot_c = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM1[2]
+        type: bool
+      - name: fiu_slot_c_mc
+        description: "Include motor 2 when fiu_slot_c = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM2[2]
+        type: bool
+      - name: fiu_slot_c_md
+        description: "Include motor 3 when fiu_slot_c = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM3[2]
+        type: bool
+      - name: fiu_slot_c_me
+        description: "Include motor 4 when fiu_slot_c = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM4[2]
+        type: bool
+      - name: fiu_slot_c_mf
+        description: "Include motor 5 when fiu_slot_c = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM5[2]
+        type: bool
+      - name: fiu_slot_d
+        description: "Fault type injected on controller slot D = slot 4 (RC layer 2, switch 2)"
+        default_value: "NONE"
+        field: slot[3]
+        table: fiu_slot_type
+      - name: fiu_slot_d_ma
+        description: "Include motor 0 when fiu_slot_d = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM0[3]
+        type: bool
+      - name: fiu_slot_d_mb
+        description: "Include motor 1 when fiu_slot_d = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM1[3]
+        type: bool
+      - name: fiu_slot_d_mc
+        description: "Include motor 2 when fiu_slot_d = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM2[3]
+        type: bool
+      - name: fiu_slot_d_md
+        description: "Include motor 3 when fiu_slot_d = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM3[3]
+        type: bool
+      - name: fiu_slot_d_me
+        description: "Include motor 4 when fiu_slot_d = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM4[3]
+        type: bool
+      - name: fiu_slot_d_mf
+        description: "Include motor 5 when fiu_slot_d = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM5[3]
+        type: bool
+      - name: fiu_slot_e
+        description: "Fault type injected on controller slot E = slot 5 (RC layer 3, switch 1)"
+        default_value: "NONE"
+        field: slot[4]
+        table: fiu_slot_type
+      - name: fiu_slot_e_ma
+        description: "Include motor 0 when fiu_slot_e = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM0[4]
+        type: bool
+      - name: fiu_slot_e_mb
+        description: "Include motor 1 when fiu_slot_e = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM1[4]
+        type: bool
+      - name: fiu_slot_e_mc
+        description: "Include motor 2 when fiu_slot_e = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM2[4]
+        type: bool
+      - name: fiu_slot_e_md
+        description: "Include motor 3 when fiu_slot_e = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM3[4]
+        type: bool
+      - name: fiu_slot_e_me
+        description: "Include motor 4 when fiu_slot_e = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM4[4]
+        type: bool
+      - name: fiu_slot_e_mf
+        description: "Include motor 5 when fiu_slot_e = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM5[4]
+        type: bool
+      - name: fiu_slot_f
+        description: "Fault type injected on controller slot F = slot 6 (RC layer 3, switch 2)"
+        default_value: "NONE"
+        field: slot[5]
+        table: fiu_slot_type
+      - name: fiu_slot_f_ma
+        description: "Include motor 0 when fiu_slot_f = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM0[5]
+        type: bool
+      - name: fiu_slot_f_mb
+        description: "Include motor 1 when fiu_slot_f = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM1[5]
+        type: bool
+      - name: fiu_slot_f_mc
+        description: "Include motor 2 when fiu_slot_f = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM2[5]
+        type: bool
+      - name: fiu_slot_f_md
+        description: "Include motor 3 when fiu_slot_f = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM3[5]
+        type: bool
+      - name: fiu_slot_f_me
+        description: "Include motor 4 when fiu_slot_f = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM4[5]
+        type: bool
+      - name: fiu_slot_f_mf
+        description: "Include motor 5 when fiu_slot_f = MOTOR (ignored otherwise)"
+        default_value: OFF
+        field: motorM5[5]
+        type: bool
+      - name: fiu_i2c_max_rate
+        description: "Error-rate ceiling (%) a BARO_ANOMALY slot's Knob A is linearly scaled into (0-100% knob maps to 0-this%). Not used by BARO_STUCK, which is always a fixed 100% regardless of this setting"
+        default_value: 25
+        field: i2cMaxRate
+        min: 0
+        max: 100
+      - name: fiu_spi_max_rate
+        description: "Error-rate ceiling (%) a GYRO_ANOMALY slot's Knob A is linearly scaled into (0-100% knob maps to 0-this%). Not used by GYRO_STUCK, which is always a fixed 100% regardless of this setting"
+        default_value: 40
+        field: spiMaxRate
+        min: 0
+        max: 100
 
   - name: PG_TIME_CONFIG
     type: timeConfig_t

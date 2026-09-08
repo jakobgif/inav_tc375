@@ -23,17 +23,24 @@
 #include "drivers/bus_spi.h"
 #include "drivers/bus_i2c.h"
 
-// GV indices for fault configuration via INAV Logic Conditions
-#define FIU_GV_MOTOR   0  // GV0: bitmask of motors to disable
-#define FIU_GV_I2C     1  // GV1: bitmask of I2C buses affected (Bit 0=I2C1, Bit 1=I2C2, ...)
-#define FIU_GV_SPI     2  // GV2: bitmask of SPI buses affected  (Bit 0=SPI1, Bit 1=SPI2, ...)
-#define FIU_GV_KNOB_A  3  // GV3: I2C error rate (I2C-only) OR gyro axis selection (SPI-only)
-#define FIU_GV_KNOB_B  4  // GV4: SPI error rate (rate-mode) OR overrange intensity (overrange-mode)
-#define FIU_GV_BATT    6  // GV6: battery voltage fault level (knob: 0=off, 1=warning, 2=critical)
-#define FIU_GV_RC_LOSS 5  // GV5: 1 = simulate RC link loss (failsafe trigger)
+// GV indices for the 6 physical controller slots (3 RC layers x 2 switches,
+// see guidelines_lc.md) + 2 shared knobs. Each slot GV is a plain 0/1
+// activation flag; WHICH fault type a slot triggers is a runtime-configurable
+// CLI setting (fiu_slot_a..fiu_slot_f, fiu/fiu_config.h), not tied to the GV
+// index anymore -- fiuUpdateFromGlobalVars() dispatches on fiuSlotConfig().
+#define FIU_GV_SLOT_L1_SW1  0  // GV0: RC layer 1 (CH7 low), switch 1 (CH5)
+#define FIU_GV_SLOT_L1_SW2  1  // GV1: RC layer 1 (CH7 low), switch 2 (CH6)
+#define FIU_GV_SLOT_L2_SW1  2  // GV2: RC layer 2 (CH7 mid), switch 1 (CH5)
+#define FIU_GV_SLOT_L2_SW2  3  // GV3: RC layer 2 (CH7 mid), switch 2 (CH6)
+#define FIU_GV_SLOT_L3_SW1  4  // GV4: RC layer 3 (CH7 high), switch 1 (CH5)
+#define FIU_GV_SLOT_L3_SW2  5  // GV5: RC layer 3 (CH7 high), switch 2 (CH6)
+#define FIU_GV_KNOB_A       6  // GV6: raw CH9 passthrough (1000-2000), meaning depends on active slot's type
+#define FIU_GV_KNOB_B       7  // GV7: raw CH10 passthrough (1000-2000), meaning depends on active slot's type
 
-#define FIU_MAX_I2C_ERROR_RATE 50  // percent
-#define FIU_MAX_SPI_ERROR_RATE 80  // percent
+// I2C/SPI error-rate ceilings (formerly FIU_MAX_I2C_ERROR_RATE/FIU_MAX_SPI_ERROR_RATE
+// compile-time #defines) are now runtime CLI settings, used only by the
+// *_ANOMALY types -- see fiuSlotConfig()->i2cMaxRate/spiMaxRate in
+// fiu/fiu_config.h. *_STUCK types are always a fixed 100%, no setting.
 
 // Overrange fill-byte bounds (see fiuGetSpiOverrangeFillByte() in fiu.c).
 // 16-bit axis value becomes (fill<<8)|fill; dps = value / 16.4 (ICM-42688 +-2000dps range).
@@ -44,11 +51,12 @@
 #define FIU_SPI_OVERRANGE_FILL_MIN 0x40  // ~1003 dps
 #define FIU_SPI_OVERRANGE_FILL_MAX 0x50  // ~1254 dps
 
-// Layer 2 mutual exclusion: only one of I2C or SPI fault can be active at a time.
-// Both switches ON simultaneously -> safety reset (both faults deactivated, knobs ignored).
-// When only SPI is active, KNOB_A (GV3) is repurposed for gyro axis selection.
+// Per-layer mutual exclusion: within any one of the 3 RC layers, only one of
+// its two switches may be active at a time -- both ON simultaneously is a
+// safety reset (nothing active in that layer, knobs ignored), enforced
+// generically in fiuUpdateFromGlobalVars() for all 3 layers, not just I2C/SPI.
 
-// SPI gyro axis selection (KNOB_A bands when SPI-only active):
+// SPI gyro axis selection (KNOB_A bands, FIU_SLOT_GYRO_OVERRANGE only):
 // Knob 1000-1250 (0-24%): X only
 // Knob 1250-1500 (25-49%): Y only
 // Knob 1500-1750 (50-74%): Z only
@@ -58,25 +66,30 @@
 #define FIU_SPI_AXIS_Z    0x04
 #define FIU_SPI_AXIS_XYZ  0x07
 
-// FIU state snapshot for blackbox logging — grouped by fault type
+// FIU state snapshot for blackbox logging — grouped by fault type. Field
+// names/shape are unchanged from before the slot redesign so existing
+// Blackbox field names (fiuInjMotor/I2c/Spi/...) and analysis scripts
+// (messungen/analyze_fiu_log.py, summarize_fiu_tests.py) keep working
+// unmodified; whichever slot type is currently active fills in exactly the
+// fields it always did, all others stay at their zero/off default.
 typedef struct {
-    // Motor fault (GV0)
-    uint8_t motorMask;    // bitmask of disabled motors
+    // Motor fault (active when a slot is configured as FIU_SLOT_MOTOR)
+    uint8_t motorMask;    // bitmask of disabled motors, from fiuMotorMaskFromConfig()
 
-    // I2C / Baro fault (GV1, KNOB_A)
+    // I2C / Baro fault (active when a slot is FIU_SLOT_BARO_STUCK/_ANOMALY)
     uint8_t i2cMask;      // bitmask of affected I2C buses
     uint8_t i2cRate;      // I2C error rate 0-100
 
-    // SPI / Gyro fault (GV2, KNOB_A, KNOB_B)
+    // SPI / Gyro fault (active when a slot is FIU_SLOT_GYRO_STUCK/_ANOMALY/_OVERRANGE)
     uint8_t spiMask;      // bitmask of affected SPI buses
-    uint8_t spiRate;      // KNOB_B value 0-100 (rate or intensity depending on mode)
-    uint8_t spiOverrange; // 1 = overrange mode active (toggled by KNOB_B=0 + switch ON->OFF)
+    uint8_t spiRate;      // knob-driven rate/intensity 0-100 (meaning depends on active slot type)
+    uint8_t spiOverrange; // 1 = active slot type is FIU_SLOT_GYRO_OVERRANGE
     uint8_t spiAxisMask;  // affected axes in overrange mode (FIU_SPI_AXIS_*)
 
-    // Battery fault (GV6)
+    // Battery fault (active when a slot is FIU_SLOT_BATT_WARNING/_CRITICAL)
     uint8_t battFault;    // 0=off, 1=warning-level, 2=critical-level
 
-    // RC Loss fault (GV5)
+    // RC Loss fault (active when a slot is configured as FIU_SLOT_RC_LOSS)
     uint8_t rcLossFault;  // 1 = RC link loss fault active
 } fiuState_t;
 
