@@ -91,6 +91,15 @@
 #define FIU_DETECT_GYRO_OVERRANGE_THRESHOLD      900.0f
 #define FIU_DETECT_GYRO_OVERRANGE_COUNT            3
 
+// Gyro per-axis stuck: bit (FIU_FAULT_GYRO_STUCK_AXIS_SHIFT + axis) = that axis
+// individually stuck, axis is X=0/Y=1/Z=2 (see common/axis.h). Independent of
+// FIU_FAULT_GYRO_STUCK (unchanged, still requires all three axes frozen at
+// once) — see detectGyroStuckAxis() in fiu_detection.c and
+// FIU_DETECT_GYRO_STUCK_AXIS_THRESHOLD above for why this needed its own bits.
+#define FIU_FAULT_GYRO_STUCK_AXIS_SHIFT   5    // bits 5-7, right after the other 3 Gyro bits (2-4)
+#define FIU_FAULT_GYRO_STUCK_AXIS(axis)   (1u << (FIU_FAULT_GYRO_STUCK_AXIS_SHIFT + (axis)))
+#define FIU_FAULT_GYRO_STUCK_AXIS_ANY     (7u << FIU_FAULT_GYRO_STUCK_AXIS_SHIFT) // any single axis stuck — for mitigation checks
+
 // --- Motor detection threshold ---
 
 // Motor loss: pwmWriteMotor() commanded a non-zero value but motorWritePtr received 0.
@@ -98,62 +107,70 @@
 // 3 consecutive readings at 100 Hz = 30 ms debounce.
 #define FIU_DETECT_MOTOR_LOSS_COUNT  3
 
-// Motor loss occupies the upper byte of faultFlags: bit (8 + i) = motor i lost.
+// Motor loss occupies the last 8 bits of faultFlags (last in bit-assignment
+// order, matching Motor's position last in the Baro->Gyro->Battery->RC->Motor
+// source grouping): bit (FIU_FAULT_MOTOR_LOSS_SHIFT + i) = motor i lost.
 // Encoding which motor failed into faultFlags keeps the fault visible in the
 // existing fiuDetFlags Blackbox field — no extra log field is needed.
-#define FIU_FAULT_MOTOR_LOSS_SHIFT   8
-#define FIU_FAULT_MOTOR_LOSS_MAX     8       // bits 8..15
+#define FIU_FAULT_MOTOR_LOSS_SHIFT   11
+#define FIU_FAULT_MOTOR_LOSS_MAX     8                          // bits 11..18
 #define FIU_FAULT_MOTOR_LOSS(i)      (1u << (FIU_FAULT_MOTOR_LOSS_SHIFT + (i)))
-#define FIU_FAULT_MOTOR_LOSS_ANY     0xFF00u // "any motor lost" — for mitigation checks
+#define FIU_FAULT_MOTOR_LOSS_ANY     (0xFFu << FIU_FAULT_MOTOR_LOSS_SHIFT) // "any motor lost" — for mitigation checks
 
-// Gyro per-axis stuck: bit (16 + axis) = that axis individually stuck, axis is
-// X=0/Y=1/Z=2 (see common/axis.h). Independent of FIU_FAULT_GYRO_STUCK (bit 2,
-// unchanged, still requires all three axes frozen at once) — see
-// detectGyroStuckAxis() in fiu_detection.c and FIU_DETECT_GYRO_STUCK_AXIS_THRESHOLD
-// above for why this needed its own bits rather than reusing bit 2.
-#define FIU_FAULT_GYRO_STUCK_AXIS_SHIFT   16
-#define FIU_FAULT_GYRO_STUCK_AXIS(axis)   (1u << (FIU_FAULT_GYRO_STUCK_AXIS_SHIFT + (axis)))
-#define FIU_FAULT_GYRO_STUCK_AXIS_ANY     (7u << FIU_FAULT_GYRO_STUCK_AXIS_SHIFT) // any single axis stuck — for mitigation checks
-
-// Fault detection flags — one bit per fault type, grouped by fault source.
-// faultFlags is uint32_t: bits 0-15 were already fully allocated (8 motor bits
-// in the upper byte left no room for the 3 new per-axis gyro bits below), same
-// widening pattern as the earlier uint8_t->uint16_t motor-bit fix.
-// I2C/Baro: bits 0-1  |  SPI/Gyro: bits 2-3, 7, 16-18  |  Battery: bits 4-5
-// RC Loss:  bit 6     |  Motor: bits 8-15 (one per motor, see FIU_FAULT_MOTOR_LOSS)
+// ---------------------------------------------------------------------------
+// Fault bit map (fiuFaultFlags_e / detState.faultFlags, uint32_t) — every bit
+// that is actually in use. Bit assignment is deliberately contiguous and
+// grouped by fault source, in this fixed order: Baro, then all of Gyro, then
+// Battery, then RC Loss, Motor last -- the enum below follows the same order,
+// so this table and the enum always read the same way, top to bottom.
+//
+//   bits 0-1    Baro:     FIU_FAULT_BARO_STUCK (0), FIU_FAULT_BARO_ANOMALY (1)
+//   bits 2-7    Gyro:     FIU_FAULT_GYRO_STUCK (2), FIU_FAULT_GYRO_ANOMALY (3),
+//                         FIU_FAULT_GYRO_OVERRANGE (4),
+//                         FIU_FAULT_GYRO_STUCK_X/Y/Z (5/6/7, single-axis stuck)
+//   bits 8-9    Battery:  FIU_FAULT_BATT_WARNING (8), FIU_FAULT_BATT_CRITICAL (9)
+//   bit  10     RC Loss:  FIU_FAULT_RC_LOSS (10)
+//   bits 11-18  Motor:    FIU_FAULT_MOTOR_LOSS(i), i=0..7 (macro only -- see
+//                         above, no single named constant since the motor
+//                         count is a runtime loop, not fixed)
+//
+// faultFlags is uint32_t (13 bits, 19-31, still free for future fault types).
+// ---------------------------------------------------------------------------
 typedef enum {
-    FIU_FAULT_NONE              = 0,
+    FIU_FAULT_NONE               = 0,
 
-    // I2C / Baro faults
-    FIU_FAULT_BARO_STUCK        = (1 << 0),  // baroPressure identical for N consecutive readings
-    FIU_FAULT_BARO_ANOMALY      = (1 << 1),  // |baroPressure delta| > threshold for N consecutive baro updates
+    // --- Baro ---
+    FIU_FAULT_BARO_STUCK         = (1 << 0),  // baroPressure identical for N consecutive readings
+    FIU_FAULT_BARO_ANOMALY       = (1 << 1),  // |baroPressure delta| > threshold for N consecutive baro updates
 
-    // SPI / Gyro faults
-    FIU_FAULT_GYRO_STUCK        = (1 << 2),  // gyroRaw[] identical for N consecutive readings (all 3 axes at once)
-    FIU_FAULT_GYRO_ANOMALY      = (1 << 3),  // |gyroRaw delta| > threshold for N consecutive readings
-    FIU_FAULT_GYRO_OVERRANGE    = (1 << 7),  // |gyroRaw| > threshold on any axis for N consecutive readings
+    // --- Gyro (everything) ---
+    FIU_FAULT_GYRO_STUCK         = (1 << 2),  // gyroRaw[] identical for N consecutive readings (all 3 axes at once)
+    FIU_FAULT_GYRO_ANOMALY       = (1 << 3),  // |gyroRaw delta| > threshold for N consecutive readings
+    FIU_FAULT_GYRO_OVERRANGE     = (1 << 4),  // |gyroRaw| > threshold on any axis for N consecutive readings
 
-    // Gyro per-axis stuck faults (new) -- one axis frozen while the other two move
-    // normally; independent of FIU_FAULT_GYRO_STUCK above, see detectGyroStuckAxis()
-    // in fiu_detection.c. Values equal FIU_FAULT_GYRO_STUCK_AXIS(0/1/2) -- named here
-    // so they show up directly in this enum instead of only existing as generated bits.
-    FIU_FAULT_GYRO_STUCK_X      = FIU_FAULT_GYRO_STUCK_AXIS(0),  // (1 << 16)
-    FIU_FAULT_GYRO_STUCK_Y      = FIU_FAULT_GYRO_STUCK_AXIS(1),  // (1 << 17)
-    FIU_FAULT_GYRO_STUCK_Z      = FIU_FAULT_GYRO_STUCK_AXIS(2),  // (1 << 18)
+    // Gyro per-axis stuck faults -- one axis frozen while the other two move normally,
+    // independent of FIU_FAULT_GYRO_STUCK above. See detectGyroStuckAxis() in
+    // fiu_detection.c. Values equal FIU_FAULT_GYRO_STUCK_AXIS(0/1/2) -- named here so
+    // they show up directly in this enum instead of only existing as generated bits.
+    FIU_FAULT_GYRO_STUCK_X       = FIU_FAULT_GYRO_STUCK_AXIS(0),  // (1 << 5)
+    FIU_FAULT_GYRO_STUCK_Y       = FIU_FAULT_GYRO_STUCK_AXIS(1),  // (1 << 6)
+    FIU_FAULT_GYRO_STUCK_Z       = FIU_FAULT_GYRO_STUCK_AXIS(2),  // (1 << 7)
 
-    // Battery faults
-    FIU_FAULT_BATT_WARNING      = (1 << 4),  // INAV battery state == BATTERY_WARNING
-    FIU_FAULT_BATT_CRITICAL     = (1 << 5),  // INAV battery state == BATTERY_CRITICAL
+    // --- Battery ---
+    FIU_FAULT_BATT_WARNING       = (1 << 8),  // INAV battery state == BATTERY_WARNING
+    FIU_FAULT_BATT_CRITICAL      = (1 << 9),  // INAV battery state == BATTERY_CRITICAL
 
-    // RC Loss fault
-    FIU_FAULT_RC_LOSS           = (1 << 6),  // rxIsReceivingSignal() == false
+    // --- RC Loss ---
+    FIU_FAULT_RC_LOSS            = (1 << 10), // rxIsReceivingSignal() == false
 
-    // Motor faults live at bits 8-15 — see FIU_FAULT_MOTOR_LOSS(i) above
+    // --- Motor (last) ---
+    // bits 11-18: Motor faults, one bit per motor -- see FIU_FAULT_MOTOR_LOSS(i) above,
+    // no named constant here (runtime motor count, used through the macro in a loop)
 } fiuFaultFlags_e;
 
 // Snapshot written to Blackbox each frame — grouped by fault source
 typedef struct {
-    uint32_t  faultFlags;                    // bitmask of fiuFaultFlags_e (uint32_t: bits 0-15 were full, per-axis gyro bits need 16-18)
+    uint32_t  faultFlags;                    // bitmask of fiuFaultFlags_e (uint32_t: 19 bits used, 0-18, see bit map above)
 
     // I2C / Baro
     uint32_t  baroDetectedAtMs;              // millis() when baro stuck was first detected (0 = not detected)
@@ -182,4 +199,8 @@ typedef struct {
 void fiuDetectionUpdate(void);
 
 const fiuDetectionState_t *fiuDetectionGetState(void);
-bool fiuDetectionIsFaultActive(fiuFaultFlags_e flag);
+// Takes uint32_t, not fiuFaultFlags_e -- the check itself is a plain bitmask
+// AND, valid for any bit combination, not just single named fault constants
+// (e.g. FIU_FAULT_MOTOR_LOSS_ANY, an OR of up to 8 bits with no single enum
+// member of its own, since the motor count is a runtime value, not fixed).
+bool fiuDetectionIsFaultActive(uint32_t flag);

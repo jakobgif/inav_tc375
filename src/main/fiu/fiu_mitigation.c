@@ -141,7 +141,7 @@ static void mitigateStage2(void)
     const bool active = fiuDetectionIsFaultActive(FIU_FAULT_GYRO_STUCK) ||
                          fiuDetectionIsFaultActive(FIU_FAULT_GYRO_ANOMALY) ||
                          fiuDetectionIsFaultActive(FIU_FAULT_GYRO_OVERRANGE) ||
-                         ((fiuDetectionGetState()->faultFlags & FIU_FAULT_MOTOR_LOSS_ANY) != 0) ||
+                         fiuDetectionIsFaultActive(FIU_FAULT_MOTOR_LOSS_ANY) ||
                          fiuDetectionIsFaultActive(FIU_FAULT_BATT_CRITICAL);
 
     if (active && !mitigationState.stage2Active) {

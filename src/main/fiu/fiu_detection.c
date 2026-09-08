@@ -22,27 +22,39 @@
  * cannot see (because FIU operates below the sensor abstraction layer).
  *
  * Called at 100 Hz from taskUpdateAux() -- same task as fiuUpdateFromGlobalVars().
+ * Every detect*() function below reads real sensor/bus/RC/battery state directly
+ * (gyro.gyroRaw[], baro.baroPressure, getBatteryState(), rxIsReceivingSignal(), ...)
+ * -- none of them know about fiu.c's slot configuration or GV values. Detection
+ * only ever sees the *effect* at the sensor/bus boundary, never the cause.
  *
- * Detections grouped by fault source:
+ * Functions below, in the exact order fiuDetectionUpdate() calls them, each with
+ * the bit(s) it sets in detState.faultFlags (full bit map: fiu_detection.h):
  *
- *   I2C / Baro:
- *     - Baro stuck:    baroPressure identical for N readings (I2C full-block)
- *     - Baro anomaly:  |baroPressure delta| > threshold (I2C rate-fault)
+ *   detectBaroStuck()      bit  0  FIU_FAULT_BARO_STUCK       baroPressure+baroTemperature
+ *                                                              identical for N samples (I2C full-block)
+ *   detectBaroAnomaly()    bit  1  FIU_FAULT_BARO_ANOMALY     |baroPressure delta| > threshold, N consecutive
+ *                                                              baro updates (I2C rate-fault)
+ *   detectGyroStuck()      bit  2  FIU_FAULT_GYRO_STUCK       gyroRaw[] identical for N readings,
+ *                                                              ALL 3 axes at once (SPI full-block)
+ *   detectGyroStuckAxis()  bits  5-7  FIU_FAULT_GYRO_STUCK_X/Y/Z   a SINGLE gyroRaw[] axis identical
+ *                                                              for N readings -- not produced by FIU
+ *                                                              injection, added after a real, undetected
+ *                                                              single-axis failure (see fiu_detection.h
+ *                                                              FIU_DETECT_GYRO_STUCK_AXIS_THRESHOLD)
+ *   detectGyroAnomaly()    bit  3  FIU_FAULT_GYRO_ANOMALY     |gyroRaw delta| > threshold, N consecutive
+ *                                                              readings (SPI rate-fault, drone rotating)
+ *   detectGyroOverrange()  bit  4  FIU_FAULT_GYRO_OVERRANGE   |gyroRaw| > 900 dps on any axis
+ *                                                              (SPI overrange mode, fill=0x40-0x7F)
+ *   detectBatteryFault()   bits 8-9  FIU_FAULT_BATT_WARNING/CRITICAL  INAV battery state machine
+ *   detectRcLoss()         bit 10  FIU_FAULT_RC_LOSS          rxIsReceivingSignal() == false
+ *   detectMotorFault()     bits 11-18  FIU_FAULT_MOTOR_LOSS(i)  commanded>0 && written==0, per motor
+ *                                                              (#ifdef USE_FIU only -- needs
+ *                                                              pwmGetMotorCommanded/Written(), which
+ *                                                              only exist under that guard)
  *
- *   SPI / Gyro:
- *     - Gyro stuck:       gyroRaw[] identical for N readings, all 3 axes at once (SPI full-block)
- *     - Gyro stuck (axis): a single gyroRaw[] axis identical for N readings (partial/single-axis fault,
- *                          not produced by FIU injection -- added after a real, undetected single-axis
- *                          failure, see fiu_detection.h FIU_DETECT_GYRO_STUCK_AXIS_THRESHOLD)
- *     - Gyro anomaly:     |gyroRaw delta| > threshold (SPI rate-fault, drone rotating)
- *     - Gyro overrange:|gyroRaw| > 900 dps (SPI overrange mode, fill=0x40-0x7F)
- *
- *   Battery:
- *     - Batt warning:  INAV battery state == BATTERY_WARNING
- *     - Batt critical: INAV battery state == BATTERY_CRITICAL
- *
- *   RC Loss:
- *     - RC loss:       rxIsReceivingSignal() == false
+ * Bit assignment is contiguous and grouped by source, in this fixed order:
+ * Baro (0-1), Gyro (2-7), Battery (8-9), RC Loss (10), Motor (11-18, last).
+ * Full bit map with rationale: fiu_detection.h.
  */
 
 #include <stdint.h>
@@ -67,21 +79,21 @@
 static fiuDetectionState_t detState;
 
 // --- I2C / Baro detection state ---
-static int32_t  baroLastPressure     = 0;
-static int32_t  baroLastTemperature  = 0;
-static uint8_t  baroStuckCount       = 0;
-static int32_t  baroAnomalyPrev   = 0;
-static uint8_t  baroAnomalyCount  = 0;
+static int32_t  baroLastPressure                     = 0;
+static int32_t  baroLastTemperature                   = 0;
+static uint8_t  baroStuckCount                        = 0;
+static int32_t  baroAnomalyPrev                       = 0;
+static uint8_t  baroAnomalyCount                      = 0;
 
 // --- SPI / Gyro detection state ---
-static float    gyroLastRaw[XYZ_AXIS_COUNT]      = {0.0f, 0.0f, 0.0f};
-static uint8_t  gyroStuckCount                   = 0;
-static float    gyroStuckAxisLastRaw[XYZ_AXIS_COUNT] = {0.0f, 0.0f, 0.0f};
+static float    gyroLastRaw[XYZ_AXIS_COUNT]           = {0.0f, 0.0f, 0.0f};
+static uint8_t  gyroStuckCount                        = 0;
+static float    gyroStuckAxisLastRaw[XYZ_AXIS_COUNT]  = {0.0f, 0.0f, 0.0f};
 static uint8_t  gyroStuckAxisCount[XYZ_AXIS_COUNT]    = {0, 0, 0};
-static float    gyroAnomalyPrev[XYZ_AXIS_COUNT]  = {0.0f, 0.0f, 0.0f};
-static uint8_t  gyroAnomalyCount                 = 0;
-static uint32_t gyroAnomalyClearedAtMs           = 0;
-static uint8_t  gyroOverrangeCount               = 0;
+static float    gyroAnomalyPrev[XYZ_AXIS_COUNT]       = {0.0f, 0.0f, 0.0f};
+static uint8_t  gyroAnomalyCount                      = 0;
+static uint32_t gyroAnomalyClearedAtMs                = 0;
+static uint8_t  gyroOverrangeCount                    = 0;
 
 // --- Motor detection state ---
 #ifdef USE_FIU
@@ -480,7 +492,7 @@ static void detectRcLoss(void)
 #ifdef USE_FIU
 static void detectMotorFault(void)
 {
-    // Motor bits occupy the upper byte of faultFlags, so at most 8 motors are tracked.
+    // Motor bits are capped at FIU_FAULT_MOTOR_LOSS_MAX, so at most 8 motors are tracked.
     int motorCount = getMotorCount();
     if (motorCount > FIU_FAULT_MOTOR_LOSS_MAX) {
         motorCount = FIU_FAULT_MOTOR_LOSS_MAX;
@@ -595,7 +607,7 @@ const fiuDetectionState_t *fiuDetectionGetState(void)
     return &detState;
 }
 
-bool fiuDetectionIsFaultActive(fiuFaultFlags_e flag)
+bool fiuDetectionIsFaultActive(uint32_t flag)
 {
     return (detState.faultFlags & flag) != 0;
 }
