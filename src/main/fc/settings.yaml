@@ -67,8 +67,8 @@ tables:
     values: ["MAH", "WH"]
     enum: osd_stats_energy_unit_e
   - name: fiu_slot_type
-    values: ["NONE", "MOTOR", "BARO_STUCK", "BARO_ANOMALY", "GYRO_STUCK", "GYRO_ANOMALY",
-             "GYRO_OVERRANGE", "RC_LOSS", "BATT_WARNING", "BATT_CRITICAL"]
+    values: ["NONE", "MOTOR", "BARO_STUCK", "BARO_ANOMALY", "GYRO_STUCK", "GYRO_STUCK_AXIS",
+             "GYRO_ANOMALY", "GYRO_OVERRANGE", "RC_LOSS", "BATT_WARNING", "BATT_CRITICAL"]
     enum: fiuSlotType_e
   - name: osd_video_system
     values: ["AUTO", "PAL", "NTSC", "HDZERO", "DJIWTF", "AVATAR", "BF43COMPAT", "BFHDCOMPAT", "DJI_NATIVE"]

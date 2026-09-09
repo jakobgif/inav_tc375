@@ -382,6 +382,16 @@ bool busReadBuf(const busDevice_t * dev, uint8_t reg, uint8_t * data, uint8_t le
                 if ((axisMask & FIU_SPI_AXIS_Z) && length > 5) { data[4] = fill; data[5] = fill; }
                 return result;
             }
+            if (fiuIsSpiStuckAxisActive(dev->busdev.spi.spiBus)) {
+                // Real read first so unselected axes keep actual sensor values,
+                // and so the selected axis has a real value to freeze on the
+                // first read after activation. Gyro buffer layout as above.
+                bool result = (dev->flags & DEVFLAGS_USE_RAW_REGISTERS) ?
+                    spiBusReadBuffer(dev, reg, data, length) :
+                    spiBusReadBuffer(dev, reg | 0x80, data, length);
+                fiuApplyGyroStuckAxisFreeze(data, length, fiuGetSpiAxisMask());
+                return result;
+            }
 #endif
             if (dev->flags & DEVFLAGS_USE_RAW_REGISTERS) {
                 return spiBusReadBuffer(dev, reg, data, length);

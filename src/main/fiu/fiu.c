@@ -48,8 +48,16 @@ static uint8_t spiOverrangeRate  = 0;  // raw KNOB_B value 0-100, feeds fiuGetSp
 static uint8_t spiAxisMask       = FIU_SPI_AXIS_XYZ;
 static uint8_t spiCallCount[SPIDEV_COUNT] = {0};
 static bool    spiOverrangeMode  = false;
+static bool    spiStuckAxisMode  = false;
 
-// SPI gyro fault — three mutually exclusive activation types (see fiu_config.h):
+// Per-axis freeze state for FIU_SLOT_GYRO_STUCK_AXIS (see
+// fiuApplyGyroStuckAxisFreeze() below): captures the real value an axis had
+// at the moment the fault was activated, then keeps returning exactly those
+// two bytes on every subsequent read until the fault is deactivated.
+static uint8_t spiStuckAxisFrozenBytes[3][2] = {{0}};
+static bool    spiStuckAxisCaptured[3]       = {false, false, false};
+
+// SPI gyro fault — four mutually exclusive activation types (see fiu_config.h):
 //
 //  [1] FIU_SLOT_GYRO_STUCK: knob ignored, error rate fixed at 100% every
 //      cycle -> permanent full block, on/off purely via the slot switch.
@@ -71,6 +79,17 @@ static bool    spiOverrangeMode  = false;
 //        max: fill=FIU_SPI_OVERRANGE_FILL_MAX -> 16-bit=(fill<<8)|fill -> ~1254 dps
 //      (ICM-42688 +-2000 dps range, sensitivity 16.4 LSB/dps)
 //      Axis selection via knobA (0-24%=X, 25-49%=Y, 50-74%=Z, 75-100%=XYZ)
+//
+//  [4] FIU_SLOT_GYRO_STUCK_AXIS
+//      Real read happens first (like Overrange), then the selected axis/axes are
+//      overwritten with a FROZEN value instead of a fixed fill byte: the value
+//      each axis had at the moment the fault was activated, captured once
+//      (spiStuckAxisCaptured[]/spiStuckAxisFrozenBytes[]) and replayed on every
+//      subsequent read until deactivated. No knobB intensity parameter -- axis
+//      selection reuses the same knobA bands as Overrange. Closes the gap where
+//      no injection path could deliberately trigger detectGyroStuckAxis()
+//      (fiu_detection.c) -- previously only a real single-axis sensor fault could
+//      set FIU_FAULT_GYRO_STUCK_X/Y/Z (guidelines_fiu.md Punkt 31).
 //
 //  Note: unselected axes receive real sensor values (real SPI read happens first)
 
@@ -188,6 +207,27 @@ static void activateGyroOverrange(uint8_t knobA, uint8_t knobB)
     fiuState.spiOverrange = 1;
 }
 
+// Axis selection reuses the same knobA bands as activateGyroOverrange() --
+// knobB is unused, there is no intensity to dial (the frozen value is
+// whatever the axis had at capture time, not a configurable fill). Does NOT
+// touch spiStuckAxisCaptured[] -- capture happens lazily in
+// fiuApplyGyroStuckAxisFreeze() on the first read after activation, so a
+// freshly (re-)activated fault always captures a new value.
+static void activateGyroStuckAxis(uint8_t knobA)
+{
+    if (knobA < 25)      spiAxisMask = FIU_SPI_AXIS_X;
+    else if (knobA < 50) spiAxisMask = FIU_SPI_AXIS_Y;
+    else if (knobA < 75) spiAxisMask = FIU_SPI_AXIS_Z;
+    else                 spiAxisMask = FIU_SPI_AXIS_XYZ;
+
+    spiActiveMask    = BIT(FIU_GYRO_SPI_BUS);
+    spiStuckAxisMode = true;
+
+    fiuState.spiMask      = spiActiveMask;
+    fiuState.spiRate      = 0;
+    fiuState.spiOverrange = 0;
+}
+
 static void activateRcLoss(void)
 {
     rcLossFaultActive    = true;
@@ -210,8 +250,14 @@ static void resetAllFaultState(void)
     spiActiveMask     = 0;
     spiErrorRate      = 0;
     spiOverrangeMode  = false;
+    spiStuckAxisMode  = false;
     rcLossFaultActive = false;
     battFaultLevel    = 0;
+    // spiStuckAxisCaptured[] is NOT cleared here -- resetAllFaultState() runs
+    // unconditionally every 100Hz cycle (not just on deactivation), so
+    // clearing it here would wipe the freeze every cycle instead of holding
+    // it while FIU_SLOT_GYRO_STUCK_AXIS stays active. See the edge-triggered
+    // clear at the end of fiuUpdateFromGlobalVars() instead.
 
     fiuState.motorMask    = 0;
     fiuState.i2cMask      = 0;
@@ -231,15 +277,16 @@ static void resetAllFaultState(void)
 static void activateSlotType(uint8_t slotIdx, fiuSlotType_e type, uint8_t knobA, uint8_t knobB)
 {
     switch (type) {
-        case FIU_SLOT_MOTOR:          activateMotor(slotIdx); break;
-        case FIU_SLOT_BARO_STUCK:     activateBaroStuck(); break;
-        case FIU_SLOT_BARO_ANOMALY:   activateBaroAnomaly(knobA); break;
-        case FIU_SLOT_GYRO_STUCK:     activateGyroStuck(); break;
-        case FIU_SLOT_GYRO_ANOMALY:   activateGyroAnomaly(knobA); break;
-        case FIU_SLOT_GYRO_OVERRANGE: activateGyroOverrange(knobA, knobB); break;
-        case FIU_SLOT_RC_LOSS:        activateRcLoss(); break;
-        case FIU_SLOT_BATT_WARNING:   activateBattery(1); break;
-        case FIU_SLOT_BATT_CRITICAL:  activateBattery(2); break;
+        case FIU_SLOT_MOTOR:           activateMotor(slotIdx); break;
+        case FIU_SLOT_BARO_STUCK:      activateBaroStuck(); break;
+        case FIU_SLOT_BARO_ANOMALY:    activateBaroAnomaly(knobA); break;
+        case FIU_SLOT_GYRO_STUCK:      activateGyroStuck(); break;
+        case FIU_SLOT_GYRO_STUCK_AXIS: activateGyroStuckAxis(knobA); break;
+        case FIU_SLOT_GYRO_ANOMALY:    activateGyroAnomaly(knobA); break;
+        case FIU_SLOT_GYRO_OVERRANGE:  activateGyroOverrange(knobA, knobB); break;
+        case FIU_SLOT_RC_LOSS:         activateRcLoss(); break;
+        case FIU_SLOT_BATT_WARNING:    activateBattery(1); break;
+        case FIU_SLOT_BATT_CRITICAL:   activateBattery(2); break;
         case FIU_SLOT_NONE:
         default:                      break;
     }
@@ -267,6 +314,11 @@ void fiuUpdateFromGlobalVars(void)
     int32_t knobBClamped = knobBRaw < 1000 ? 1000 : knobBRaw > 2000 ? 2000 : knobBRaw;
     uint8_t knobB        = (uint8_t)((knobBClamped - 1000) / 10);  // 0-100
 
+    // Captured before resetAllFaultState() clears spiStuckAxisMode -- used below
+    // to detect the deactivation edge (was active last cycle, not re-activated
+    // this cycle) so spiStuckAxisCaptured[] resets only then, not every cycle.
+    bool stuckAxisActiveBefore = spiStuckAxisMode;
+
     resetAllFaultState();
 
     // Per-layer mutual exclusion: both switches ON (or both OFF) in the same
@@ -276,6 +328,16 @@ void fiuUpdateFromGlobalVars(void)
         if (sw[layer][0] == sw[layer][1]) continue;
         int slotIdx = layer * 2 + (sw[layer][0] ? 0 : 1);
         activateSlotType(slotIdx, (fiuSlotType_e)fiuSlotConfig()->slot[slotIdx], knobA, knobB);
+    }
+
+    // FIU_SLOT_GYRO_STUCK_AXIS deactivation edge: was active last cycle, not
+    // re-activated this cycle -> clear the per-axis capture so the next
+    // activation (this session or a later one) freezes a fresh real value
+    // instead of replaying the previous session's.
+    if (stuckAxisActiveBefore && !spiStuckAxisMode) {
+        for (int axis = 0; axis < 3; axis++) {
+            spiStuckAxisCaptured[axis] = false;
+        }
     }
 
     // Update blackbox state snapshot -- spiAxisMask is intentionally always
@@ -311,6 +373,7 @@ bool fiuIsI2cBusReadBlocked(I2CDevice bus)
 bool fiuIsSpiBusReadBlocked(SPIDevice bus)
 {
     if (spiOverrangeMode) return false;  // overrange mode handled separately
+    if (spiStuckAxisMode) return false;  // stuck-axis mode handled separately
     if (bus < 0 || bus >= SPIDEV_COUNT) return false;
     if (!(spiActiveMask & BIT(bus)) || spiErrorRate == 0) return false;
     if (spiErrorRate >= 100) return true;
@@ -342,6 +405,41 @@ uint8_t fiuGetSpiOverrangeFillByte(void)
 uint8_t fiuGetSpiAxisMask(void)
 {
     return spiAxisMask;
+}
+
+bool fiuIsSpiStuckAxisActive(SPIDevice bus)
+{
+    if (!spiStuckAxisMode) return false;
+    if (bus < 0 || bus >= SPIDEV_COUNT) return false;
+    return (spiActiveMask & BIT(bus)) != 0;
+}
+
+// Capture-or-freeze per axis, called once per read with the just-read real
+// bytes already in data[]. First call after activation (spiStuckAxisCaptured[axis]
+// still false) captures the current real value as the frozen value; every call
+// after that overwrites data[] with the previously captured bytes instead,
+// so the axis appears to report the exact same value on every subsequent read
+// until the fault is deactivated (resetAllFaultState() clears captured[]).
+// Gyro buffer layout: X=bytes[0-1], Y=bytes[2-3], Z=bytes[4-5].
+void fiuApplyGyroStuckAxisFreeze(uint8_t *data, uint8_t length, uint8_t axisMask)
+{
+    const uint8_t axisOffset[3] = {0, 2, 4};
+    const uint8_t axisBit[3]    = {FIU_SPI_AXIS_X, FIU_SPI_AXIS_Y, FIU_SPI_AXIS_Z};
+
+    for (int axis = 0; axis < 3; axis++) {
+        if (!(axisMask & axisBit[axis])) continue;
+        uint8_t offset = axisOffset[axis];
+        if (length <= (uint8_t)(offset + 1)) continue;
+
+        if (!spiStuckAxisCaptured[axis]) {
+            spiStuckAxisFrozenBytes[axis][0] = data[offset];
+            spiStuckAxisFrozenBytes[axis][1] = data[offset + 1];
+            spiStuckAxisCaptured[axis]       = true;
+        } else {
+            data[offset]     = spiStuckAxisFrozenBytes[axis][0];
+            data[offset + 1] = spiStuckAxisFrozenBytes[axis][1];
+        }
+    }
 }
 
 // --- Battery fault ---

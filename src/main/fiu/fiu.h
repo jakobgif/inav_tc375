@@ -80,7 +80,7 @@ typedef struct {
     uint8_t i2cMask;      // bitmask of affected I2C buses
     uint8_t i2cRate;      // I2C error rate 0-100
 
-    // SPI / Gyro fault (active when a slot is FIU_SLOT_GYRO_STUCK/_ANOMALY/_OVERRANGE)
+    // SPI / Gyro fault (active when a slot is FIU_SLOT_GYRO_STUCK/_STUCK_AXIS/_ANOMALY/_OVERRANGE)
     uint8_t spiMask;      // bitmask of affected SPI buses
     uint8_t spiRate;      // knob-driven rate/intensity 0-100 (meaning depends on active slot type)
     uint8_t spiOverrange; // 1 = active slot type is FIU_SLOT_GYRO_OVERRANGE
@@ -106,6 +106,8 @@ bool fiuIsSpiBusReadBlocked(SPIDevice bus);
 bool fiuIsSpiOverrangeActive(SPIDevice bus);
 uint8_t fiuGetSpiOverrangeFillByte(void);
 uint8_t fiuGetSpiAxisMask(void);
+bool fiuIsSpiStuckAxisActive(SPIDevice bus);
+void fiuApplyGyroStuckAxisFreeze(uint8_t *data, uint8_t length, uint8_t axisMask);
 
 // Battery fault
 uint8_t fiuGetBatteryFaultLevel(void);
