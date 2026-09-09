@@ -20,22 +20,31 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-// Mitigation stage encoding — increasing severity. A given cycle reports the
-// HIGHEST stage whose trigger condition is active; the stages are not
-// mutually exclusive internally (e.g. a baro fault and a gyro fault at the
-// same time keep both Stage 1's and Stage 2's actions running), this value
-// is only the single most-severe-stage summary logged to Blackbox.
-#define FIU_MITIGATION_STAGE_NONE   0
-#define FIU_MITIGATION_STAGE_1      1   // Mode restriction (forced ANGLE_MODE)
-#define FIU_MITIGATION_STAGE_2      2   // Emergency landing (forced nav emergency landing)
-#define FIU_MITIGATION_STAGE_3      3   // Immediate disarm (Stage-2 fault set active while STATE(LANDING_DETECTED))
+// Mitigation action-type encoding. Each of the four independent per-peripheral
+// mitigation functions in fiu_mitigation.c (mitigateBaro/mitigateMotor/
+// mitigateBattery/mitigateGyro) computes its own action level below;
+// fiuMitigationUpdate() takes the highest one active this cycle as the
+// single summary value logged to Blackbox (field `fiuMitStage` -- name,
+// type and 0-3 numbering unchanged from the old three-stage escalation
+// model on purpose, so historical Blackbox logs stay numerically
+// interpretable -- only the *meaning* changed, from "escalation stage" to
+// "action type currently applied by whichever peripheral needs it". See
+// fiu_mitigation.c file header for the full peripheral-based design.
+#define FIU_MITIGATION_ACTION_NONE              0
+#define FIU_MITIGATION_ACTION_MODE_RESTRICTION  1   // GREEN  -- ANGLE_MODE forced (baro only)
+#define FIU_MITIGATION_ACTION_LANDING           2   // YELLOW -- forced emergency landing running, not yet disarmed
+#define FIU_MITIGATION_ACTION_DISARMED          3   // RED    -- disarmed (landing completed, or gyro immediate disarm)
 
-// Snapshot written to Blackbox each frame — mirrors fiuDetectionState_t style.
+// Snapshot written to Blackbox each frame -- one independent action-level
+// field per peripheral, plus the overall summary (`currentAction`, logged
+// as fiuMitStage). There is no shared "stage" between peripherals any more:
+// each field below is driven exclusively by its own mitigateX() function.
 typedef struct {
-    uint8_t activeStage;   // highest stage active this cycle: FIU_MITIGATION_STAGE_*
-    bool    stage1Active;  // true while BARO_STUCK or BARO_ANOMALY forces ANGLE_MODE
-    bool    stage2Active;  // true while GYRO_STUCK/ANOMALY/OVERRANGE, motor loss, or BATT_CRITICAL forces emergency landing
-    bool    stage3Active;  // true while stage2Active AND STATE(LANDING_DETECTED) forces immediate disarm
+    uint8_t currentAction;  // highest of the four fields below this cycle -- logged as fiuMitStage
+    uint8_t baroAction;     // FIU_MITIGATION_ACTION_NONE or _MODE_RESTRICTION -- see mitigateBaro()
+    uint8_t motorAction;    // FIU_MITIGATION_ACTION_NONE / _LANDING / _DISARMED -- see mitigateMotor()
+    uint8_t batteryAction;  // FIU_MITIGATION_ACTION_NONE / _LANDING / _DISARMED -- see mitigateBattery()
+    uint8_t gyroAction;     // FIU_MITIGATION_ACTION_NONE / _LANDING / _DISARMED -- see mitigateGyro()
 } fiuMitigationState_t;
 
 void fiuMitigationUpdate(void);

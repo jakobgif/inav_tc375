@@ -36,9 +36,15 @@
  *        just because a different CH7 layer is under test)
  *          OFF / GREEN=motor / YELLOW=baro / CYAN=gyro / BLUE=battery / MAGENTA=RC loss
  *          PURPLE = 2+ fault families active simultaneously (see Blackbox fiuDetFlags)
- *   6    Mitigation stage      OFF / GREEN=stage1 / YELLOW=stage2 / RED=stage3
- *   7    Mitigation source family -- same colour code as LED 5, restricted to the fault(s)
- *        feeding the currently active stage
+ *   6    Mitigation action type (per-peripheral mitigation, see fiu_mitigation.c -- NOT a
+ *        cross-family escalation stage any more, but the same 0/1/2/3 numbering is kept so
+ *        historical Blackbox values stay interpretable)
+ *          OFF / GREEN=mode restriction (baro) / YELLOW=forced landing running, not yet
+ *          disarmed (motor/battery/gyro-anomaly) / RED=disarmed (landing completed, or gyro
+ *          immediate disarm). Priority when multiple peripherals are active at once:
+ *          RED > YELLOW > GREEN > OFF (highest wins).
+ *   7    Mitigation source family -- same colour code as LED 5, restricted to whichever
+ *        peripheral mitigation function(s) are currently at the action level shown on LED 6
  */
 
 #include "platform.h"
@@ -131,11 +137,12 @@ static hsvColor_t makeOverrangeColor(uint16_t hue, uint8_t rate)
 // see Blackbox fiuDetFlags for the precise bitmask).
 #define FAMILY_MASK_MOTOR  (FIU_FAULT_MOTOR_LOSS_ANY)
 #define FAMILY_MASK_BARO   (FIU_FAULT_BARO_STUCK | FIU_FAULT_BARO_ANOMALY)
-#define FAMILY_MASK_GYRO   (FIU_FAULT_GYRO_STUCK | FIU_FAULT_GYRO_ANOMALY | FIU_FAULT_GYRO_OVERRANGE)
+#define FAMILY_MASK_GYRO   (FIU_FAULT_GYRO_STUCK | FIU_FAULT_GYRO_ANOMALY | \
+                             FIU_FAULT_GYRO_OVERRANGE | FIU_FAULT_GYRO_STUCK_AXIS_ANY)
 #define FAMILY_MASK_BATT   (FIU_FAULT_BATT_WARNING | FIU_FAULT_BATT_CRITICAL)
 #define FAMILY_MASK_RC     (FIU_FAULT_RC_LOSS)
 
-static hsvColor_t familyColor(uint16_t flags)
+static hsvColor_t familyColor(uint32_t flags)
 {
     uint8_t count = 0;
     hsvColor_t color = COLOR_OFF;
@@ -251,30 +258,31 @@ void fiuLedUpdate(void)
     hsvColor_t detColor = familyColor(detState->faultFlags);
     fiuWs2811SetHsv(5, &detColor);
 
-    // LED 6: Mitigation stage -- GREEN=1 (mode restriction), YELLOW=2 (emergency landing),
-    // RED=3 (immediate disarm).
+    // LED 6: Mitigation action type -- GREEN=mode restriction, YELLOW=forced landing running,
+    // RED=disarmed. See fiu_mitigation.h -- currentAction is already the highest of the four
+    // independent per-peripheral action levels (numeric encoding IS the priority order).
     const fiuMitigationState_t *mit = fiuMitigationGetState();
     hsvColor_t stageColor;
-    switch (mit->activeStage) {
-        case FIU_MITIGATION_STAGE_1: stageColor = COLOR_GREEN;  break;
-        case FIU_MITIGATION_STAGE_2: stageColor = COLOR_YELLOW; break;
-        case FIU_MITIGATION_STAGE_3: stageColor = COLOR_RED;    break;
-        default:                     stageColor = COLOR_OFF;    break;
+    switch (mit->currentAction) {
+        case FIU_MITIGATION_ACTION_MODE_RESTRICTION: stageColor = COLOR_GREEN;  break;
+        case FIU_MITIGATION_ACTION_LANDING:          stageColor = COLOR_YELLOW; break;
+        case FIU_MITIGATION_ACTION_DISARMED:         stageColor = COLOR_RED;    break;
+        default:                                     stageColor = COLOR_OFF;    break;
     }
     fiuWs2811SetHsv(6, &stageColor);
 
-    // LED 7: Mitigation source family -- same colour code as LED 5, restricted to the
-    // fault set that actually feeds the currently active stage (stage1 = baro only,
-    // stage2/3 = gyro/motor/batt-critical -- see fiu_mitigation.c).
-    hsvColor_t mitColor;
-    if (mit->activeStage == FIU_MITIGATION_STAGE_NONE) {
-        mitColor = COLOR_OFF;
-    } else if (mit->activeStage == FIU_MITIGATION_STAGE_1) {
-        mitColor = familyColor(detState->faultFlags & FAMILY_MASK_BARO);
-    } else {
-        mitColor = familyColor(detState->faultFlags &
-            (FAMILY_MASK_GYRO | FAMILY_MASK_MOTOR | FIU_FAULT_BATT_CRITICAL));
+    // LED 7: Mitigation source family -- same colour code as LED 5, restricted to whichever
+    // peripheral(s) are currently AT the action level shown on LED 6 (rather than "which
+    // family feeds a global stage" -- there is no global stage any more, each peripheral's
+    // mitigateX() computes its own action level independently, see fiu_mitigation.c).
+    uint32_t mitMask = 0;
+    if (mit->currentAction != FIU_MITIGATION_ACTION_NONE) {
+        if (mit->baroAction    == mit->currentAction) mitMask |= FAMILY_MASK_BARO;
+        if (mit->motorAction   == mit->currentAction) mitMask |= FAMILY_MASK_MOTOR;
+        if (mit->batteryAction == mit->currentAction) mitMask |= FAMILY_MASK_BATT;
+        if (mit->gyroAction    == mit->currentAction) mitMask |= FAMILY_MASK_GYRO;
     }
+    hsvColor_t mitColor = familyColor(detState->faultFlags & mitMask);
     fiuWs2811SetHsv(7, &mitColor);
 
     fiuWs2811Update();

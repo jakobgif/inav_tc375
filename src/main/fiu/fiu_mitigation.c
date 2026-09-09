@@ -18,97 +18,101 @@
 /*
  * FIU Mitigation Module
  *
- * Reads fault-detection state from fiu_detection.c (read-only) and triggers
- * a graduated safety response. Performs NO fault detection of its own.
+ * Reads fault-detection state from fiu_detection.c (read-only) and reacts
+ * with one independent, self-contained mitigation function per peripheral
+ * (sensor/actuator) -- NOT a cross-family escalation-stage model. Each
+ * peripheral function below decides its own action and owns its own
+ * edge-tracking state; there is no shared "current stage" concept spanning
+ * multiple fault families any more.
  *
  * Called at 100 Hz from taskUpdateAux() -- same task as fiuDetectionUpdate(),
  * immediately after it, so mitigation always acts on the current cycle's
  * detection result.
  *
- * Stages (increasing severity, independently triggered -- see below):
+ * REWORK NOTE (2026-09-09): This replaces the previous three-stage
+ * escalation model (Stage 1/2/3 across all fault families, see
+ * guidelines_fiu.md "Fault Mitigation Plan" for the retained historical
+ * design/rationale of the underlying API choices). The peripheral-based
+ * split was an architecture idea documented but not yet implemented
+ * (guidelines_fiu.md Punkt 29) -- this is its code-side realization.
+ * NOT HW-VALIDATED: the test drone was damaged before this rework could be
+ * flown, so it is verified by code review / desk-check only, analogous to
+ * the gyro per-axis detection fix (guidelines_fiu.md Punkt 31).
  *
- *   Stage 1 -- Mode Restriction:
- *     Trigger: FIU_FAULT_BARO_STUCK or FIU_FAULT_BARO_ANOMALY active.
- *     Action:  ENABLE_FLIGHT_MODE(ANGLE_MODE) every cycle while active.
- *     KNOWN LIMITATION (deliberate thesis scope decision): this does NOT
- *     disable INAV's nav altitude-hold / RTH / poshold. ANGLE_MODE and
- *     NAV_ALTHOLD_MODE / NAV_POSHOLD_MODE / NAV_RTH_MODE are independent
- *     bits in flightModeFlags_e; nav throttle control is gated by the nav
- *     FSM state, never by ANGLE_MODE. Additionally processRx() (TASK_RX,
- *     runs more often than this 100 Hz task) unconditionally recomputes
- *     ANGLE_MODE every RX frame from the BOXANGLE switch position, so this
- *     forced flag does not persist beyond the next RX frame unless BOXANGLE
- *     is also selected by the pilot. Net real effect: forces roll/pitch
- *     self-leveling assist if the pilot happens to be in acro/manual at the
- *     moment of the fault; it is NOT a substitute for disabling altitude
- *     hold. The pilot must toggle the altitude-hold switch manually if nav
- *     altitude-hold needs to be exited during a baro fault. Actually
- *     exiting nav altitude-hold would require driving the nav FSM directly
- *     (e.g. navProcessFSMEvents(NAV_FSM_EVENT_SWITCH_TO_IDLE)), which was
- *     evaluated and explicitly deferred for this thesis session to control
- *     scope.
+ *   mitigateBaro() -- Mode Restriction
+ *     Trigger: FIU_FAULT_BARO_STUCK or FIU_FAULT_BARO_ANOMALY.
+ *     Action:  ENABLE_FLIGHT_MODE(ANGLE_MODE) every cycle while active --
+ *              unchanged from the old Stage 1. KNOWN NO-OP ON THIS BOARD
+ *              (found 2026-08-03): UASTW_TC375_LK_COMET's only BOXANGLE
+ *              range (900-2100) covers the entire possible RC channel
+ *              range, so ANGLE_MODE is already permanently hard-on
+ *              independent of this call -- see guidelines_fiu.md "Fault
+ *              Mitigation Plan" for the full analysis. Kept for
+ *              architectural completeness/thesis discussion, not because it
+ *              has a measurable effect on this board. Also does NOT disable
+ *              nav altitude-hold/RTH/poshold -- ANGLE_MODE and the
+ *              NAV_*_MODE bits are independent flightModeFlags_e bits;
+ *              deliberately out of scope, see the same guidelines section.
  *
- *   Stage 2 -- Emergency Landing:
- *     Trigger: FIU_FAULT_GYRO_STUCK, FIU_FAULT_GYRO_ANOMALY,
- *              FIU_FAULT_GYRO_OVERRANGE, any FIU_FAULT_MOTOR_LOSS_ANY bit,
- *              or FIU_FAULT_BATT_CRITICAL active.
- *     Action:  activateForcedEmergLanding() / abortForcedEmergLanding()
- *              (navigation/navigation.h) -- the same RC-link-independent API
- *              INAV's own failsafe code uses to enter its landing phase.
- *              NOTE: failsafeOnValidDataFailed() was evaluated first and
- *              rejected -- it only affects failsafeState.rxLinkState, which
- *              is re-stamped from live RX data on every RC frame inside
- *              processRx() (the same function that evaluates it), so it can
- *              never reach FAILSAFE_LANDING for a fault unrelated to RC
- *              link loss. activateForcedEmergLanding() instead sets a
- *              standalone flag (posControl.flags.forcedEmergLandingActivated)
- *              that rx.c never touches. Only takes effect while ARMED.
+ *   mitigateMotor() -- Forced Landing then Disarm
+ *     Trigger: FIU_FAULT_MOTOR_LOSS_ANY (any motor lost), via
+ *              fiuDetectionIsFaultActive().
+ *     Action:  mitigateWithForcedLanding() (shared helper, see below) --
+ *              unchanged behavior from the old Stage 2+3 combination for
+ *              this fault set.
  *
- *              IMPORTANT: both calls are edge-triggered (only on the
- *              active/inactive transition), NOT called every cycle while
- *              (in)active -- mirroring exactly how failsafe.c itself calls
- *              them (failsafe.c:470/538/552/571). abortForcedEmergLanding()
- *              internally fires NAV_FSM_EVENT_SWITCH_TO_IDLE, which nearly
- *              every nav state (ALTHOLD, POSHOLD, RTH*, WAYPOINT*, CRUISE,
- *              COURSE_HOLD) accepts as a transition straight to NAV_STATE_IDLE.
- *              Calling it unconditionally every cycle while the fault is
- *              NOT active (i.e. almost all the time) would force any
- *              legitimate, unrelated nav mode back to IDLE continuously --
- *              not just during a fault. Edge-triggering avoids that.
+ *   mitigateBattery() -- Forced Landing then Disarm
+ *     Trigger: FIU_FAULT_BATT_CRITICAL.
+ *     Action:  identical pattern to mitigateMotor(), through the same
+ *              shared helper (separate, private edge-tracking state).
  *
- *   Stage 3 -- Immediate Disarm:
- *     Trigger: the same fault set that drives Stage 2 (see above) is active
- *              AND STATE(LANDING_DETECTED) is set (INAV's own multirotor/
- *              fixed-wing landing detector, navigation.c:updateLandingStatus()
- *              / isLandingDetected() -- the same detector INAV's own
- *              disarm_on_landing feature reads, navigation.c:3556-3561).
- *              Ground-detection design decision (2026-08-04): reuse INAV's
- *              existing landing detector rather than a new altitude/throttle
- *              heuristic -- no new detection code, same precedent as
- *              disarm_on_landing. Reusing mitigationState.stage2Active (set
- *              by mitigateStage2() immediately before this runs, same cycle)
- *              as the fault-side condition keeps the two stages' trigger
- *              sets identical by construction -- no separate fault list to
- *              maintain in sync.
- *     Action:  disarm(DISARM_FIU_FAULT) (fc/fc_core.h) -- idempotent,
- *              ARMED-guarded, NOT raw DISABLE_ARMING_FLAG(ARMED) (skips
- *              Blackbox-finish/beeper/stats cleanup).
- *              Edge-triggered like Stage 2, for the same reason: only fire
- *              on the inactive->active transition, not every cycle. Self-
- *              clearing in practice -- once disarm() runs, ARMING_FLAG(ARMED)
- *              drops, and updateLandingStatus() resets STATE(LANDING_DETECTED)
- *              on the very next 100 Hz cycle while disarmed, so `active` goes
- *              false on its own without extra bookkeeping. No opt-out
- *              setting and no re-arm lock (ARMING_DISABLED_*) by deliberate
- *              choice -- kept minimal, matching Stage 1/2 which also have no
- *              CLI opt-out. Considered adding fiu_stage3_disarm (CLI toggle)
- *              + ARMING_DISABLED_FIU_FAULT (re-arm lock, mirroring
- *              ARMING_DISABLED_LANDING_DETECTED) on 2026-08-04, but reverted
- *              at the owner's request to keep the footprint outside fiu/ to
- *              the bare minimum (DISARM_FIU_FAULT enum value + its forced
- *              osd.c consequence only). See guidelines_fiu.md "Fault
- *              Mitigation Plan" for the reverted design and rationale, kept
- *              there as a documented future-work candidate.
+ *   mitigateGyro() -- split internally by fault character (deliberate,
+ *   pragmatic owner decision -- NOT a third cross-family escalation stage):
+ *     - Structural (the sensor stays broken): FIU_FAULT_GYRO_STUCK (all 3
+ *       axes), FIU_FAULT_GYRO_STUCK_AXIS_ANY (single axis), or
+ *       FIU_FAULT_GYRO_OVERRANGE -- immediate disarm(DISARM_FIU_FAULT),
+ *       edge-triggered, WITHOUT attempting a forced landing and WITHOUT any
+ *       dependency on STATE(LANDING_DETECTED). This is exactly the reaction
+ *       path missing during the real LOG00292_2 crash (gyroADC[0] frozen at
+ *       0 for the full 4.67 s flight with no detection-driven response at
+ *       all) -- see guidelines_fiu.md "HW-Test Erkenntnisse" Punkt 23/25.
+ *       Positive side effect of this split: this path has NO race condition
+ *       with INAV's native nav_disarm_on_landing, because it never reads
+ *       STATE(LANDING_DETECTED) at all.
+ *     - Anomaly ALONE (no structural bit active at the same time): transient
+ *       and self-clearing (never observed longer than ~8 ms in measurements
+ *       so far) -- routed through the same mitigateWithForcedLanding()
+ *       helper as Motor/Battery, NOT the immediate-disarm path above.
+ *     - If a structural bit AND anomaly are active at the same time, the
+ *       structural path wins: immediate disarm fires and the landing helper
+ *       is not engaged this cycle -- the sensor is confirmed broken, so a
+ *       landing attempt flown on frozen/overrange gyro data is not useful.
+ *
+ *   mitigateWithForcedLanding() -- shared helper (replaces the old Stage 3):
+ *     Calls activateForcedEmergLanding() / abortForcedEmergLanding()
+ *     (navigation/navigation.h) edge-triggered on the fault's own
+ *     active/inactive transition, then disarms once
+ *     (disarm(DISARM_FIU_FAULT), fc/fc_core.h) the first time
+ *     STATE(LANDING_DETECTED) becomes true while the fault is still active.
+ *     Exactly the previous mitigateStage2() + mitigateStage3() logic,
+ *     factored into a reusable building block instead of a global stage
+ *     concept -- used by mitigateMotor(), mitigateBattery(), and
+ *     mitigateGyro()'s anomaly-only branch, each passing its own private
+ *     pair of edge-tracking statics (no state shared between callers).
+ *     INHERITED, NOT FIXED: the known race condition with INAV's native
+ *     nav_disarm_on_landing feature (both can decide to disarm around the
+ *     same STATE(LANDING_DETECTED) transition, guidelines_fiu.md Punkt 24)
+ *     carries over unchanged to every caller of this helper. It does NOT
+ *     apply to mitigateGyro()'s structural path above -- removing it there
+ *     is a genuine positive side effect of the peripheral split, not a
+ *     general fix for the helper itself.
+ *
+ * The verified API choices behind the building blocks used here
+ * (activateForcedEmergLanding() over failsafeOnValidDataFailed(),
+ * disarm(DISARM_FIU_FAULT) over raw DISABLE_ARMING_FLAG(ARMED), the
+ * disarmReasonStr[] osd.c fix, and the reverted opt-out-setting/re-arm-lock
+ * exploration) are unchanged by this rework and stay documented in
+ * guidelines_fiu.md "Fault Mitigation Plan" -- not repeated here.
  */
 
 #include <stdint.h>
@@ -124,67 +128,121 @@
 
 static fiuMitigationState_t mitigationState;
 
-static void mitigateStage1(void)
+// Shared building block: "forced landing, then disarm once landed". Used by
+// mitigateMotor(), mitigateBattery(), and mitigateGyro()'s anomaly-only
+// branch -- see file header for the full behavior description. wasActive/
+// wasLanded are private, per-call-site edge-tracking state; each caller
+// passes its own pair of static locals, so callers never share state.
+static bool mitigateWithForcedLanding(bool faultActive, bool *wasActive, bool *wasLanded)
+{
+    if (faultActive && !*wasActive) {
+        // Rising edge: fault just appeared -- force emergency landing once.
+        activateForcedEmergLanding();
+    } else if (!faultActive && *wasActive) {
+        // Falling edge: fault cleared -- release the forced override once,
+        // and re-arm the disarm latch for the next fault episode.
+        abortForcedEmergLanding();
+        *wasLanded = false;
+    }
+    *wasActive = faultActive;
+
+    if (faultActive && !*wasLanded && STATE(LANDING_DETECTED)) {
+        disarm(DISARM_FIU_FAULT);
+        *wasLanded = true;
+    }
+
+    return *wasLanded;
+}
+
+static void mitigateBaro(void)
 {
     const bool active = fiuDetectionIsFaultActive(FIU_FAULT_BARO_STUCK) ||
                          fiuDetectionIsFaultActive(FIU_FAULT_BARO_ANOMALY);
 
     if (active) {
-        ENABLE_FLIGHT_MODE(ANGLE_MODE);
+        ENABLE_FLIGHT_MODE(ANGLE_MODE); // known no-op on this board -- see file header
     }
 
-    mitigationState.stage1Active = active;
+    mitigationState.baroAction = active ? FIU_MITIGATION_ACTION_MODE_RESTRICTION
+                                         : FIU_MITIGATION_ACTION_NONE;
 }
 
-static void mitigateStage2(void)
+static void mitigateMotor(void)
 {
-    const bool active = fiuDetectionIsFaultActive(FIU_FAULT_GYRO_STUCK) ||
-                         fiuDetectionIsFaultActive(FIU_FAULT_GYRO_ANOMALY) ||
-                         fiuDetectionIsFaultActive(FIU_FAULT_GYRO_OVERRANGE) ||
-                         fiuDetectionIsFaultActive(FIU_FAULT_MOTOR_LOSS_ANY) ||
-                         fiuDetectionIsFaultActive(FIU_FAULT_BATT_CRITICAL);
+    static bool wasActive = false;
+    static bool wasLanded = false;
 
-    if (active && !mitigationState.stage2Active) {
-        // Rising edge: fault just appeared -- force emergency landing once.
-        activateForcedEmergLanding();
-    } else if (!active && mitigationState.stage2Active) {
-        // Falling edge: fault cleared -- release the forced override once.
-        abortForcedEmergLanding();
-    }
+    const bool active = fiuDetectionIsFaultActive(FIU_FAULT_MOTOR_LOSS_ANY);
+    const bool disarmed = mitigateWithForcedLanding(active, &wasActive, &wasLanded);
 
-    mitigationState.stage2Active = active;
+    mitigationState.motorAction = !active  ? FIU_MITIGATION_ACTION_NONE
+                                 : disarmed ? FIU_MITIGATION_ACTION_DISARMED
+                                            : FIU_MITIGATION_ACTION_LANDING;
 }
 
-static void mitigateStage3(void)
+static void mitigateBattery(void)
 {
-    // Reuses mitigationState.stage2Active (just computed above, same cycle)
-    // as the fault-side condition -- keeps Stage 3's fault set identical to
-    // Stage 2's by construction, no separate list to maintain.
-    const bool active = mitigationState.stage2Active && STATE(LANDING_DETECTED);
+    static bool wasActive = false;
+    static bool wasLanded = false;
 
-    if (active && !mitigationState.stage3Active) {
-        // Rising edge: Stage-2-severity fault while grounded -- disarm once.
+    const bool active = fiuDetectionIsFaultActive(FIU_FAULT_BATT_CRITICAL);
+    const bool disarmed = mitigateWithForcedLanding(active, &wasActive, &wasLanded);
+
+    mitigationState.batteryAction = !active  ? FIU_MITIGATION_ACTION_NONE
+                                   : disarmed ? FIU_MITIGATION_ACTION_DISARMED
+                                              : FIU_MITIGATION_ACTION_LANDING;
+}
+
+static void mitigateGyro(void)
+{
+    static bool wasStructuralActive = false;
+    static bool anomalyWasActive = false;
+    static bool anomalyWasLanded = false;
+
+    const bool structural = fiuDetectionIsFaultActive(FIU_FAULT_GYRO_STUCK) ||
+                             fiuDetectionIsFaultActive(FIU_FAULT_GYRO_STUCK_AXIS_ANY) ||
+                             fiuDetectionIsFaultActive(FIU_FAULT_GYRO_OVERRANGE);
+
+    // Structural (sensor confirmed broken) always wins over anomaly
+    // (transient) -- see file header. Immediate disarm, edge-triggered, no
+    // landing attempt, no dependency on STATE(LANDING_DETECTED).
+    if (structural && !wasStructuralActive) {
         disarm(DISARM_FIU_FAULT);
     }
+    wasStructuralActive = structural;
 
-    mitigationState.stage3Active = active;
+    // Only engage the landing helper for anomaly when no structural bit is
+    // active at the same time (see file header for why).
+    const bool anomalyOnly = fiuDetectionIsFaultActive(FIU_FAULT_GYRO_ANOMALY) && !structural;
+    const bool anomalyDisarmed = mitigateWithForcedLanding(anomalyOnly, &anomalyWasActive, &anomalyWasLanded);
+
+    if (structural) {
+        mitigationState.gyroAction = FIU_MITIGATION_ACTION_DISARMED;
+    } else if (anomalyOnly) {
+        mitigationState.gyroAction = anomalyDisarmed ? FIU_MITIGATION_ACTION_DISARMED
+                                                      : FIU_MITIGATION_ACTION_LANDING;
+    } else {
+        mitigationState.gyroAction = FIU_MITIGATION_ACTION_NONE;
+    }
 }
 
 void fiuMitigationUpdate(void)
 {
-    mitigateStage1();
-    mitigateStage2();
-    mitigateStage3();
+    mitigateBaro();
+    mitigateMotor();
+    mitigateBattery();
+    mitigateGyro();
 
-    if (mitigationState.stage3Active) {
-        mitigationState.activeStage = FIU_MITIGATION_STAGE_3;
-    } else if (mitigationState.stage2Active) {
-        mitigationState.activeStage = FIU_MITIGATION_STAGE_2;
-    } else if (mitigationState.stage1Active) {
-        mitigationState.activeStage = FIU_MITIGATION_STAGE_1;
-    } else {
-        mitigationState.activeStage = FIU_MITIGATION_STAGE_NONE;
-    }
+    // Highest action level wins (RED > YELLOW > GREEN > OFF). The numeric
+    // encoding IS the priority order (NONE < MODE_RESTRICTION < LANDING <
+    // DISARMED), so a plain max across the four independent peripherals
+    // reproduces that priority with no separate lookup table.
+    uint8_t action = mitigationState.baroAction;
+    if (mitigationState.motorAction   > action) action = mitigationState.motorAction;
+    if (mitigationState.batteryAction > action) action = mitigationState.batteryAction;
+    if (mitigationState.gyroAction    > action) action = mitigationState.gyroAction;
+
+    mitigationState.currentAction = action;
 }
 
 const fiuMitigationState_t *fiuMitigationGetState(void)

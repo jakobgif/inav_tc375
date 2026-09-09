@@ -585,7 +585,7 @@ typedef struct blackboxMainState_s {
     uint32_t fiuDetRcLossMs;
     uint32_t fiuDetBattMs;
     uint32_t fiuDetMotorMs;
-    uint8_t fiuMitStage;   // 0=none, 1=Stage1(mode restriction), 2=Stage2(emergency landing), 3=Stage3(immediate disarm)
+    uint8_t fiuMitStage;   // highest active mitigation action type this cycle: 0=none, 1=mode restriction, 2=forced landing, 3=disarmed (see fiu/fiu_mitigation.h -- field name kept for Blackbox compatibility, no longer an escalation "stage")
 #endif
     uint16_t rssi;
     int16_t navState;
@@ -1849,7 +1849,7 @@ static void loadMainState(timeUs_t currentTimeUs)
     blackboxCurrent->fiuDetRcLossMs= fiuDet->rcLossDetectedAtMs;
     blackboxCurrent->fiuDetBattMs  = fiuDet->battDetectedAtMs;
     blackboxCurrent->fiuDetMotorMs = fiuDet->motorAnyDetectedAtMs;
-    blackboxCurrent->fiuMitStage   = fiuMitigationGetState()->activeStage;
+    blackboxCurrent->fiuMitStage   = fiuMitigationGetState()->currentAction;
 #endif
 
     blackboxCurrent->rssi = getRSSI();
