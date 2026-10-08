@@ -53,6 +53,7 @@ void blackboxInit(void);
 void blackboxUpdate(timeUs_t currentTimeUs);
 void blackboxStart(void);
 void blackboxFinish(void);
+void blackboxRequestFinish(void);
 bool blackboxMayEditConfig(void);
 void blackboxIncludeFlagSet(uint32_t mask);
 void blackboxIncludeFlagClear(uint32_t mask);

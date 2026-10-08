@@ -445,7 +445,7 @@ void disarm(disarmReason_t disarmReason)
 
 #ifdef USE_BLACKBOX
         if (feature(FEATURE_BLACKBOX)) {
-            blackboxFinish();
+            blackboxRequestFinish();
         }
 #endif
 #ifdef USE_DSHOT

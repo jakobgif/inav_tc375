@@ -134,6 +134,11 @@ bool blackboxIncludeFlag(uint32_t mask) {
 }
 
 #define BLACKBOX_SHUTDOWN_TIMEOUT_MILLIS 200
+
+// Grace period between a requested finish (e.g. disarm) and actually closing the log -- see
+// blackboxRequestFinish(). Not FIU-specific: covers any field whose final value only settles at/
+// after the request, by letting a few more ordinary frames log normally before shutdown.
+#define BLACKBOX_FINISH_DELAY_MILLIS 1000
 static const int32_t blackboxSInterval = 4096;
 
 // Some macros to make writing FLIGHT_LOG_FIELD_* constants shorter:
@@ -421,6 +426,7 @@ static const blackboxDeltaFieldDefinition_t blackboxMainFields[] = {
     {"fiuDetBattMs",  -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
     {"fiuDetMotorMs", -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
     {"fiuMitStage",   -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
+    {"fiuDetRxLink",  -1, UNSIGNED, .Ipredict = PREDICT(0), .Iencode = ENCODING(UNSIGNED_VB), .Ppredict = PREDICT(PREVIOUS), .Pencode = ENCODING(SIGNED_VB), CONDITION(ALWAYS)},
 #endif
 };
 
@@ -586,6 +592,7 @@ typedef struct blackboxMainState_s {
     uint32_t fiuDetBattMs;
     uint32_t fiuDetMotorMs;
     uint8_t fiuMitStage;   // highest active mitigation action type this cycle: 0=none, 1=mode restriction, 2=forced landing, 3=disarmed (see fiu/fiu_mitigation.h -- field name kept for Blackbox compatibility, no longer an escalation "stage")
+    uint8_t fiuDetRxLink;  // failsafeIsReceivingRxData(): 1=FAILSAFE_RXLINK_UP, 0=FAILSAFE_RXLINK_DOWN -- earliest RC-loss signal, visible even for holds shorter than the failsafe phase FSM
 #endif
     uint16_t rssi;
     int16_t navState;
@@ -670,6 +677,9 @@ static uint16_t blackboxPFrameIndex;
 static uint16_t blackboxIFrameIndex;
 static uint16_t blackboxSlowFrameIterationTimer;
 static bool blackboxLoggedAnyFrames;
+
+static bool blackboxFinishPending;
+static timeMs_t blackboxFinishRequestedAtMs;
 
 /*
  * We store voltages in I-frames relative to this, which was the voltage when the blackbox was activated.
@@ -1123,6 +1133,7 @@ static void writeIntraframe(void)
     blackboxWriteUnsignedVB(blackboxCurrent->fiuDetBattMs);
     blackboxWriteUnsignedVB(blackboxCurrent->fiuDetMotorMs);
     blackboxWriteUnsignedVB(blackboxCurrent->fiuMitStage);
+    blackboxWriteUnsignedVB(blackboxCurrent->fiuDetRxLink);
 #endif
 
     //Rotate our history buffers:
@@ -1402,6 +1413,7 @@ static void writeInterframe(void)
     blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuDetBattMs   - blackboxLast->fiuDetBattMs);
     blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuDetMotorMs  - blackboxLast->fiuDetMotorMs);
     blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuMitStage    - blackboxLast->fiuMitStage);
+    blackboxWriteSignedVB((int32_t)blackboxCurrent->fiuDetRxLink   - blackboxLast->fiuDetRxLink);
 #endif
 
     //Rotate our history buffers
@@ -1682,6 +1694,22 @@ void blackboxFinish(void)
     }
 }
 
+/**
+ * Request that the log be closed, but keep logging normally for a short grace period first so that
+ * any field whose final value only settles at/after the moment of the request (e.g. a disarm reason)
+ * still gets captured by an ordinary logged frame instead of being cut off mid-tick. Cancelled if the
+ * craft re-arms before the grace period elapses. See blackboxUpdate() for where this is resolved.
+ */
+void blackboxRequestFinish(void)
+{
+    if (blackboxState == BLACKBOX_STATE_RUNNING || blackboxState == BLACKBOX_STATE_PAUSED) {
+        blackboxFinishPending = true;
+        blackboxFinishRequestedAtMs = millis();
+    } else {
+        blackboxFinish();
+    }
+}
+
 #ifdef USE_GPS
 static void writeGPSHomeFrame(void)
 {
@@ -1850,6 +1878,7 @@ static void loadMainState(timeUs_t currentTimeUs)
     blackboxCurrent->fiuDetBattMs  = fiuDet->battDetectedAtMs;
     blackboxCurrent->fiuDetMotorMs = fiuDet->motorAnyDetectedAtMs;
     blackboxCurrent->fiuMitStage   = fiuMitigationGetState()->currentAction;
+    blackboxCurrent->fiuDetRxLink  = failsafeIsReceivingRxData() ? 1 : 0;
 #endif
 
     blackboxCurrent->rssi = getRSSI();
@@ -2302,6 +2331,16 @@ static void blackboxLogIteration(timeUs_t currentTimeUs)
  */
 void blackboxUpdate(timeUs_t currentTimeUs)
 {
+    if (blackboxFinishPending) {
+        if (ARMING_FLAG(ARMED)) {
+            // Re-armed before the grace period elapsed -- cancel, nothing to close.
+            blackboxFinishPending = false;
+        } else if (millis() - blackboxFinishRequestedAtMs >= BLACKBOX_FINISH_DELAY_MILLIS) {
+            blackboxFinishPending = false;
+            blackboxFinish();
+        }
+    }
+
     if (blackboxState >= BLACKBOX_FIRST_HEADER_SENDING_STATE && blackboxState <= BLACKBOX_LAST_HEADER_SENDING_STATE) {
         blackboxReplenishHeaderBudget();
     }
