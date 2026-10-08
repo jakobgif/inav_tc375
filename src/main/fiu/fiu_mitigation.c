@@ -99,13 +99,19 @@
  *     concept -- used by mitigateMotor(), mitigateBattery(), and
  *     mitigateGyro()'s anomaly-only branch, each passing its own private
  *     pair of edge-tracking statics (no state shared between callers).
- *     INHERITED, NOT FIXED: the known race condition with INAV's native
- *     nav_disarm_on_landing feature (both can decide to disarm around the
- *     same STATE(LANDING_DETECTED) transition, guidelines_fiu.md Punkt 24)
- *     carries over unchanged to every caller of this helper. It does NOT
- *     apply to mitigateGyro()'s structural path above -- removing it there
- *     is a genuine positive side effect of the peripheral split, not a
- *     general fix for the helper itself.
+ *     FIXED (2026-09-09, guidelines_fiu.md Punkt 24): while any of the three
+ *     callers has an active forced-landing episode, navConfigMutable()->
+ *     general.flags.disarm_on_landing is programmatically forced to 0 (and
+ *     the original user-configured value restored once the last episode
+ *     ends), so INAV's native nav_disarm_on_landing (navigation.c:3558,
+ *     ~1kHz PID loop) can no longer race this helper's own
+ *     STATE(LANDING_DETECTED) check (100Hz TASK_AUX) for the same disarm
+ *     decision -- see forcedLandingActiveCount/savedDisarmOnLanding below.
+ *     Not HW-validated (same reason as the rest of this rework). Does NOT
+ *     apply to mitigateGyro()'s structural path above -- that path never
+ *     reads STATE(LANDING_DETECTED) at all, so it never had this race to
+ *     begin with (a positive side effect of the peripheral split, not this
+ *     fix).
  *
  * The verified API choices behind the building blocks used here
  * (activateForcedEmergLanding() over failsafeOnValidDataFailed(),
@@ -113,6 +119,29 @@
  * disarmReasonStr[] osd.c fix, and the reverted opt-out-setting/re-arm-lock
  * exploration) are unchanged by this rework and stay documented in
  * guidelines_fiu.md "Fault Mitigation Plan" -- not repeated here.
+ *
+ * DISPLAY-LATCH NOTE (2026-09-13): FIU_MITIGATION_ACTION_DISARMED was found
+ * to be practically invisible on LED6/7 during hand-testing for any
+ * mitigation path whose triggering fault flag can self-clear immediately
+ * after disarm() runs (confirmed for Motor: detectMotorFault() zeroes
+ * FIU_FAULT_MOTOR_LOSS_ANY the instant !ARMING_FLAG(ARMED), which is already
+ * true on the very next 100Hz tick since Detection runs before Mitigation).
+ * The affected action level would revert from DISARMED to NONE within a
+ * single ~10ms tick, often before it was ever rendered. This is a general
+ * property of deriving the action level from live detection state, not a
+ * Motor-specific issue -- it applies identically to every disarm() call site
+ * in this file (mitigateMotor/mitigateBattery/mitigateGyro-anomaly via
+ * mitigateWithForcedLanding(), and mitigateGyro()'s structural branch).
+ * Fixed by decoupling the DISARMED *display* from the volatile fault flags:
+ * a separate latch (fiuFaultDisarmLatched/fiuFaultDisarmSourceMask) is set
+ * at every disarm(DISARM_FIU_FAULT) call site and cleared only once
+ * failsafeIsReceivingRxData() is true again AND the RC arm switch itself
+ * (IS_RC_MODE_ACTIVE(BOXARM)) is off -- i.e. the display tracks "did an FIU
+ * fault disarm the vehicle, and has the pilot acknowledged it," not the
+ * instantaneous fault-detection state. The RC-link condition is deliberate:
+ * during a genuine RC-loss event INAV disarms/lands on its own regardless of
+ * the FIU, so it is correct for the display to stay red until the link is
+ * back and the switch is off, with no separate code path for that case.
  */
 
 #include <stdint.h>
@@ -124,31 +153,88 @@
 #include "fiu/fiu_detection.h"
 #include "fc/fc_core.h"
 #include "fc/runtime_config.h"
+#include "fc/rc_modes.h"
+#include "flight/failsafe.h"
 #include "navigation/navigation.h"
 
 static fiuMitigationState_t mitigationState;
+
+// Reference count of forced-landing episodes currently in flight across all
+// three callers of mitigateWithForcedLanding() (motor/battery/gyro-anomaly).
+// Guards navConfig()->general.flags.disarm_on_landing: see savedDisarmOnLanding
+// below. Centralized here (not per-caller) because all three callers funnel
+// through this one shared helper -- see file header "INHERITED, NOT FIXED"
+// note, now fixed (guidelines_fiu.md Punkt 24).
+static uint8_t forcedLandingActiveCount = 0;
+static uint8_t savedDisarmOnLanding = 0;   // valid only while forcedLandingActiveCount > 0
+
+// Display latch for LED6/7 -- separate from the disarm/landing logic above.
+// Keeps the DISARMED action level visible until the pilot puts the RC arm
+// switch back to disarm (and, for a genuine RC-loss disarm, until the link
+// is restored too). Deliberately NOT cleared when the triggering fault flag
+// clears -- that flag flickering off quickly is exactly the bug this fixes.
+static bool     fiuFaultDisarmLatched    = false;
+static uint32_t fiuFaultDisarmSourceMask = 0;
 
 // Shared building block: "forced landing, then disarm once landed". Used by
 // mitigateMotor(), mitigateBattery(), and mitigateGyro()'s anomaly-only
 // branch -- see file header for the full behavior description. wasActive/
 // wasLanded are private, per-call-site edge-tracking state; each caller
 // passes its own pair of static locals, so callers never share state.
-static bool mitigateWithForcedLanding(bool faultActive, bool *wasActive, bool *wasLanded)
+//
+// Race fix (guidelines_fiu.md Punkt 24, 2026-09-09): while any forced-landing
+// episode is active, INAV's own nav_disarm_on_landing (navigation.c:3558,
+// read every ~1kHz PID-loop cycle) is programmatically disabled so it cannot
+// race mitigateWithForcedLanding()'s own STATE(LANDING_DETECTED) check below
+// (this function runs at 100Hz in TASK_AUX). Both paths disarm on the same
+// condition, so no safety behavior is lost -- only which of the two
+// redundant paths is authoritative during a fault becomes deterministic
+// instead of a scheduler-order race. The original user-configured value is
+// restored once the last of the three callers' episodes ends (reference
+// counted, not a plain bool, because motor/battery/gyro-anomaly can be
+// active simultaneously).
+static bool mitigateWithForcedLanding(bool faultActive, bool *wasActive, bool *wasLanded, uint32_t familyMask)
 {
     if (faultActive && !*wasActive) {
         // Rising edge: fault just appeared -- force emergency landing once.
+        if (forcedLandingActiveCount == 0) {
+            savedDisarmOnLanding = navConfig()->general.flags.disarm_on_landing;
+            navConfigMutable()->general.flags.disarm_on_landing = 0;
+        }
+        forcedLandingActiveCount++;
         activateForcedEmergLanding();
     } else if (!faultActive && *wasActive) {
         // Falling edge: fault cleared -- release the forced override once,
         // and re-arm the disarm latch for the next fault episode.
         abortForcedEmergLanding();
         *wasLanded = false;
+        forcedLandingActiveCount--;
+        if (forcedLandingActiveCount == 0) {
+            navConfigMutable()->general.flags.disarm_on_landing = savedDisarmOnLanding;
+        }
     }
     *wasActive = faultActive;
 
     if (faultActive && !*wasLanded && STATE(LANDING_DETECTED)) {
+        // Must be set before disarm(): disarm() synchronously calls
+        // blackboxFinish() (fc_core.c), which closes the log before this
+        // function returns to its caller -- currentAction would otherwise
+        // still read its pre-disarm value at that point (guidelines_fiu.md
+        // Punkt 35).
+        const uint8_t previousAction = mitigationState.currentAction;
+        mitigationState.currentAction = FIU_MITIGATION_ACTION_DISARMED;
         disarm(DISARM_FIU_FAULT);
-        *wasLanded = true;
+
+        // disarm() has no return value; ARMING_FLAG(ARMED) is the only way to
+        // confirm it actually took effect. Defensive only -- disarm() clears
+        // ARMED unconditionally once armed, so this should never trigger.
+        if (ARMING_FLAG(ARMED)) {
+            mitigationState.currentAction = previousAction;
+        } else {
+            *wasLanded = true;
+            fiuFaultDisarmLatched    = true;
+            fiuFaultDisarmSourceMask |= familyMask;
+        }
     }
 
     return *wasLanded;
@@ -173,7 +259,7 @@ static void mitigateMotor(void)
     static bool wasLanded = false;
 
     const bool active = fiuDetectionIsFaultActive(FIU_FAULT_MOTOR_LOSS_ANY);
-    const bool disarmed = mitigateWithForcedLanding(active, &wasActive, &wasLanded);
+    const bool disarmed = mitigateWithForcedLanding(active, &wasActive, &wasLanded, FIU_FAULT_MOTOR_LOSS_ANY);
 
     mitigationState.motorAction = !active  ? FIU_MITIGATION_ACTION_NONE
                                  : disarmed ? FIU_MITIGATION_ACTION_DISARMED
@@ -186,7 +272,7 @@ static void mitigateBattery(void)
     static bool wasLanded = false;
 
     const bool active = fiuDetectionIsFaultActive(FIU_FAULT_BATT_CRITICAL);
-    const bool disarmed = mitigateWithForcedLanding(active, &wasActive, &wasLanded);
+    const bool disarmed = mitigateWithForcedLanding(active, &wasActive, &wasLanded, FIU_FAULT_BATT_CRITICAL);
 
     mitigationState.batteryAction = !active  ? FIU_MITIGATION_ACTION_NONE
                                    : disarmed ? FIU_MITIGATION_ACTION_DISARMED
@@ -207,14 +293,27 @@ static void mitigateGyro(void)
     // (transient) -- see file header. Immediate disarm, edge-triggered, no
     // landing attempt, no dependency on STATE(LANDING_DETECTED).
     if (structural && !wasStructuralActive) {
+        // See mitigateWithForcedLanding() above -- must be set before
+        // disarm() for the same reason (guidelines_fiu.md Punkt 35).
+        const uint8_t previousAction = mitigationState.currentAction;
+        mitigationState.currentAction = FIU_MITIGATION_ACTION_DISARMED;
         disarm(DISARM_FIU_FAULT);
+
+        // See mitigateWithForcedLanding() above -- defensive verification,
+        // disarm() has no return value.
+        if (ARMING_FLAG(ARMED)) {
+            mitigationState.currentAction = previousAction;
+        } else {
+            fiuFaultDisarmLatched    = true;
+            fiuFaultDisarmSourceMask |= (FIU_FAULT_GYRO_STUCK | FIU_FAULT_GYRO_STUCK_AXIS_ANY | FIU_FAULT_GYRO_OVERRANGE);
+        }
     }
     wasStructuralActive = structural;
 
     // Only engage the landing helper for anomaly when no structural bit is
     // active at the same time (see file header for why).
     const bool anomalyOnly = fiuDetectionIsFaultActive(FIU_FAULT_GYRO_ANOMALY) && !structural;
-    const bool anomalyDisarmed = mitigateWithForcedLanding(anomalyOnly, &anomalyWasActive, &anomalyWasLanded);
+    const bool anomalyDisarmed = mitigateWithForcedLanding(anomalyOnly, &anomalyWasActive, &anomalyWasLanded, FIU_FAULT_GYRO_ANOMALY);
 
     if (structural) {
         mitigationState.gyroAction = FIU_MITIGATION_ACTION_DISARMED;
@@ -242,7 +341,20 @@ void fiuMitigationUpdate(void)
     if (mitigationState.batteryAction > action) action = mitigationState.batteryAction;
     if (mitigationState.gyroAction    > action) action = mitigationState.gyroAction;
 
-    mitigationState.currentAction = action;
+    // Display latch: keeps DISARMED visible even after the triggering fault
+    // flag(s) have already cleared. Clears only once the RC link is back AND
+    // the arm switch itself is off -- see file header note below.
+    if (fiuFaultDisarmLatched && failsafeIsReceivingRxData() && !IS_RC_MODE_ACTIVE(BOXARM)) {
+        fiuFaultDisarmLatched    = false;
+        fiuFaultDisarmSourceMask = 0;
+    }
+    if (fiuFaultDisarmLatched) {
+        action = FIU_MITIGATION_ACTION_DISARMED;
+    }
+
+    mitigationState.currentAction    = action;
+    mitigationState.disarmLatched    = fiuFaultDisarmLatched;
+    mitigationState.disarmSourceMask = fiuFaultDisarmSourceMask;
 }
 
 const fiuMitigationState_t *fiuMitigationGetState(void)

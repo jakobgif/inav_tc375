@@ -45,6 +45,8 @@ typedef struct {
     uint8_t motorAction;    // FIU_MITIGATION_ACTION_NONE / _LANDING / _DISARMED -- see mitigateMotor()
     uint8_t batteryAction;  // FIU_MITIGATION_ACTION_NONE / _LANDING / _DISARMED -- see mitigateBattery()
     uint8_t gyroAction;     // FIU_MITIGATION_ACTION_NONE / _LANDING / _DISARMED -- see mitigateGyro()
+    bool     disarmLatched;     // true while the FIU-disarm display latch is active
+    uint32_t disarmSourceMask;  // fiu_detection.h fault bit(s) of the family/families that triggered it
 } fiuMitigationState_t;
 
 void fiuMitigationUpdate(void);

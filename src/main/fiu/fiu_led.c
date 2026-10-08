@@ -44,7 +44,9 @@
  *          immediate disarm). Priority when multiple peripherals are active at once:
  *          RED > YELLOW > GREEN > OFF (highest wins).
  *   7    Mitigation source family -- same colour code as LED 5, restricted to whichever
- *        peripheral mitigation function(s) are currently at the action level shown on LED 6
+ *        peripheral mitigation function(s) are currently at the action level shown on LED 6.
+ *        While the DISARMED display-latch is active (see fiu_mitigation.c), shows the latched
+ *        source family instead and stays lit until the RC link is back AND the arm switch is off.
  */
 
 #include "platform.h"
@@ -275,14 +277,22 @@ void fiuLedUpdate(void)
     // peripheral(s) are currently AT the action level shown on LED 6 (rather than "which
     // family feeds a global stage" -- there is no global stage any more, each peripheral's
     // mitigateX() computes its own action level independently, see fiu_mitigation.c).
-    uint32_t mitMask = 0;
-    if (mit->currentAction != FIU_MITIGATION_ACTION_NONE) {
+    hsvColor_t mitColor;
+    if (mit->disarmLatched) {
+        // Latched DISARMED display (see fiu_mitigation.c DISPLAY-LATCH NOTE):
+        // the triggering fault flag(s) may already be back to 0 (e.g. Motor
+        // right after !ARMED), so use the latched source mask directly
+        // instead of ANDing against the live, possibly-already-cleared
+        // detection flags.
+        mitColor = familyColor(mit->disarmSourceMask);
+    } else {
+        uint32_t mitMask = 0;
         if (mit->baroAction    == mit->currentAction) mitMask |= FAMILY_MASK_BARO;
         if (mit->motorAction   == mit->currentAction) mitMask |= FAMILY_MASK_MOTOR;
         if (mit->batteryAction == mit->currentAction) mitMask |= FAMILY_MASK_BATT;
         if (mit->gyroAction    == mit->currentAction) mitMask |= FAMILY_MASK_GYRO;
+        mitColor = familyColor(detState->faultFlags & mitMask);
     }
-    hsvColor_t mitColor = familyColor(detState->faultFlags & mitMask);
     fiuWs2811SetHsv(7, &mitColor);
 
     fiuWs2811Update();
