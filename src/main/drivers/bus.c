@@ -32,6 +32,10 @@
 #include "drivers/bus.h"
 #include "drivers/io.h"
 
+#ifdef USE_FIU
+#include "fiu/fiu.h"
+#endif
+
 #define BUSDEV_MAX_DEVICES 16
 
 #ifdef USE_SPI
@@ -359,6 +363,26 @@ bool busReadBuf(const busDevice_t * dev, uint8_t reg, uint8_t * data, uint8_t le
     switch (dev->busType) {
         case BUSTYPE_SPI:
 #ifdef USE_SPI
+#ifdef USE_FIU
+            if (fiuIsSpiBusReadBlocked(dev->busdev.spi.spiBus)) {
+                memset(data, 0, length);
+                return true;
+            }
+            if (fiuIsSpiOverrangeActive(dev->busdev.spi.spiBus)) {
+                // Real read first so unselected axes keep actual sensor values.
+                // Then overwrite only the selected axis bytes.
+                // Gyro buffer layout: X=bytes[0-1], Y=bytes[2-3], Z=bytes[4-5]
+                bool result = (dev->flags & DEVFLAGS_USE_RAW_REGISTERS) ?
+                    spiBusReadBuffer(dev, reg, data, length) :
+                    spiBusReadBuffer(dev, reg | 0x80, data, length);
+                uint8_t fill     = fiuGetSpiOverrangeFillByte();
+                uint8_t axisMask = fiuGetSpiAxisMask();
+                if ((axisMask & FIU_SPI_AXIS_X) && length > 1) { data[0] = fill; data[1] = fill; }
+                if ((axisMask & FIU_SPI_AXIS_Y) && length > 3) { data[2] = fill; data[3] = fill; }
+                if ((axisMask & FIU_SPI_AXIS_Z) && length > 5) { data[4] = fill; data[5] = fill; }
+                return result;
+            }
+#endif
             if (dev->flags & DEVFLAGS_USE_RAW_REGISTERS) {
                 return spiBusReadBuffer(dev, reg, data, length);
             }
@@ -371,6 +395,12 @@ bool busReadBuf(const busDevice_t * dev, uint8_t reg, uint8_t * data, uint8_t le
 
         case BUSTYPE_I2C:
 #ifdef USE_I2C
+#ifdef USE_FIU
+            if (fiuIsI2cBusReadBlocked(dev->busdev.i2c.i2cBus)) {
+                memset(data, 0, length);
+                return true;
+            }
+#endif
             return i2cBusReadBuffer(dev, reg, data, length);
 #else
             return false;
@@ -391,6 +421,16 @@ bool busRead(const busDevice_t * dev, uint8_t reg, uint8_t * data)
     switch (dev->busType) {
         case BUSTYPE_SPI:
 #ifdef USE_SPI
+#ifdef USE_FIU
+            if (fiuIsSpiBusReadBlocked(dev->busdev.spi.spiBus)) {
+                *data = 0;
+                return true;
+            }
+            if (fiuIsSpiOverrangeActive(dev->busdev.spi.spiBus)) {
+                *data = fiuGetSpiOverrangeFillByte();
+                return true;
+            }
+#endif
             if (dev->flags & DEVFLAGS_USE_RAW_REGISTERS) {
                 return spiBusReadRegister(dev, reg, data);
             }
@@ -403,6 +443,12 @@ bool busRead(const busDevice_t * dev, uint8_t reg, uint8_t * data)
 
         case BUSTYPE_I2C:
 #ifdef USE_I2C
+#ifdef USE_FIU
+            if (fiuIsI2cBusReadBlocked(dev->busdev.i2c.i2cBus)) {
+                *data = 0;
+                return true;
+            }
+#endif
             return i2cBusReadRegister(dev, reg, data);
 #else
             return false;

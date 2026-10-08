@@ -52,6 +52,9 @@
 
 #include "sensors/battery.h"
 #include "sensors/esc_sensor.h"
+#ifdef USE_FIU
+#include "fiu/fiu.h"
+#endif
 
 #include "rx/rx.h"
 
@@ -309,6 +312,16 @@ static void updateBatteryVoltage(timeUs_t timeDelta, bool justConnected)
     } else {
         vbat = pt1FilterApply4(&vbatFilterState, vbat, VBATT_LPF_FREQ, US2S(timeDelta));
     }
+
+#ifdef USE_FIU
+    {
+        uint8_t lvl = fiuGetBatteryFaultLevel();
+        if (lvl == 1 && batteryWarningVoltage > 0)
+            vbat = batteryWarningVoltage - VBATT_HYSTERESIS - 1;
+        else if (lvl == 2 && batteryCriticalVoltage > 0)
+            vbat = batteryCriticalVoltage - VBATT_HYSTERESIS - 1;
+    }
+#endif
 }
 
 batteryState_e checkBatteryVoltageState(void)

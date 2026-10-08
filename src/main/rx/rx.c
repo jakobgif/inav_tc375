@@ -46,6 +46,9 @@
 #include "fc/settings.h"
 
 #include "flight/failsafe.h"
+#ifdef USE_FIU
+#include "fiu/fiu.h"
+#endif
 
 #include "io/serial.h"
 
@@ -514,7 +517,15 @@ bool calculateRxChannelsAndUpdateFailsafe(timeUs_t currentTimeUs)
 
     // Update failsafe
     if (rxFlightChannelsValid && rxSignalReceived) {
+#ifdef USE_FIU
+        if (fiuIsRcLossActive()) {
+            failsafeOnValidDataFailed();
+        } else {
+            failsafeOnValidDataReceived();
+        }
+#else
         failsafeOnValidDataReceived();
+#endif
     } else {
         failsafeOnValidDataFailed();
     }

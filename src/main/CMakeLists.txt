@@ -355,6 +355,9 @@ main_sources(COMMON_SRC
     flight/adaptive_filter.c
     flight/adaptive_filter.h
 
+    fiu/fiu.c
+    fiu/fiu.h
+
     io/adsb.c
     io/beeper.c
     io/beeper.h

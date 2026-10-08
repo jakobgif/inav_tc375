@@ -41,6 +41,10 @@ void pwmRequestMotorTelemetry(int motorIndex);
 ioTag_t pwmGetMotorPinTag(int motorIndex);
 
 void pwmWriteMotor(uint8_t index, uint16_t value);
+#ifdef USE_FIU
+uint16_t pwmGetMotorCommanded(uint8_t index);
+uint16_t pwmGetMotorWritten(uint8_t index);
+#endif
 void pwmShutdownPulsesForAllMotors(uint8_t motorCount);
 void pwmCompleteMotorUpdate(void);
 bool isMotorProtocolDigital(void);
