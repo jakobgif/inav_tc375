@@ -135,6 +135,9 @@ typedef   boolean   bool;
 #include "IfxCbs_reg.h"
 #include "IfxCpu.h"
 
+//mutex
+typedef IfxCpu_mutexLock mutex_t;
+
 //DMA channels
 #define DMA_CHANNEL_NONE      -1
 
