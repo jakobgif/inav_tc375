@@ -68,6 +68,9 @@ bool isMPUSoftReset(void){
 }
 
 void systemReset(void){
+    extern IfxCpu_syncEvent g_cpuSyncEvent;
+    g_cpuSyncEvent = 0;
+    
     IfxCpu_disableInterrupts();
 
     //from example code
@@ -123,4 +126,24 @@ void systemInit(void){
 
     IfxFlash_waitUnbusy(0, IfxFlash_FlashType_D0);
 #endif
+}
+
+bool waitAndAcquireMutex(mutex_t *mutex, uint32_t timeout){
+    //return true by default
+    bool retval = true;
+
+    timeMs_t currentTime = micros();
+
+    while(!IfxCpu_acquireMutex((IfxCpu_mutexLock*)mutex)){
+        if ((micros() - currentTime) >= timeout){
+            retval = false;
+            break;
+        }
+    }
+
+    return retval;
+}
+
+void releaseMutex(mutex_t *mutex){
+    IfxCpu_releaseMutex((IfxCpu_mutexLock*)mutex);
 }
