@@ -46,6 +46,10 @@ typedef uint32_t timeUs_t;
 #define TIMEUS_MAX UINT32_MAX
 #endif
 
+#if defined(TC375)
+typedef uint64_t ticks_t;
+#endif
+
 // Constants for better readability
 #define MILLISECS_PER_SEC 1000
 #define USECS_PER_SEC (1000 * 1000)

@@ -81,6 +81,14 @@ static bool busDevInit_I2C(busDevice_t * dev, const busDeviceDescriptor_t * desc
     dev->irqPin = IOGetByTag(descriptor->irqPin);
     dev->busdev.i2c.i2cBus = descriptor->busdev.i2c.i2cBus;
     dev->busdev.i2c.address = descriptor->busdev.i2c.address;
+#if defined(TC375)
+    //dynamic allocation of i2c handle
+    dev->i2cBusDevice = memAllocate(sizeof(IfxI2c_I2c_Device), OWNER_I2C);
+    if(NULL_PTR == dev->i2cBusDevice){
+        return false;
+    }
+    i2cInitDevice(dev);
+#endif
     return true;
 }
 #endif
@@ -92,6 +100,14 @@ static bool busDevInit_SPI(busDevice_t * dev, const busDeviceDescriptor_t * desc
     dev->irqPin = IOGetByTag(descriptor->irqPin);
     dev->busdev.spi.spiBus = descriptor->busdev.spi.spiBus;
     dev->busdev.spi.csnPin = IOGetByTag(descriptor->busdev.spi.csnPin);
+
+#if defined(TC375)
+    //dynamic allocation of handle
+    dev->spiChannel = memAllocate(sizeof(IfxQspi_SpiMaster_Channel), OWNER_SPI);
+    if(NULL_PTR == dev->spiChannel){
+        return false;
+    }
+#endif
 
     if (dev->busdev.spi.csnPin && spiBusInitHost(dev)) {
         // Init CSN pin

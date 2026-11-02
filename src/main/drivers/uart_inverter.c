@@ -25,6 +25,9 @@
 #include "drivers/uart_inverter.h"
 
 #if defined(USE_UART_INVERTER)
+#if defined(TC375)
+#error USE_UART_INVERTER not supported
+#endif
 
 static void inverterPinSet(IO_t pin, bool on)
 {

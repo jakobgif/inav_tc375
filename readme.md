@@ -1,5 +1,140 @@
 # INAV - navigation capable flight controller
 
+# Aurix
+This fork adds code to support Aurix Tricore CPUs.
+
+| Supported Targets | TC375 Litekit |
+| ----------------- | ----- |
+
+**Want to contribute?** Just open an [issue](https://github.com/jakobgif/inav_tc375/issues) and we will get back to you.
+
+Refer to [how_to_upgrade.md](./how_to_upgrade.md) for information regarding upgrading to the latest inav version.
+
+Refer to [how_to_develop.md](./how_to_develop.md) for information regarding the branch names and development.
+
+## Aurix Development Studio Setup
+This entire repo can be added as submodule to an existing project. In this case the Aurix project has to be configured as follows:
+- C/C++ Build -> Settings -> AURIX GCC Compiler -> Dialect -> Language standard: `none` & Other dialect flags: `-std=gnu11`
+- --//-- -> Prepocessor -> define macros shown below
+- --//-- -> Optimization -> `-Og` for debug or `-O2` for release
+- --//-- -> Miscellaneous -> add `-include "inav_tc375\src\main\platform.h"` flag
+- C/C++ General -> Paths and Symbols -> Source Location:
+  - add complete inav folder to source filter
+  - add `inav_tc375\lib\main\MAVLink` as source folder
+  - add `inav_tc375\src\main` as source folder
+  - add all CPU specific files that are not for aurix to the source filter.
+
+## Aurix specific macros
+To build for TC375 the follwing macros have to be defined in the build environment:
+- `__TRICORE__`
+- `TC375`
+- `__TARGET__=\"TC375\"`
+- `GIT_HASH` current commit hash of the wrapping project
+- `GIT_TAG` latest tag of the wrapping project
+- `GIT_HASH_INAV` current checked out hash of the inav submodule
+- `GIT_TAG_INAV` latest tag of the submodule
+- `INAV_VERSION` latest tag of inav
+- `GIT_IS_DIRTY` can be defined if the local copy is dirty
+- `FC_VERSION_MAJOR` version of inav
+- `FC_VERSION_MINOR` version of inav
+- `FC_VERSION_PATCH_LEVEL` version of inav
+
+## Generation scripts
+The inav codebase requires some files that need to be automatically generated. The following scripts need to be run from inside the aurix build folder.
+- `./src/utils/aurix_generate_settings.sh` is used to generate the inav settings. **WARNING**: It could be that the path of the directory where the compiler libraries are located must be changed.
+- `./src/utils/aurix_generate_version_strings.sh` is used to generate the version macros described above. This script should be run before each build.
+
+## Linker script
+The following sections must be added to the linker script:
+```
+CORE_ID = GLOBAL;
+    SECTIONS
+    {
+        .busdev_registry :
+        {
+            PROVIDE_HIDDEN (__busdev_registry_start = .);
+            KEEP (*(.busdev_registry))
+            KEEP (*(SORT(.busdev_registry.*)))
+            PROVIDE_HIDDEN (__busdev_registry_end = .);
+        } > default_rom
+        
+        .pg_registry :
+        {
+            PROVIDE_HIDDEN (__pg_registry_start = .);
+            KEEP (*(.pg_registry))
+            KEEP (*(SORT(.pg_registry.*)))
+            PROVIDE_HIDDEN (__pg_registry_end = .);
+        } > default_rom
+    
+        .pg_resetdata :
+        {
+            PROVIDE_HIDDEN (__pg_resetdata_start = .);
+            KEEP (*(.pg_resetdata))
+            PROVIDE_HIDDEN (__pg_resetdata_end = .);
+        } > default_rom
+    }
+```
+
+## CLI
+Command `aurix` can be used to show basic platform specs.
+
+##  Target configuration
+`inav_tc375\src\main\target` lists target configirations. A new target can be added by creating a new folder. A example configuration for the TC375 litekit was already created (`inav_tc375\src\main\target\FHTW_TC375_LK`). 
+
+`targetConfiguration()` is used to set some default configuration. In case of FHTW_TC375_LK it sets the logging output port to UART4 and enables all logging.
+### GPIO config
+For this implementation GPIO names can be defined like this: `#define LED0 MODULE_P00_5`. Furthermore, the GPIO has to be enabled via another macro: `#define TARGET_IO_PORTMODULE_P00 0b100000`. 
+### SPI config
+To enable a SPI bus you need the use the macro `#define USE_SPI_DEVICE_x`. For this implementation SPI device 1 is using QSPI 0, device 2 is using QSPI 1 and so on. The SPI pins also need to be defined. Eg: 
+```C
+#define SPI3_PIN_SCLK MODULE_P15_8
+#define SPI3_PIN_MRST MODULE_P15_7
+#define SPI3_PIN_MTSR MODULE_P15_6
+```
+Note that all pins must be valid pinmaps that can be connected to the QPSI module. For the chip select it does not matter if the gpio pinmap uses the same QSPI module.
+### I2C config
+To enable the use of the I2C bus, the macro `#define USE_I2C` needs to be defined. Depending on which I2C bus is going to be used, `#define USE_I2C_DEVICE_x` with the correct bus number needs to be defined too. In total three the implementation offers 3 I2C bus interfaces. Each bus uses the Aurix I2C Module 0. The I2C pins also need to be defined. Eg:
+```C
+#define I2C1_SCL                MODULE_P13_1
+#define I2C1_SDA                MODULE_P13_2
+```
+Note that all pins must be valid pinmaps that can be connected to the I2C module `MODULE_I2C0`.
+
+### UART config
+Use the macro `USE_UARTx` to enable a UART port. UART1 uses Asclin0, UART2 uses Asclin1 and so on. Afterwards use eg
+```C
+#define UART1_PIN_RX MODULE_P14_1
+#define UART1_PIN_TX MODULE_P14_0
+```
+to set the UART pins. Additionally the UART count has to be set to the number of available uart ports: `#define SERIAL_PORT_COUNT`.
+
+### Timer config
+The timer is used for the pwm signal generation. These signals can be used to control motors, LEDs or sound beepers.
+To activate the pwm signals on the out put the `MAX_PWM_OUTPUT_PORTS` define needs to be adjusted to acount for all on board 
+pwm singal outputs.
+```C
+#define MAX_PWM_OUTPUT_PORTS 8
+```
+To control the motors, a pin needs to be defined for each motor and be assigned to an output driven by an atom module.   
+```C
+#define PWM_MOTOR_1_PIN MODULE_P00_6
+#define PWM_MOTOR_2_PIN MODULE_P00_1
+#define PWM_MOTOR_3_PIN MODULE_P00_9
+```
+The assignement of the motor to an atom output is processed in `timerHardware_t timerHardware[]`.
+Up tp 16 motor can be assigned to the list [0 to 15].
+```C
+timerHardware_t timerHardware[] = {
+    DEF_TIM(atomDriver[0], IfxGtm_ATOM0_5_TOUT15_P00_6_OUT, PWM_MOTOR_1_PIN, IOCFG_OUT_PP, TIM_USE_MOTOR),
+    DEF_TIM(atomDriver[1], IfxGtm_ATOM1_1_TOUT10_P00_1_OUT, PWM_MOTOR_2_PIN, IOCFG_OUT_PP, TIM_USE_MOTOR),
+};
+```
+Only one frequency can be used per atom module. Make sure to use different modules if you want to use different frequencies.
+
+
+### ADC config
+Define `USE_ADC` to enable the ADC. In the current implementation only 6 channels of ADC Group 0 can be used. Define the pin that shall be used by using the macro `#define ADC_CHANNEL_1_PIN 0 //aurix analog input 0`. Afterwards link the ADC channel to a feature: eg `#define VBAT_ADC_CHANNEL ADC_CHN_1` to use analog pin 0 for the battery voltage.
+
 # F411 PSA
 
 > INAV no longer accepts targets based on STM32 F411 MCU.

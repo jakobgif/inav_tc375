@@ -23,6 +23,13 @@
 #endif
 #define FC_FIRMWARE_NAME "INAV"
 
+#if defined(TC375)
+#include "version_strings.h"
+#if !(defined(GIT_HASH) && defined(GIT_TAG) && defined(GIT_HASH_INAV) && defined(GIT_TAG_INAV))
+#error GIT_HASH and/or GIT_TAG missing
+#endif
+extern const char* const buildType;
+#endif
 
 #define MW_VERSION              231
 

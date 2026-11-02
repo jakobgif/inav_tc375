@@ -59,6 +59,9 @@ typedef struct {
 
     #if defined(AT32F43x) 
         usart_type  *USARTx;
+    #elif defined(TC375)
+        IfxAsclin_Asc *handle;
+        IfxAsclin_Asc_Config *config;
     #else
         #ifdef USE_HAL_DRIVER
             UART_HandleTypeDef Handle;
@@ -68,11 +71,34 @@ typedef struct {
   
 } uartPort_t;
 
+#if defined(TC375)
+//needed for uartOpen()
+#define UART1 &MODULE_ASCLIN0
+#define USART1 UART1
+#define UART2 &MODULE_ASCLIN1
+#define USART2 UART2
+#define UART3 &MODULE_ASCLIN2
+#define USART3 UART3
+#define UART4 &MODULE_ASCLIN3
+#define USART4 UART4
+#define UART5 &MODULE_ASCLIN4
+#define USART5 UART5
+#define UART6 &MODULE_ASCLIN5
+#define USART6 UART6
+#define UART7 &MODULE_ASCLIN6
+#define USART7 UART7
+#define UART8 &MODULE_ASCLIN7
+#define USART8 UART8
+#endif
+
 void uartGetPortPins(UARTDevice_e device, serialPortPins_t * pins);
 void uartClearIdleFlag(uartPort_t *s);
 void uartConfigurePinSwap(uartPort_t *uartPort);
 #if defined(AT32F43x) 
 serialPort_t *uartOpen(usart_type *USARTx, serialReceiveCallbackPtr rxCallback, void *rxCallbackData, uint32_t baudRate, portMode_t mode, portOptions_t options);
+#elif defined(TC375)
+serialPort_t *uartOpen(Ifx_ASCLIN *module, serialReceiveCallbackPtr rxCallback, void *rxCallbackData, uint32_t baudRate, portMode_t mode, portOptions_t options);
+void uartTxIrqHandler(uartPort_t *s);
 #else
 serialPort_t *uartOpen(USART_TypeDef *USARTx, serialReceiveCallbackPtr rxCallback, void *rxCallbackData, uint32_t baudRate, portMode_t mode, portOptions_t options);
 #endif

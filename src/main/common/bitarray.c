@@ -21,6 +21,11 @@
 
 #include "bitarray.h"
 
+#if defined(__TRICORE__)
+//need this because otherwise we have problem with functions that are called the same
+#undef __CTZ
+#endif
+
 #define BITARRAY_BIT_OP(array, bit, op) ((array)[(bit) / (sizeof((array)[0]) * 8)] op (1 << ((bit) % (sizeof((array)[0]) * 8))))
 
 bool bitArrayGet(const bitarrayElement_t *array, unsigned bit)

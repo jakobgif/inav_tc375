@@ -29,7 +29,7 @@
 #define NOINLINE
 #endif
 
-#define DYNAMIC_HEAP_SIZE   2048
+#define DYNAMIC_HEAP_SIZE   4096
 
 #define I2C1_OVERCLOCK false
 #define I2C2_OVERCLOCK false
