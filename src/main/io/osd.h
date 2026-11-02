@@ -109,6 +109,8 @@
 #define OSD_MSG_AUTOLAUNCH          "AUTOLAUNCH"
 #define OSD_MSG_AUTOLAUNCH_MANUAL   "AUTOLAUNCH (MANUAL)"
 #define OSD_MSG_ALTITUDE_HOLD       "(ALTITUDE HOLD)"
+#define OSD_MSG_SURFACE_OK          "(SURFACE)"
+#define OSD_MSG_SURFACE_BAD         "(!SURFACE UNRELIABLE!)"
 #define OSD_MSG_AUTOTRIM            "(AUTOTRIM)"
 #define OSD_MSG_AUTOTUNE            "(AUTOTUNE)"
 #define OSD_MSG_AUTOTUNE_ACRO       "SWITCH TO ACRO"
@@ -122,6 +124,31 @@
 #define OSD_MSG_ANGLEHOLD_PITCH     "(ANGLEHOLD PITCH)"
 #define OSD_MSG_ANGLEHOLD_LEVEL     "(ANGLEHOLD LEVEL)"
 #define OSD_MSG_MOVE_STICKS         "MOVE STICKS TO ABORT"
+#define OSD_MSG_VTOL_TRANS_START    "VTOL TRANSITION START"
+#define OSD_MSG_VTOL_TO_FW          "VTOL TO FW"
+#define OSD_MSG_VTOL_TO_MC          "VTOL TO MC"
+#define OSD_MSG_VTOL_MANUAL_TO_FW   "VTOL MANUAL TO FW"
+#define OSD_MSG_VTOL_MANUAL_TO_MC   "VTOL MANUAL TO MC"
+#define OSD_MSG_VTOL_MISSION_TO_FW  "VTOL MISSION TO FW"
+#define OSD_MSG_VTOL_MISSION_TO_MC  "VTOL MISSION TO MC"
+#define OSD_MSG_VTOL_RTH_TO_FW      "VTOL RTH TO FW"
+#define OSD_MSG_VTOL_LAND_TO_MC     "VTOL LAND TO MC"
+#define OSD_MSG_VTOL_SAFE_TO_MC     "VTOL LOW SPD TO MC"
+#define OSD_MSG_VTOL_FINISH_SWITCH  "VTOL FINISHING SWITCH"
+#define OSD_MSG_VTOL_TAILSITTER_CAPTURE "VTOL TAILSITTER CAPTURE"
+#define OSD_MSG_VTOL_RETRY_SCAN     "VTOL RETRY SCAN"
+#define OSD_MSG_VTOL_RETRY_ALIGN    "VTOL RETRY ALIGN"
+#define OSD_MSG_VTOL_TRANS_DONE     "VTOL TRANSITION DONE"
+#define OSD_MSG_VTOL_TRANS_ABORTED  "VTOL TRANSITION ABORTED"
+#define OSD_MSG_VTOL_ABORTED_FW     "VTOL ABORTED IN FW"
+#define OSD_MSG_VTOL_ABORTED_MC     "VTOL ABORTED IN MC"
+#define OSD_MSG_VTOL_AIRSPEED_TO    "VTOL AIRSPEED TIMEOUT"
+#define OSD_MSG_VTOL_MOVE_SW_FW     "MOVE SWITCH TO FW"
+#define OSD_MSG_VTOL_MOVE_SW_MC     "MOVE SWITCH TO MC"
+#define OSD_MSG_VTOL_WAIT_MC_SPEED  "WAIT MC SPEED"
+#define OSD_MSG_VTOL_NO_SPEED       "NO SPEED"
+#define OSD_MSG_VTOL_MC_SPEED_HIGH  "MC SPEED HIGH"
+#define OSD_MSG_MENU_NAV_REQ        "USE NAV MODES FOR MENU"
 
 #ifdef USE_DEV_TOOLS
 #define OSD_MSG_GRD_TEST_MODE       "GRD TEST > MOTORS DISABLED"
@@ -134,6 +161,7 @@
 
 #if defined(USE_GEOZONE)
 #define OSD_MSG_NFZ                 "NO FLY ZONE"
+#define OSD_MSG_GEOZONE_MISCONFIG   "GEOZONE MISCONFIGURED"
 #define OSD_MSG_LEAVING_FZ          "LEAVING FZ IN %s"
 #define OSD_MSG_OUTSIDE_FZ          "OUTSIDE FZ"
 #define OSD_MSG_ENTERING_NFZ        "ENTERING NFZ IN %s %s"
@@ -143,6 +171,17 @@
 #define OSD_MSG_AVOIDING_ALT_BREACH "REACHED ZONE ALTITUDE LIMIT"
 #define OSD_MSG_AVOID_ZONES_RTH     "AVOIDING NO FLY ZONES"
 #define OSD_MSG_GEOZONE_ACTION      "PERFORM ACTION IN %s %s"
+#endif
+
+#if defined(USE_TERRAIN)
+#define OSD_MSG_TERRAIN_NOT_READY   "TERRAIN NOT READY"
+#define OSD_MSG_TERRAIN_DATA_LOST   "TERRAIN LOST - ALT FROZEN"
+#define OSD_MSG_TERRAIN_VS_MAX_ALT  "TERRAIN VS MAX ALT"
+#define OSD_MSG_TERRAIN_PULL_UP     "TERRAIN! PULL UP!"
+#define OSD_MSG_TERRAIN_TURN_AWAY   "TERRAIN! TURN AWAY!"
+#define OSD_MSG_TERRAIN_NO_HEADING  "TERRAIN LOOKAHEAD OFF"
+#define OSD_MSG_TERRAIN_AUTO_CLIMB  "TERRAIN AUTO CLIMB TO MIN"
+#define OSD_MSG_TERRAIN_AHEAD       "TERRAIN AHEAD!"
 #endif
 
 #ifdef USE_ADSB
@@ -340,6 +379,9 @@ typedef enum {
     OSD_NAV_FW_ALT_CONTROL_RESPONSE,
     OSD_NAV_MIN_GROUND_SPEED,
     OSD_THROTTLE_GAUGE,
+    OSD_GPS_EXTRA_STATS,
+    OSD_AUTO_SPEED,  // 170
+    OSD_TERRAIN_AGL, // 171,
     OSD_ITEM_COUNT // MUST BE LAST
 } osd_items_e;
 
@@ -451,6 +493,7 @@ typedef struct osdConfig_s {
     videoSystem_e   video_system;
     uint8_t         row_shiftdown;
     int16_t         msp_displayport_fullframe_interval;
+    int8_t          osd_framerate_hz;
 
     // Preferences
     uint8_t         main_voltage_decimals;
@@ -533,7 +576,8 @@ typedef struct osdConfig_s {
     uint16_t                    adsb_distance_warning;                     // in metres
     uint16_t                    adsb_distance_alert;                       // in metres
     uint16_t                    adsb_ignore_plane_above_me_limit;          // in metres
-    osd_adsb_warning_style_e    adsb_warning_style;       // adsb warning element style, one or two lines
+    osd_adsb_warning_style_e    adsb_warning_style;                        // adsb warning element style, one or two lines
+    bool                        adsb_calculation_use_cpa;                  // adsb calculation type, the closest or the closest approach
 #endif
     uint8_t  radar_peers_display_time;                  // in seconds
 #ifdef USE_GEOZONE
@@ -561,6 +605,7 @@ void osdStartFullRedraw(void);
 // the OSD after the given duration. Otherwise, the caller must
 // explicitely remove it.
 void osdOverrideLayout(int layout, timeMs_t duration);
+void osdSetLayoutOverrideOwnedByMenu(bool owned);
 // Returns the current current layout as well as wether its
 // set by the user configuration (modes, etc..) or by overriding it.
 int osdGetActiveLayout(bool *overridden);
@@ -584,8 +629,6 @@ void osdFormatAltitudeSymbol(char *buff, int32_t alt);
 int osdFormatVelocityStr(char* buff, int32_t vel, osd_SpeedTypes_e speedType, bool _max);
 // Returns a heading angle in degrees normalized to [0, 360).
 int osdGetHeadingAngle(int angle);
-
-void osdResetWarningFlags(void);
 
 int16_t osdGetPanServoOffset(void);
 

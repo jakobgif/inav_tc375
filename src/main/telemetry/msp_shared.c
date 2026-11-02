@@ -57,6 +57,7 @@ enum { // byte position(index) in msp-over-telemetry request payload
 };
 
 static uint8_t lastRequestVersion; // MSP version of last request. Temporary solution. It's better to keep it in requestPacket.
+static bool replyHeaderSent;       // true once the header of the reply being sent has been emitted
 STATIC_UNIT_TESTED mspPackage_t mspPackage;
 static mspRxBuffer_t mspRxBuffer;
 static mspTxBuffer_t mspTxBuffer;
@@ -68,29 +69,38 @@ void initSharedMsp(void)
     mspPackage.requestBuffer = (uint8_t *)&mspRxBuffer;
     mspPackage.requestPacket = &mspRxPacket;
     mspPackage.requestPacket->buf.ptr = mspPackage.requestBuffer;
-    mspPackage.requestPacket->buf.end = mspPackage.requestBuffer;
+    mspPackage.requestPacket->buf.end = mspPackage.requestBuffer + sizeof(mspRxBuffer);
 
     mspPackage.responseBuffer = (uint8_t *)&mspTxBuffer;
     mspPackage.responsePacket = &mspTxPacket;
     mspPackage.responsePacket->buf.ptr = mspPackage.responseBuffer;
     mspPackage.responsePacket->buf.end = mspPackage.responseBuffer;
+
+    replyHeaderSent = false; // the reply that was in progress (if any) is discarded, the next one starts with a header
 }
 
-static void processMspPacket(void)
+static bool processMspPacket(void)
 {
     mspPackage.responsePacket->cmd = 0;
     mspPackage.responsePacket->result = 0;
-    mspPackage.responsePacket->buf.end = mspPackage.responseBuffer;
+    mspPackage.responsePacket->buf.ptr = mspPackage.responseBuffer;
+    mspPackage.responsePacket->buf.end = mspPackage.responseBuffer + sizeof(mspTxBuffer);
 
     mspPostProcessFnPtr mspPostProcessFn = NULL;
-    if (mspFcProcessCommand(mspPackage.requestPacket, mspPackage.responsePacket, &mspPostProcessFn) == MSP_RESULT_ERROR) {
+    const mspResult_e status = mspFcProcessCommand(mspPackage.requestPacket, mspPackage.responsePacket, &mspPostProcessFn);
+    if (status == MSP_RESULT_ERROR) {
         sbufWriteU8(&mspPackage.responsePacket->buf, TELEMETRY_MSP_ERROR);
     }
     if (mspPostProcessFn) {
         mspPostProcessFn(NULL);
     }
 
+    if (status == MSP_RESULT_NO_REPLY) {
+        return false;
+    }
+
     sbufSwitchToReader(&mspPackage.responsePacket->buf, mspPackage.responseBuffer);
+    return true;
 }
 
 void sendMspErrorResponse(uint8_t error, int16_t cmd)
@@ -118,6 +128,7 @@ bool handleMspFrame(uint8_t *const frameStart, const int payloadLength)
     }
 
     if (payloadLength < MIN_LENGTH_CHUNK) {
+        mspStarted = 0;
         return false;   // prevent analyzing garbage data
     }
 
@@ -128,14 +139,20 @@ bool handleMspFrame(uint8_t *const frameStart, const int payloadLength)
     lastRequestVersion = (status & TELEMETRY_MSP_VER_MASK) >> TELEMETRY_MSP_VER_SHIFT;
 
     if (lastRequestVersion > TELEMETRY_MSP_VERSION) {
+        mspStarted = 0;
         sendMspErrorResponse(TELEMETRY_MSP_VER_MISMATCH, 0);
         return true;
     }
 
     if (status & TELEMETRY_MSP_START_MASK) { // first packet in sequence
+        // A new start supersedes any partial request, even if its own header is malformed.
+        mspStarted = 0;
         uint16_t mspPayloadSize;
 
         if (lastRequestVersion == 1) { // MSPv1
+            if (payloadLength < MIN_LENGTH_REQUEST_V1) {
+                return false;   // prevent analyzing garbage data
+            }
 
             mspPayloadSize = frameStart[MSP_INDEX_SIZE_V1];
             requestPacket->cmd = frameStart[MSP_INDEX_ID_V1];
@@ -193,14 +210,12 @@ bool handleMspFrame(uint8_t *const frameStart, const int payloadLength)
     sbufAdvance(&mspPackage.requestFrame, payloadExpecting);
     sbufWriteData(&requestPacket->buf, payload, payloadExpecting);
     sbufSwitchToReader(&requestPacket->buf, mspPackage.requestBuffer);
-    processMspPacket();
-    return true;
+    return processMspPacket();
 }
 
 bool sendMspReply(uint8_t payloadSize, mspResponseFnPtr responseFn)
 {
     static uint8_t seq = 0;
-    static bool headerSent = false;
 
     uint8_t payloadOut[payloadSize];
     sbuf_t payload;
@@ -208,7 +223,7 @@ bool sendMspReply(uint8_t payloadSize, mspResponseFnPtr responseFn)
     sbuf_t *txBuf = &mspPackage.responsePacket->buf;
 
     // detect first reply packet
-    if (!headerSent) {
+    if (!replyHeaderSent) {
 
         // header
         uint8_t status = TELEMETRY_MSP_START_MASK | (seq++ & TELEMETRY_MSP_SEQ_MASK) | (lastRequestVersion << TELEMETRY_MSP_VER_SHIFT);;
@@ -217,7 +232,7 @@ bool sendMspReply(uint8_t payloadSize, mspResponseFnPtr responseFn)
         }
         sbufWriteU8(payloadBuf, status);
 
-        const uint8_t size = sbufBytesRemaining(txBuf);
+        const uint16_t size = sbufBytesRemaining(txBuf);
         if (lastRequestVersion == 1) { // MSPv1
             sbufWriteU8(payloadBuf, size);
             sbufWriteU8(payloadBuf, mspPackage.responsePacket->cmd);
@@ -226,12 +241,12 @@ bool sendMspReply(uint8_t payloadSize, mspResponseFnPtr responseFn)
             sbufWriteU16(payloadBuf, mspPackage.responsePacket->cmd);    // command is 16 bit in MSPv2
             sbufWriteU16(payloadBuf, (uint16_t) size);        // size is 16 bit in MSPv2
         }
-        headerSent = true;
+        replyHeaderSent = true;
     } else {
         sbufWriteU8(payloadBuf, (seq++ & TELEMETRY_MSP_SEQ_MASK) | (lastRequestVersion << TELEMETRY_MSP_VER_SHIFT)); // header without 'start' flag
     }
 
-    const uint8_t bufferBytesRemaining = sbufBytesRemaining(txBuf);
+    const uint16_t bufferBytesRemaining = sbufBytesRemaining(txBuf);
     const uint8_t payloadBytesRemaining = sbufBytesRemaining(payloadBuf);
     uint8_t frame[payloadBytesRemaining];
 
@@ -252,7 +267,7 @@ bool sendMspReply(uint8_t payloadSize, mspResponseFnPtr responseFn)
     sbufSwitchToReader(txBuf, mspPackage.responseBuffer);
 
     responseFn(payloadOut, payloadBuf->ptr - payloadOut);
-    headerSent = false; // <-- added: reset for the next response
+    replyHeaderSent = false; // reset for the next response
     return false;
 }
 

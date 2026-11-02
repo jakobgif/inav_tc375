@@ -119,6 +119,7 @@
 #define DMM_BLINK (1 << 4)
 #define DMM_INVERT_PIXEL_COLOR (1 << 3)
 #define DMM_CLEAR_DISPLAY (1 << 2)
+#define MAX7456_CLEAR_TIMEOUT_US 2000
 #define DMM_CLEAR_DISPLAY_VERT (DMM_CLEAR_DISPLAY | 1 << 1)
 #define DMM_AUTOINCREMENT (1 << 0)
 
@@ -293,6 +294,17 @@ static int max7456PrepareBuffer(uint8_t * buf, size_t bufsize, int bufPtr, uint8
     return bufPtr;
 }
 
+static void max7456ApplyBusSpeed(void)
+{
+#if defined(MAX7456_SPI_SPEED)
+    busSpeed_e speed = (MAX7456_SPI_SPEED <= BUS_SPEED_ULTRAFAST) ? MAX7456_SPI_SPEED : BUS_SPEED_STANDARD;
+    busSetSpeed(state.dev, speed);
+#else
+    // Default safe speed for MAX7456
+    busSetSpeed(state.dev, BUS_SPEED_STANDARD);
+#endif
+}
+
 uint16_t max7456GetScreenSize(void)
 {
     // Default to PAL while the display is not yet initialized. This
@@ -386,7 +398,7 @@ void max7456Init(const videoSystem_e videoSystem)
         return;
     }
 
-    busSetSpeed(state.dev, BUS_SPEED_STANDARD);
+    max7456ApplyBusSpeed();
 
     // force soft reset on Max7456
     busWrite(state.dev, MAX7456ADD_VM0, MAX7456_RESET);
@@ -637,11 +649,21 @@ void max7456RefreshAll(void)
         busRead(state.dev, MAX7456ADD_DMM | MAX7456ADD_READ, &dmm);
         busWrite(state.dev, MAX7456ADD_DMM, state.registers.dmm | DMM_CLEAR_DISPLAY);
 
-        // Wait for clear to complete (20us)
+        // Wait for clear to complete (20us). Bounded: on the LionBee the OSD
+        // chip never reports the bit cleared (DMM reads back 0x06), and an
+        // unbounded wait here stalls the whole scheduler, USB/MSP included.
+        // Betaflight does not poll this bit at all.
+        const timeUs_t clearStart = micros();
         while (1) {
              busRead(state.dev, MAX7456ADD_DMM | MAX7456ADD_READ, &dmm);
              if (!(dmm & DMM_CLEAR_DISPLAY)) {
                  state.registers.dmm = dmm;
+                 break;
+             }
+             if (cmpTimeUs(micros(), clearStart) > MAX7456_CLEAR_TIMEOUT_US) {
+                 // Keep the shadow as written: the readback is not trustworthy here
+                 // (0x06 has bit 1 set, which would turn every later clear into a
+                 // deferred VSYNC clear that can erase freshly drawn characters).
                  break;
              }
         }
@@ -693,14 +715,14 @@ void max7456ReadNvm(uint16_t char_address, osdCharacter_t *chr)
     max7456Unlock();
 }
 
-void max7456WriteNvm(uint16_t char_address, const osdCharacter_t *chr)
+bool max7456WriteNvm(uint16_t char_address, const osdCharacter_t *chr)
 {
     uint8_t spiBuff[(sizeof(chr->data) * 2 + 2) * 2];
     int bufPtr = 0;
 
     // Check if device is available
     if (state.dev == NULL) {
-        return;
+        return false;
     }
 
     max7456Lock();
@@ -744,6 +766,7 @@ void max7456WriteNvm(uint16_t char_address, const osdCharacter_t *chr)
      */
 
     max7456Unlock();
+    return true;
 }
 
 
