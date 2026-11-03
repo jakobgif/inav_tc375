@@ -46,6 +46,10 @@
 #include "msp/msp_serial.h"
 #include "msp/msp_protocol.h"
 
+#ifdef USE_AURIX_MULTICORE
+#include "drivers/system.h"
+#endif
+
 #if defined(USE_LOG)
 
 #define LOG_PREFIX                  "[%6d.%03d] "
@@ -61,9 +65,29 @@ PG_RESET_TEMPLATE(logConfig_t, logConfig,
     .topics = SETTING_LOG_TOPICS_DEFAULT
 );
 
+#ifdef TC375
+#define USE_COLORED_CONSOLE
+#endif
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_WHITE   "\x1b[37m"
+
+const char* colorCodes[] = {
+    [LOG_LEVEL_ERROR]   = ANSI_COLOR_RED,
+    [LOG_LEVEL_WARNING] = ANSI_COLOR_YELLOW,
+    [LOG_LEVEL_INFO]    = ANSI_COLOR_GREEN,
+    [LOG_LEVEL_VERBOSE] = ANSI_COLOR_WHITE,
+    [LOG_LEVEL_DEBUG]   = ANSI_COLOR_WHITE,
+};
+
 #if defined(USE_BOOTLOG)
 char bootlog_buffer[USE_BOOTLOG];
 char *bootlog_head = bootlog_buffer;
+#endif
+
+#ifdef USE_AURIX_MULTICORE
+static mutex_t serialMutex;
 #endif
 
 void logInit(void)
@@ -131,6 +155,9 @@ static void logPrint(const char *buf, size_t size)
         fputc(buf[ii], stdout);
     }
 #endif
+#ifdef USE_AURIX_MULTICORE
+    waitAndAcquireMutex(&serialMutex, UINT32_MAX);
+#endif
     SD(printf("%s\n", buf));
     if (logPort) {
         // Send data via UART (if configured & connected - a safeguard against zombie VCP)
@@ -152,6 +179,9 @@ static void logPrint(const char *buf, size_t size)
 		bootlog_head =  bootlog_head + 2;
 	}
 #endif
+#ifdef USE_AURIX_MULTICORE
+    releaseMutex(&serialMutex);
+#endif
 }
 
 static size_t logFormatPrefix(char *buf, const timeMs_t timeMs)
@@ -159,6 +189,12 @@ static size_t logFormatPrefix(char *buf, const timeMs_t timeMs)
     // Write timestamp
     return tfp_sprintf(buf, LOG_PREFIX, (int)(timeMs / 1000), (int)(timeMs % 1000));
 }
+
+#ifdef USE_COLORED_CONSOLE
+static size_t logAddColor(char *buf, unsigned level){
+    return tfp_sprintf(buf, "%s", colorCodes[level]);
+}
+#endif
 
 static bool logHasOutput(void)
 {
@@ -186,8 +222,19 @@ void _logf(logTopic_e topic, unsigned level, const char *fmt, ...)
         return;
     }
 
+#ifdef USE_COLORED_CONSOLE
+    charCount = logAddColor(&buf[0], level);
+    charCount += logFormatPrefix(&buf[charCount], millis());
+#else
     charCount = logFormatPrefix(buf, millis());
+#endif  
     bufPtr = &buf[charCount];
+
+#ifdef USE_AURIX_MULTICORE
+    int n = tfp_snprintf(bufPtr, sizeof(buf) - (bufPtr - buf), "[CPU%d] ", IfxCpu_getCoreIndex());
+    bufPtr += n;
+    charCount += n;
+#endif
 
     // Write message
     va_list va;

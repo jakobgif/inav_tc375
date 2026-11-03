@@ -44,7 +44,11 @@ void spiChipSelectHoldTime(void)
 bool spiBusInitHost(const busDevice_t * dev)
 {
     const bool spiLeadingEdge = (dev->flags & DEVFLAGS_SPI_MODE_0);
+#if defined(TC375)
+    return spiInitBus((busDevice_t *)dev, spiLeadingEdge);
+#else
     return spiInitDevice(dev->busdev.spi.spiBus, spiLeadingEdge);
+#endif
 }
 
 void spiBusSelectDevice(const busDevice_t * dev)
@@ -65,6 +69,8 @@ void spiBusSetSpeed(const busDevice_t * dev, busSpeed_e speed)
 
 #if defined(AT32F43x)
     spi_type * instance = spiInstanceByDevice(dev->busdev.spi.spiBus);
+#elif defined(TC375)
+    IfxQspi_SpiMaster_Channel * instance = dev->spiChannel;
 #else
     SPI_TypeDef * instance = spiInstanceByDevice(dev->busdev.spi.spiBus);
 #endif
@@ -82,6 +88,8 @@ bool spiBusTransfer(const busDevice_t * dev, uint8_t * rxBuf, const uint8_t * tx
 {
 #if defined(AT32F43x)
     spi_type * instance = spiInstanceByDevice(dev->busdev.spi.spiBus);
+#elif defined(TC375)
+    IfxQspi_SpiMaster_Channel * instance = dev->spiChannel;
 #else
     SPI_TypeDef * instance = spiInstanceByDevice(dev->busdev.spi.spiBus);
 #endif
@@ -103,6 +111,8 @@ bool spiBusTransferMultiple(const busDevice_t * dev, busTransferDescriptor_t * d
 {
 #if defined(AT32F43x)
     spi_type * instance = spiInstanceByDevice(dev->busdev.spi.spiBus);
+#elif defined(TC375)
+    IfxQspi_SpiMaster_Channel * instance = dev->spiChannel;
 #else
     SPI_TypeDef * instance = spiInstanceByDevice(dev->busdev.spi.spiBus);
 #endif
@@ -126,6 +136,8 @@ bool spiBusWriteRegister(const busDevice_t * dev, uint8_t reg, uint8_t data)
 {
 #if defined(AT32F43x)
     spi_type * instance = spiInstanceByDevice(dev->busdev.spi.spiBus);
+#elif defined(TC375)
+    IfxQspi_SpiMaster_Channel * instance = dev->spiChannel;
 #else
     SPI_TypeDef * instance = spiInstanceByDevice(dev->busdev.spi.spiBus);
 #endif
@@ -148,6 +160,8 @@ bool spiBusWriteBuffer(const busDevice_t * dev, uint8_t reg, const uint8_t * dat
 {
 #if defined(AT32F43x)
     spi_type * instance = spiInstanceByDevice(dev->busdev.spi.spiBus);
+#elif defined(TC375)
+    IfxQspi_SpiMaster_Channel * instance = dev->spiChannel;
 #else
     SPI_TypeDef * instance = spiInstanceByDevice(dev->busdev.spi.spiBus);
 #endif
@@ -170,6 +184,8 @@ bool spiBusReadBuffer(const busDevice_t * dev, uint8_t reg, uint8_t * data, uint
 {
 #if defined(AT32F43x)
     spi_type * instance = spiInstanceByDevice(dev->busdev.spi.spiBus);
+#elif defined(TC375)
+    IfxQspi_SpiMaster_Channel * instance = dev->spiChannel;
 #else
     SPI_TypeDef * instance = spiInstanceByDevice(dev->busdev.spi.spiBus);
 #endif
@@ -192,6 +208,8 @@ bool spiBusReadRegister(const busDevice_t * dev, uint8_t reg, uint8_t * data)
 {
 #if defined(AT32F43x)
     spi_type * instance = spiInstanceByDevice(dev->busdev.spi.spiBus);
+#elif defined(TC375)
+    IfxQspi_SpiMaster_Channel * instance = dev->spiChannel;
 #else
     SPI_TypeDef * instance = spiInstanceByDevice(dev->busdev.spi.spiBus);
 #endif
@@ -214,6 +232,8 @@ bool spiBusIsBusy(const busDevice_t * dev)
 {
 #if defined(AT32F43x)
     spi_type * instance = spiInstanceByDevice(dev->busdev.spi.spiBus);
+#elif defined(TC375)
+    IfxQspi_SpiMaster_Channel * instance = dev->spiChannel;
 #else
     SPI_TypeDef * instance = spiInstanceByDevice(dev->busdev.spi.spiBus);
 #endif

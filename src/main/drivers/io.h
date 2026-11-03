@@ -88,6 +88,47 @@
 #define IOCFG_IN_FLOATING    IO_CONFIG(GPIO_MODE_INPUT,  GPIO_DRIVE_STRENGTH_MODERATE, GPIO_OUTPUT_PUSH_PULL, GPIO_PULL_NONE)
 #define IOCFG_IPU_25         IO_CONFIG(GPIO_MODE_INPUT,  GPIO_DRIVE_STRENGTH_MODERATE, GPIO_OUTPUT_PUSH_PULL, GPIO_PULL_UP)
 
+#elif defined(TC375)
+
+//from IfxPort_Pin_Config
+#define IO_CONFIG(mode, padDriver) ((mode) | ((padDriver) << 8))
+#define IO_CONFIG_UNPACK_MODE(ioconfig)  (ioconfig & 0xFF)
+#define IO_CONFIG_UNPACK_DRIVER(ioconfig) ((ioconfig >> 8) & 0xFF)
+
+#define DEFAULT_IfxPort_PadDriver IfxPort_PadDriver_cmosAutomotiveSpeed1
+
+//all modes from IfxPort_Mode
+#define IOCFG_OUT_PP        IO_CONFIG(IfxPort_Mode_outputPushPullGeneral    , DEFAULT_IfxPort_PadDriver)
+#define IOCFG_OUT_PP_25     IO_CONFIG(IfxPort_Mode_outputPushPullGeneral    , DEFAULT_IfxPort_PadDriver)    // drive strength should be stronger or 25MHz
+#define IOCFG_OUT_OD        IO_CONFIG(IfxPort_Mode_outputOpenDrainGeneral   , DEFAULT_IfxPort_PadDriver)
+#define IOCFG_AF_PP_FAST    IO_CONFIG(IfxPort_Mode_outputPushPullAlt1       , DEFAULT_IfxPort_PadDriver)    // drive strength should be stronger or 50MHz
+#define IOCFG_AF_PP         IO_CONFIG(IfxPort_Mode_outputPushPullAlt1       , DEFAULT_IfxPort_PadDriver)     
+#define IOCFG_AF_PP_PD      IO_CONFIG(IfxPort_Mode_outputPushPullAlt1       , DEFAULT_IfxPort_PadDriver)    // on Aurix there is no Pull up or pulldown on outputs!  
+#define IOCFG_AF_PP_UP      IO_CONFIG(IfxPort_Mode_outputPushPullAlt1       , DEFAULT_IfxPort_PadDriver)    // on Aurix there is no Pull up or pulldown on outputs!
+#define IOCFG_AF_OD         IO_CONFIG(IfxPort_Mode_outputOpenDrainAlt1      , DEFAULT_IfxPort_PadDriver)        
+#define IOCFG_AF_OD_UP      IO_CONFIG(IfxPort_Mode_outputOpenDrainAlt1      , DEFAULT_IfxPort_PadDriver)    // on Aurix there is no Pull up or pulldown on outputs!
+#define IOCFG_IPD           IO_CONFIG(IfxPort_Mode_inputPullDown            , DEFAULT_IfxPort_PadDriver)
+#define IOCFG_IPU           IO_CONFIG(IfxPort_Mode_inputPullUp              , DEFAULT_IfxPort_PadDriver)
+#define IOCFG_IN_FLOATING   IO_CONFIG(IfxPort_Mode_inputNoPullDevice        , DEFAULT_IfxPort_PadDriver)
+#define IOCFG_IPU_25        IO_CONFIG(IfxPort_Mode_inputPullUp              , DEFAULT_IfxPort_PadDriver)    // same as IPU 
+
+#define IOCFG_AF2_PP        IO_CONFIG(IfxPort_Mode_outputPushPullAlt2       , DEFAULT_IfxPort_PadDriver)
+#define IOCFG_AF3_PP        IO_CONFIG(IfxPort_Mode_outputPushPullAlt3       , DEFAULT_IfxPort_PadDriver)
+#define IOCFG_AF4_PP        IO_CONFIG(IfxPort_Mode_outputPushPullAlt4       , DEFAULT_IfxPort_PadDriver)
+#define IOCFG_AF5_PP        IO_CONFIG(IfxPort_Mode_outputPushPullAlt5       , DEFAULT_IfxPort_PadDriver)
+#define IOCFG_AF6_PP        IO_CONFIG(IfxPort_Mode_outputPushPullAlt6       , DEFAULT_IfxPort_PadDriver)
+#define IOCFG_AF7_PP        IO_CONFIG(IfxPort_Mode_outputPushPullAlt7       , DEFAULT_IfxPort_PadDriver)
+
+#define IOCFG_AF2_OD        IO_CONFIG(IfxPort_Mode_outputOpenDrainAlt2      , DEFAULT_IfxPort_PadDriver)
+#define IOCFG_AF3_OD        IO_CONFIG(IfxPort_Mode_outputOpenDrainAlt3      , DEFAULT_IfxPort_PadDriver)
+#define IOCFG_AF4_OD        IO_CONFIG(IfxPort_Mode_outputOpenDrainAlt4      , DEFAULT_IfxPort_PadDriver)
+#define IOCFG_AF5_OD        IO_CONFIG(IfxPort_Mode_outputOpenDrainAlt5      , DEFAULT_IfxPort_PadDriver)
+#define IOCFG_AF6_OD        IO_CONFIG(IfxPort_Mode_outputOpenDrainAlt6      , DEFAULT_IfxPort_PadDriver)
+#define IOCFG_AF7_OD        IO_CONFIG(IfxPort_Mode_outputOpenDrainAlt7      , DEFAULT_IfxPort_PadDriver)
+
+//names of the ports used by some CLI commands
+const char * IO_GPIOPortName(IO_t io);
+
 #elif defined(UNIT_TEST) || defined(SITL_BUILD)
 
 # define IOCFG_OUT_PP         0

@@ -4,7 +4,15 @@
 
 // IO pin identification
 // make sure that ioTag_t can't be assigned into IO_t without warning
+#if !defined(TC375)
 typedef uint8_t ioTag_t;       // packet tag to specify IO pin
+#else
+//on aurix we need 9 bits minimum:
+//port index needs 5 bits 0 .. 16
+//pin index needs 4 bits: 0 .. 14
+typedef uint16_t ioTag_t; 
+#endif
+    
 typedef void* IO_t;            // type specifying IO pin. Currently ioRec_t pointer, but this may change
 
 // NONE initializer for ioTag_t variables
@@ -25,4 +33,8 @@ typedef void* IO_t;            // type specifying IO pin. Currently ioRec_t poin
 // IOCFG_x macros are defined for common combinations for all CPUs; this
 //  helps masking CPU differences
 
+#if !defined(TC375)
 typedef uint8_t ioConfig_t;  // packed IO configuration
+#else
+typedef uint16_t ioConfig_t;  //for aurix we pack in 16bits, see #define IO_CONFIG()
+#endif

@@ -151,7 +151,11 @@ static bool temperatureSensorValueIsValid(uint8_t temperatureUpdateSensorIndex)
 // returns decidegrees centigrade
 bool getSensorTemperature(uint8_t temperatureUpdateSensorIndex, int16_t *temperature)
 {
+#if defined(__TRICORE__) //aurix can crash from unaligned access
+    memcpy(temperature, &tempSensorValue[temperatureUpdateSensorIndex], sizeof(int16_t));
+#else
     *temperature = tempSensorValue[temperatureUpdateSensorIndex];
+#endif
     return temperatureSensorValueIsValid(temperatureUpdateSensorIndex);
 }
 

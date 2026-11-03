@@ -111,8 +111,15 @@ void blackboxWriteSignedVBArray(int32_t *array, int count)
 
 void blackboxWriteSigned16VBArray(int16_t *array, int count)
 {
+#if defined(__TRICORE__) //aurix can crash from unaligned access
+    int16_t value;
+    for (int i = 0; i < count; i++) {
+        memcpy(&value, &array[i], sizeof(int16_t));
+        blackboxWriteSignedVB((int32_t)value);
+#else
     for (int i = 0; i < count; i++) {
         blackboxWriteSignedVB(array[i]);
+#endif
     }
 }
 

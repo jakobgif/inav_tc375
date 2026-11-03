@@ -107,6 +107,16 @@
     #include "timer_def_stm32h7xx.h"
 #elif defined(AT32F43x)
     #include "timer_def_at32f43x.h"
+#elif defined(TC375)
+//used to make timerHardware_t
+#define DEF_TIM(_timerHandle, _pinMap, _pin, _ioMode, _flags) {   \
+    .tim=(&_timerHandle),    \
+    .triggerOut=(&_pinMap),  \
+    .tag=IO_TAG(_pin),       \
+    .ioMode=(_ioMode),       \
+    .usageFlags=(_flags)     \
+}
+#define timerDMASafeType_t  uint32_t
 #elif defined(SITL_BUILD)
 #else
     #error "Unknown CPU defined"

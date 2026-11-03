@@ -44,7 +44,7 @@ static inline uint8_t __basepriSetMemRetVal(uint8_t prio)
 
 // Run block with elevated BASEPRI (using BASEPRI_MAX), restoring BASEPRI on exit. All exit paths are handled
 // Full memory barrier is placed at start and exit of block
-#ifdef UNIT_TEST
+#if defined(UNIT_TEST) || defined(__TRICORE__)
 #define ATOMIC_BLOCK(prio) {}
 #else
 #define ATOMIC_BLOCK(prio) for ( uint8_t __basepri_save __attribute__((__cleanup__(__basepriRestoreMem))) = __get_BASEPRI(), \

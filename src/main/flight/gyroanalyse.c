@@ -86,7 +86,11 @@ void gyroDataAnalyseStateInit(
         state->hanningWindow[i] = (0.5f - 0.5f * cos_approx(2 * M_PIf * i / (FFT_WINDOW_SIZE - 1)));
     }
 
+#ifdef __TRICORE__
+    state->kissCfg = kiss_fftr_alloc(FFT_WINDOW_SIZE, 0, NULL, NULL);
+#else
     arm_rfft_fast_init_f32(&state->fftInstance, FFT_WINDOW_SIZE);
+#endif
 
     // Frequency filter is executed every 12 cycles. 4 steps per cycle, 3 axises
     const uint32_t filterUpdateUs = targetLooptimeUs * STEP_COUNT * XYZ_AXIS_COUNT;
@@ -131,9 +135,11 @@ void gyroDataAnalyse(gyroAnalyseState_t *state)
     gyroDataAnalyseUpdate(state);
 }
 
+#ifndef __TRICORE__
 void stage_rfft_f32(arm_rfft_fast_instance_f32 *S, float32_t *p, float32_t *pOut);
 void arm_cfft_radix8by4_f32(arm_cfft_instance_f32 *S, float32_t *p1);
 void arm_bitreversal_32(uint32_t *pSrc, const uint16_t bitRevLen, const uint16_t *pBitRevTable);
+#endif
 
 static float computeParabolaMean(gyroAnalyseState_t *state, uint8_t peakBinIndex) {
     float preciseBin = peakBinIndex;
@@ -159,25 +165,41 @@ static float computeParabolaMean(gyroAnalyseState_t *state, uint8_t peakBinIndex
 static NOINLINE void gyroDataAnalyseUpdate(gyroAnalyseState_t *state)
 {
 
+#ifndef __TRICORE__
     arm_cfft_instance_f32 *Sint = &(state->fftInstance.Sint);
+#endif
 
     switch (state->updateStep) {
         case STEP_ARM_CFFT_F32:
         {
+#ifndef __TRICORE__
             // Important this works only with FFT windows size of 64 elements!
             arm_cfft_radix8by4_f32(Sint, state->fftData);
+#endif
             break;
         }
         case STEP_BITREVERSAL_AND_STAGE_RFFT_F32:
         {
+#ifdef __TRICORE__
+            kiss_fftr(state->kissCfg, state->fftData, state->rfftOut);
+#else
             arm_bitreversal_32((uint32_t*) state->fftData, Sint->bitRevLength, Sint->pBitRevTable);
             stage_rfft_f32(&state->fftInstance, state->fftData, state->rfftData);
+#endif
             break;
         }
         case STEP_MAGNITUDE_AND_FREQUENCY:
         {
             // 8us
+#ifdef __TRICORE__
+            for (int i = 0; i < FFT_BIN_COUNT; i++) {
+                float re = state->rfftOut[i].r;
+                float im = state->rfftOut[i].i;
+                state->fftData[i] = sqrtf(re * re + im * im);
+            }
+#else
             arm_cmplx_mag_f32(state->rfftData, state->fftData, FFT_BIN_COUNT);
+#endif
 
             //Zero the data structure
             for (int i = 0; i < DYN_NOTCH_PEAK_COUNT; i++) {
